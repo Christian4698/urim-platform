@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ProviderObservation",
+  "type": "object",
+  "required": [
+    "provider",
+    "provider_event_id",
+    "observed_at",
+    "available_at",
+    "fetched_at",
+    "source_version",
+    "raw_hash",
+    "quality_flags",
+    "data"
+  ],
+  "properties": {
+    "provider": {
+      "type": "string"
+    },
+    "provider_event_id": {
+      "type": "string"
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "available_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "fetched_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_version": {
+      "type": "string"
+    },
+    "raw_hash": {
+      "type": "string"
+    },
+    "quality_flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "data": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": false
+}

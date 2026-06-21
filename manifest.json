@@ -1,0 +1,258 @@
+[
+  {
+    "path": ".agents/skills/agent-messaging/SKILL.md",
+    "bytes": 654
+  },
+  {
+    "path": ".agents/skills/backtesting-audit/SKILL.md",
+    "bytes": 594
+  },
+  {
+    "path": ".agents/skills/calibration-evaluation/SKILL.md",
+    "bytes": 671
+  },
+  {
+    "path": ".agents/skills/data-source-onboarding/SKILL.md",
+    "bytes": 840
+  },
+  {
+    "path": ".agents/skills/feature-engineering/SKILL.md",
+    "bytes": 554
+  },
+  {
+    "path": ".agents/skills/live-match-engine/SKILL.md",
+    "bytes": 591
+  },
+  {
+    "path": ".agents/skills/model-training/SKILL.md",
+    "bytes": 570
+  },
+  {
+    "path": ".agents/skills/no-bet-risk-engine/SKILL.md",
+    "bytes": 570
+  },
+  {
+    "path": ".agents/skills/prediction-release-gate/SKILL.md",
+    "bytes": 600
+  },
+  {
+    "path": ".agents/skills/provider-reconciliation/SKILL.md",
+    "bytes": 615
+  },
+  {
+    "path": ".agents/skills/security-review/SKILL.md",
+    "bytes": 565
+  },
+  {
+    "path": ".agents/skills/temporal-integrity-guard/SKILL.md",
+    "bytes": 665
+  },
+  {
+    "path": ".env.example",
+    "bytes": 274
+  },
+  {
+    "path": "AGENTS.md",
+    "bytes": 1937
+  },
+  {
+    "path": "ARCHITECTURE.md",
+    "bytes": 2375
+  },
+  {
+    "path": "KIT_TREE.md",
+    "bytes": 2498
+  },
+  {
+    "path": "PLANS.md",
+    "bytes": 477
+  },
+  {
+    "path": "QUALITY_SCORE.md",
+    "bytes": 560
+  },
+  {
+    "path": "README.md",
+    "bytes": 1344
+  },
+  {
+    "path": "RELIABILITY.md",
+    "bytes": 540
+  },
+  {
+    "path": "SECURITY.md",
+    "bytes": 512
+  },
+  {
+    "path": "config/provider-registry.example.yaml",
+    "bytes": 663
+  },
+  {
+    "path": "docs/00_PROJECT_CHARTER.md",
+    "bytes": 871
+  },
+  {
+    "path": "docs/01_PRODUCT_SPEC.md",
+    "bytes": 795
+  },
+  {
+    "path": "docs/02_DOMAIN_GLOSSARY.md",
+    "bytes": 837
+  },
+  {
+    "path": "docs/03_SYSTEM_ARCHITECTURE.md",
+    "bytes": 2375
+  },
+  {
+    "path": "docs/04_REAL_DATA_SOURCES.md",
+    "bytes": 1414
+  },
+  {
+    "path": "docs/05_PROVIDER_CONNECTOR_CONTRACT.md",
+    "bytes": 744
+  },
+  {
+    "path": "docs/06_DATA_PROVENANCE.md",
+    "bytes": 756
+  },
+  {
+    "path": "docs/07_TEMPORAL_INTEGRITY.md",
+    "bytes": 802
+  },
+  {
+    "path": "docs/08_CANONICAL_DATA_MODEL.md",
+    "bytes": 546
+  },
+  {
+    "path": "docs/09_FEATURE_STORE.md",
+    "bytes": 506
+  },
+  {
+    "path": "docs/10_MODELING_SPEC.md",
+    "bytes": 823
+  },
+  {
+    "path": "docs/11_BACKTESTING_PROTOCOL.md",
+    "bytes": 536
+  },
+  {
+    "path": "docs/12_CALIBRATION_AND_EVALUATION.md",
+    "bytes": 564
+  },
+  {
+    "path": "docs/13_NO_BET_AND_RISK_ENGINE.md",
+    "bytes": 401
+  },
+  {
+    "path": "docs/14_LIVE_PREDICTION_ENGINE.md",
+    "bytes": 456
+  },
+  {
+    "path": "docs/15_ODDS_AND_VALUE.md",
+    "bytes": 434
+  },
+  {
+    "path": "docs/16_AGENT_MESSAGING_SPEC.md",
+    "bytes": 877
+  },
+  {
+    "path": "docs/17_SECURITY.md",
+    "bytes": 531
+  },
+  {
+    "path": "docs/18_THREAT_MODEL.md",
+    "bytes": 660
+  },
+  {
+    "path": "docs/19_RELIABILITY_AND_OBSERVABILITY.md",
+    "bytes": 552
+  },
+  {
+    "path": "docs/20_TESTING_STRATEGY.md",
+    "bytes": 489
+  },
+  {
+    "path": "docs/21_API_AND_DATABASE_SPEC.md",
+    "bytes": 732
+  },
+  {
+    "path": "docs/22_RESPONSIBLE_USE.md",
+    "bytes": 385
+  },
+  {
+    "path": "docs/23_FAILURE_CATALOG_84.md",
+    "bytes": 11928
+  },
+  {
+    "path": "docs/24_ACCEPTANCE_CRITERIA.md",
+    "bytes": 717
+  },
+  {
+    "path": "docs/25_ROADMAP.md",
+    "bytes": 421
+  },
+  {
+    "path": "docs/26_TOOLS_AND_EXTENSIONS.md",
+    "bytes": 640
+  },
+  {
+    "path": "docs/27_INCIDENT_RESPONSE.md",
+    "bytes": 498
+  },
+  {
+    "path": "docs/28_PROVIDER_ONBOARDING_CHECKLIST.md",
+    "bytes": 511
+  },
+  {
+    "path": "docs/REFERENCES.md",
+    "bytes": 611
+  },
+  {
+    "path": "docs/exec-plans/TECH_DEBT.md",
+    "bytes": 107
+  },
+  {
+    "path": "docs/exec-plans/active/.gitkeep",
+    "bytes": 1
+  },
+  {
+    "path": "docs/exec-plans/completed/.gitkeep",
+    "bytes": 1
+  },
+  {
+    "path": "docs/index.md",
+    "bytes": 950
+  },
+  {
+    "path": "prompts/00_MASTER_CODEX_PROMPT.md",
+    "bytes": 2023
+  },
+  {
+    "path": "prompts/01_PHASE_0_AUDIT_PROMPT.md",
+    "bytes": 515
+  },
+  {
+    "path": "prompts/02_PROVIDER_IMPLEMENTATION_PROMPT.md",
+    "bytes": 554
+  },
+  {
+    "path": "prompts/03_MODEL_AND_BACKTEST_PROMPT.md",
+    "bytes": 557
+  },
+  {
+    "path": "prompts/04_RELEASE_REVIEW_PROMPT.md",
+    "bytes": 399
+  },
+  {
+    "path": "schemas/prediction-envelope.schema.json",
+    "bytes": 1516
+  },
+  {
+    "path": "schemas/provider-observation.schema.json",
+    "bytes": 956
+  },
+  {
+    "path": "tests/README.md",
+    "bytes": 220
+  }
+]

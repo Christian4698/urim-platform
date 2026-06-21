@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PredictionEnvelope",
+  "type": "object",
+  "required": [
+    "prediction_id",
+    "model_version",
+    "feature_snapshot_id",
+    "prediction_time",
+    "mode",
+    "market",
+    "probabilities",
+    "decision",
+    "data_freshness",
+    "immutable_hash"
+  ],
+  "properties": {
+    "prediction_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "model_version": {
+      "type": "string"
+    },
+    "feature_snapshot_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "prediction_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "mode": {
+      "enum": [
+        "PRE_MATCH",
+        "LIVE"
+      ]
+    },
+    "market": {
+      "type": "string"
+    },
+    "probabilities": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "calibration_bucket": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "decision": {
+      "enum": [
+        "ADVICE",
+        "WATCH",
+        "NO_BET",
+        "INSUFFICIENT_DATA",
+        "SUSPENDED"
+      ]
+    },
+    "reasons": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "data_freshness": {
+      "type": "object"
+    },
+    "odds_snapshot_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "immutable_hash": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

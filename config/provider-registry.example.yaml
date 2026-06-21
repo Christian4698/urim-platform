@@ -1,0 +1,25 @@
+providers:
+  api_football:
+    enabled: false
+    environment_variable: API_FOOTBALL_KEY
+    role: primary_or_secondary
+    production_mock_fallback: false
+    capabilities: []
+  sportmonks:
+    enabled: false
+    environment_variable: SPORTMONKS_TOKEN
+    role: primary_or_secondary
+    production_mock_fallback: false
+    capabilities: []
+  football_data:
+    enabled: false
+    environment_variable: FOOTBALL_DATA_TOKEN
+    role: validation_or_fallback
+    production_mock_fallback: false
+    capabilities: []
+  the_odds_api:
+    enabled: false
+    environment_variable: THE_ODDS_API_KEY
+    role: odds
+    production_mock_fallback: false
+    capabilities: []
