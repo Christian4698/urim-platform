@@ -1,0 +1,82 @@
+name: CI — URIM
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── 1. Secrets ──────────────────────────────────────────────────────────────
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── 2. Garde-fou .env ───────────────────────────────────────────────────────
+  env-guard:
+    name: .env absent du dépôt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fail si .env présent
+        run: |
+          if [ -f .env ]; then
+            echo "ERREUR : fichier .env commité. Supprimer et révoquer toutes les clés."
+            exit 1
+          fi
+
+  # ── 3. Validation JSON ──────────────────────────────────────────────────────
+  schema-validate:
+    name: Schémas JSON valides
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Valider schemas/*.json
+        run: |
+          for f in schemas/*.json; do
+            python3 -m json.tool "$f" > /dev/null \
+              || { echo "JSON invalide : $f"; exit 1; }
+          done
+      - name: Valider manifest.json
+        run: python3 -m json.tool manifest.json > /dev/null
+
+  # ── 4. IDs d'erreur dans les PRs ────────────────────────────────────────────
+  pr-error-ids:
+    name: PR mentionne des IDs E001–E084
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Vérifier la présence d'un ID d'erreur
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if ! echo "$PR_BODY" | grep -qE 'E[0-9]{3}'; then
+            echo "ERREUR : la description de PR ne mentionne aucun ID d'erreur (E001–E084)."
+            echo "Règle : docs/23_FAILURE_CATALOG_84.md — toute PR doit indiquer les erreurs prévenues ou risquées."
+            exit 1
+          fi
+
+  # ── 5. Gate temporel (placeholder — activé dès que les tests existent) ──────
+  temporal-gate:
+    name: Temporal integrity gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Vérifier existence de la suite temporelle
+        run: |
+          if [ -d tests/temporal ]; then
+            echo "Suite temporelle détectée — lancement des tests."
+            # python3 -m pytest tests/temporal -x --tb=short
+            echo "TODO : décommenter la commande pytest quand les tests existent."
+          else
+            echo "AVERTISSEMENT : tests/temporal/ absent. Créer la suite avant la mise en production."
+            echo "Référence : docs/07_TEMPORAL_INTEGRITY.md et E005, E029-E031."
+          fi
