@@ -25,6 +25,8 @@ Créer `URIM` avec :
 - `Kairos Stake Guard` et un `NO_BET Engine` ;
 - le statut d'interface `Kairos éveillé` uniquement quand `Kairos Stake Guard` retourne `KAIROS_AWAKENED` ;
 - des fourchettes prudentes `stake_interval_cdf` en `CDF`, jamais des mises fixes ;
+- `Bet Center` avec budget hebdomadaire, solde virtuel, tickets, ROI et résultats utilisateur ;
+- `Post-Match Learning Engine` apprenant seulement depuis des résultats officiels vérifiés ;
 - un ledger immuable ;
 - une API ;
 - `URIM Dashboard` ;
@@ -43,9 +45,11 @@ Les marchés 1X2, totaux de buts, Both Teams To Score, score exact, corners, fau
 - Pas de garantie de 80 %, score exact ou gain.
 - Pas de recommandation forcée.
 - Pas d’exécution de paris dans le MVP.
+- Pas de connexion bookmaker dans le MVP.
 - Pas de martingale.
 - Pas de récupération des pertes.
 - Pas de calcul de mise fondé uniquement sur la probabilité.
+- Pas d'apprentissage direct depuis une déclaration utilisateur non vérifiée.
 - Missing reste missing.
 - Toute source réelle est horodatée et traçable.
 - Distinguer probabilité et confiance : une probabilité élevée n'est pas une garantie, et un `confidence_score` faible peut déclencher `NO_BET`.
@@ -61,7 +65,7 @@ Les marchés 1X2, totaux de buts, Both Teams To Score, score exact, corners, fau
 7. Baselines `Half Goals Intelligence Engine` et walk-forward.
 8. Calibration multiclasses `HALF_GOAL_DOMINANCE` et `Kairos Stake Guard`.
 9. API et ledger.
-10. `URIM Dashboard`, `Bet Center` et messagerie.
+10. `URIM Dashboard`, `Bet Center`, `Post-Match Learning Engine` et messagerie.
 11. Observabilité.
 12. Sécurité et release gate.
 

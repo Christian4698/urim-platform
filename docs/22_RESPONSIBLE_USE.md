@@ -10,6 +10,8 @@
 - Ne jamais utiliser la martingale.
 - Ne jamais conseiller de récupérer les pertes.
 - Ne jamais afficher une mise fixe comme un ordre d'exécution.
+- Ne jamais confondre une sélection utilisateur avec une validation `Kairos`.
+- Ne jamais apprendre d'une déclaration utilisateur non vérifiée comme si elle était officielle.
 - Publier aussi les périodes négatives.
 - Ne jamais effacer les prédictions perdantes.
 

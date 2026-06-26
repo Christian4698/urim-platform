@@ -21,6 +21,8 @@
   "kairos_awakened_label": "Kairos éveillé",
   "currency": "CDF",
   "default_locale": "fr-CD",
+  "primary_language": "fr",
+  "secondary_language": "en",
   "owner": "General Tech Consult"
 }
 ```
@@ -29,7 +31,7 @@
 - `URIM` : application principale.
 - `Kairos` : cerveau analytique principal.
 - `Half Goals Intelligence Engine` : cœur produit principal pour `HALF_GOAL_DOMINANCE`.
-- `Bet Center` : centre de décision et de présentation.
+- `Bet Center` : centre de budget hebdomadaire, tickets, performance et décision utilisateur.
 - `Kairos Stake Guard` : moteur de mise prudente, d'exposition et de protection contre la surmise.
 - `Post-Match Learning Engine` : moteur d'apprentissage post-match.
 - `Corners Intelligence Engine` : module spécialisé corners.
@@ -49,15 +51,17 @@
 4. Scénarios probables.
 5. Facteurs favorables, défavorables et manquants.
 6. `Bet Center` : décision `ADVICE`, `WATCH`, `NO_BET` ou `INSUFFICIENT_DATA`, avec probabilité, confiance, risque et fourchette prudente en `CDF`.
-7. Journal immuable.
-8. Tableau de calibration `Kairos`.
-9. Messagerie des agents.
-10. Santé des fournisseurs.
+7. Budget hebdomadaire, solde virtuel, tickets ouverts et réglés.
+8. Historique : `WON`, `LOST`, `VOID`, `REFUNDED`, profit net et ROI.
+9. Tableau de calibration `Kairos` et retour post-match.
+10. Journal immuable et santé des fournisseurs.
 
 ## Sortie d’une analyse
-Heure, mode, fraîcheur, probabilités complètes, confiance, risque, facteurs, sources, version du modèle, version de `Kairos`, état Kairos, décision de risque, fourchette prudente `stake_interval_cdf` et avertissement responsable.
+Heure, mode, fraîcheur, probabilités complètes, confiance, risque, facteurs, sources, version du modèle, version de `Kairos`, état Kairos, décision de risque, fourchette prudente `stake_interval_cdf`, budget hebdomadaire, solde virtuel, statut ticket et avertissement responsable.
 
 L'interface peut afficher `Kairos éveillé` uniquement si `Kairos Stake Guard` retourne `KAIROS_AWAKENED`. Ce libellé indique un signal analytique fort, jamais un résultat certain.
 
+Le `Bet Center` doit distinguer les sélections `Kairos` et les sélections utilisateur `USER_UNVALIDATED`. Le `Post-Match Learning Engine` apprend uniquement depuis des résultats officiels vérifiés.
+
 ## Hors portée MVP
-Exécution de mise, martingale, récupération des pertes, bankroll réelle imposée, tickets automatiques, promesse de gains et score exact comme produit principal.
+Exécution de mise, martingale, récupération des pertes, connexion à un compte bookmaker, bankroll réelle imposée, tickets automatiques, promesse de gains et score exact comme produit principal.

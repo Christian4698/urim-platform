@@ -97,3 +97,13 @@
 
 ## Règle CI
 Toute pull request doit indiquer les IDs d’erreurs qu’elle prévient ou risque d’introduire.
+
+## Focus Bet Center et Post-Match Learning
+
+Les risques les plus directement concernés par `Bet Center` et `Post-Match Learning Engine` sont :
+- E026 pour l'absence de `NO_BET` ;
+- E041–E062 pour valeur, ROI, exposition et risque financier ;
+- E051, E067, E068, E069, E078, E079 pour l'historique, le ledger et l'interdiction de réécriture ;
+- E055–E059 pour martingale, surmise, corrélation et dimensionnement de mise ;
+- E083 pour toute incitation à récupérer les pertes ;
+- E084 pour les avertissements et limites non expliqués.

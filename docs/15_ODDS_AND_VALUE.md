@@ -22,7 +22,10 @@ Règles :
 - afficher un intervalle, jamais un ordre fixe ;
 - plafond par match : `0.5 %` de `bankroll_cdf` ;
 - exposition journalière maximale : `1.0 %` de `bankroll_cdf` ;
+- exposition hebdomadaire maximale : `2.5 %` de `weekly_budget_cdf` ;
 - fourchette initiale `KAIROS_AWAKENED` : `0.10 %` à `0.30 %` du bankroll ;
 - `WATCH`, `NO_BET`, `INSUFFICIENT_DATA`, `SUSPENDED` ou `KAIROS_LOCKED` affichent `0 CDF`.
 
 La probabilité seule ne suffit jamais à calculer une fourchette.
+
+Dans le `Bet Center`, la valeur attendue, le profit net et le ROI doivent rester segmentés entre tickets `Kairos` et tickets `USER_UNVALIDATED`.

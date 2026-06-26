@@ -24,10 +24,12 @@ URIM/
 │       ├── data-source-onboarding/
 │       ├── feature-engineering/
 │       ├── half-goals-intelligence/
+│       ├── bet-center/
 │       ├── kairos-stake-guard/
 │       ├── live-match-engine/
 │       ├── model-training/
 │       ├── no-bet-risk-engine/
+│       ├── post-match-learning/
 │       ├── prediction-release-gate/
 │       ├── provider-reconciliation/
 │       ├── security-review/
@@ -40,10 +42,12 @@ URIM/
 │       ├── data-source-onboarding/
 │       ├── feature-engineering/
 │       ├── half-goals-intelligence/
+│       ├── bet-center/
 │       ├── kairos-stake-guard/
 │       ├── live-match-engine/
 │       ├── model-training/
 │       ├── no-bet-risk-engine/
+│       ├── post-match-learning/
 │       ├── prediction-release-gate/
 │       ├── provider-reconciliation/
 │       ├── security-review/
@@ -83,13 +87,16 @@ URIM/
 │   ├── 29_HALF_GOALS_INTELLIGENCE_ENGINE.md
 │   ├── 34_URIM_BRANDING_AND_KAIROS_ENGINE.md
 │   ├── 35_KAIROS_STAKE_GUARD.md
+│   ├── 36_BET_CENTER_SPEC.md
+│   ├── 37_POST_MATCH_LEARNING_ENGINE.md
 │   ├── REFERENCES.md
 │   └── exec-plans/
 │       ├── TECH_DEBT.md
 │       ├── active/
 │       │   ├── 000-foundation-plan.md
 │       │   ├── 2026-06-26-half-goals-intelligence-engine.md
-│       │   └── 2026-06-26-urim-branding-kairos-stake-guard.md
+│       │   ├── 2026-06-26-urim-branding-kairos-stake-guard.md
+│       │   └── 2026-06-26-bet-center-post-match-learning.md
 │       └── completed/
 │           └── 2026-06-26-urim-rename-phase.md
 ├── manifest.json

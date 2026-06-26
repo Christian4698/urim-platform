@@ -24,13 +24,21 @@ Retourner `NO_BET`, `INSUFFICIENT_DATA` ou `SUSPENDED` si :
 - `bankroll_cdf` est absent alors qu'une fourchette est demandée ;
 - la mise proposée dépasserait `0.5 %` du bankroll par match ;
 - l'exposition journalière dépasserait `1.0 %` du bankroll ;
-- plus de 3 rencontres sont déjà retenues pour la journée ;
+- l'exposition hebdomadaire dépasserait `2.5 %` du `weekly_budget_cdf` ;
+- plus de 5 sélections Kairos recommandées sont déjà retenues pour la journée ou le ticket ;
 - la fourchette dépend seulement de la probabilité sans cote, confiance, calibration, qualité des données et risque global ;
 - une stratégie de martingale, de récupération des pertes ou de surmise est détectée ;
 - la cote est stale ou absente lorsque la décision dépend du prix ;
 - `confidence_score < 0.70`, `calibration_score < 0.70`, `data_quality_score < 0.75` ou `adjusted_edge < 0.03` pour un statut `KAIROS_AWAKENED`.
 
 Les montants doivent rester des intervalles `stake_interval_cdf`, jamais des ordres fixes.
+
+## Règles Bet Center
+Le `Bet Center` doit :
+- séparer `KAIROS_RECOMMENDED`, `KAIROS_WATCHLIST` et `USER_UNVALIDATED` ;
+- autoriser l'enregistrement de tickets utilisateur sans leur donner le statut de validation `Kairos` ;
+- empêcher tout apprentissage direct à partir d'un ticket utilisateur non vérifié ;
+- bloquer l'affichage d'une fourchette si le budget hebdomadaire ou le solde virtuel ne sont pas cohérents.
 
 ## Règles HALF_GOAL_DOMINANCE
 Pour `HALF_GOAL_DOMINANCE`, retourner `NO_BET` ou `INSUFFICIENT_DATA` si :

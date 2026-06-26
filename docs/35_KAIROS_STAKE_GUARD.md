@@ -43,10 +43,15 @@ L'exposition journalière maximale est `1.0 %` de `bankroll_cdf`.
 
 Si l'exposition restante du jour est insuffisante, `Kairos Stake Guard` retourne `KAIROS_LOCKED`, `NO_BET` ou `SUSPENDED` avec `stake_interval_cdf` à `0 CDF`.
 
-## Nombre maximal de rencontres
-Le nombre maximal recommandé est 3 rencontres par jour.
+## Exposition hebdomadaire
+L'exposition hebdomadaire maximale est `2.5 %` de `weekly_budget_cdf`.
 
-Au-delà, le système doit réduire l'exposition restante ou retourner `NO_BET`, même si chaque match semble individuellement acceptable.
+Si le budget hebdomadaire restant ou le solde virtuel ne permettent plus une exposition prudente, le moteur doit retourner `NO_BET` ou `KAIROS_LOCKED`.
+
+## Nombre maximal de rencontres
+Le nombre maximal recommandé est 5 sélections Kairos par jour et 5 matchs maximum par ticket recommandé.
+
+Au-delà, le système doit réduire l'exposition restante, scinder les tickets ou retourner `NO_BET`, même si chaque match semble individuellement acceptable.
 
 ## Probabilité vs confiance
 La probabilité estime la chance d'un scénario.
@@ -120,9 +125,10 @@ La martingale et toute stratégie de doublement ou de progression de mise après
 
 ## Règles anti-surmise
 - Bloquer si l'exposition journalière dépasse `1.0 %`.
+- Bloquer si l'exposition hebdomadaire dépasse `2.5 %` du budget hebdomadaire.
 - Bloquer si l'exposition par match dépasse `0.5 %`.
 - Réduire ou bloquer les recommandations corrélées.
-- Bloquer si plus de 3 rencontres sont déjà retenues pour la journée.
+- Bloquer si plus de 5 sélections Kairos sont déjà retenues pour la journée ou le ticket.
 - Bloquer si la calibration est insuffisante ou si la confiance est faible.
 - Bloquer si l'utilisateur réduit son bankroll disponible et rend l'exposition excessive.
 
@@ -152,7 +158,9 @@ La martingale et toute stratégie de doublement ou de progression de mise après
   "exposure_limits": {
     "per_match_max_pct": 0.005,
     "daily_max_pct": 0.01,
-    "max_recommended_matches_per_day": 3
+    "weekly_max_pct": 0.025,
+    "max_recommended_matches_per_day": 5,
+    "max_recommended_matches_per_ticket": 5
   },
   "reason_codes": [
     "KAIROS_AWAKENED",
@@ -182,6 +190,8 @@ Toute décision `ADVICE` ou `WATCH` affichée dans `URIM Dashboard` ou `Bet Cent
 - `URIM n'exécute aucun pari réel dans le MVP.`
 
 Les périodes de résultats négatifs doivent être publiées et visibles. Les prédictions perdantes ne peuvent jamais être supprimées ou masquées (E067, E068, E078).
+
+Ces avertissements s'affichent également si `bankroll_cdf` est absent — l'absence de budget déclaré ne désactive pas les messages de prudence (E084).
 
 ## Limites et avertissements
 

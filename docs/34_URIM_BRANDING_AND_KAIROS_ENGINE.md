@@ -113,3 +113,5 @@ Cet exemple est illustratif et ne doit jamais être présenté comme une prédic
 - Une probabilité élevée ne suffit jamais à afficher une fourchette de mise.
 - Une confiance élevée ne garantit pas le résultat.
 - Les montants en `CDF` restent des intervalles prudents, pas des instructions d'exécution.
+
+Voir `docs/35_KAIROS_STAKE_GUARD.md` pour la spécification complète des seuils, intervalles en `CDF`, règles anti-martingale, anti-surmise, avertissements responsables et erreurs E couvertes.

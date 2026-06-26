@@ -72,7 +72,7 @@ Schémas canoniques : `schemas/prediction-envelope.schema.json` et `schemas/prov
 
 ## Skills Claude Code
 
-Les 14 skills sont dans `.claude/skills/`. Ils sont une copie de `.agents/skills/` (source canonique Codex).
+Les 16 skills sont dans `.claude/skills/`. Ils sont une copie de `.agents/skills/` (source canonique Codex).
 
 **Règle de synchronisation** : toute modification d'un `SKILL.md` doit être appliquée dans les deux répertoires lors du même commit.
 
@@ -81,6 +81,7 @@ Les 14 skills sont dans `.claude/skills/`. Ils sont une copie de `.agents/skills
 | `agent-messaging` | Messagerie interne des agents |
 | `backtesting-audit` | Backtest reproductible chronologique |
 | `calibration-evaluation` | Calibration probabiliste et métriques |
+| `bet-center` | Budget hebdomadaire, tickets et performance |
 | `data-source-onboarding` | Intégration fournisseur réel |
 | `feature-engineering` | Features versionnées sans fuite |
 | `half-goals-intelligence` | Marché principal HALF_GOAL_DOMINANCE |
@@ -88,6 +89,7 @@ Les 14 skills sont dans `.claude/skills/`. Ils sont une copie de `.agents/skills
 | `live-match-engine` | Événements live et latence |
 | `model-training` | Entraînement et sélection de modèles |
 | `no-bet-risk-engine` | Règles ADVICE / WATCH / NO_BET |
+| `post-match-learning` | Vérification officielle et apprentissage post-match |
 | `prediction-release-gate` | Gate de livraison staging/production |
 | `provider-reconciliation` | Réconciliation multi-fournisseurs |
 | `security-review` | Audit sécurité et conformité |
