@@ -72,7 +72,7 @@ Schémas canoniques : `schemas/prediction-envelope.schema.json` et `schemas/prov
 
 ## Skills Claude Code
 
-Les 12 skills sont dans `.claude/skills/`. Ils sont une copie de `.agents/skills/` (source canonique Codex).
+Les 14 skills sont dans `.claude/skills/`. Ils sont une copie de `.agents/skills/` (source canonique Codex).
 
 **Règle de synchronisation** : toute modification d'un `SKILL.md` doit être appliquée dans les deux répertoires lors du même commit.
 
@@ -83,6 +83,8 @@ Les 12 skills sont dans `.claude/skills/`. Ils sont une copie de `.agents/skills
 | `calibration-evaluation` | Calibration probabiliste et métriques |
 | `data-source-onboarding` | Intégration fournisseur réel |
 | `feature-engineering` | Features versionnées sans fuite |
+| `half-goals-intelligence` | Marché principal HALF_GOAL_DOMINANCE |
+| `kairos-stake-guard` | Fourchettes CDF, exposition et anti-martingale |
 | `live-match-engine` | Événements live et latence |
 | `model-training` | Entraînement et sélection de modèles |
 | `no-bet-risk-engine` | Règles ADVICE / WATCH / NO_BET |

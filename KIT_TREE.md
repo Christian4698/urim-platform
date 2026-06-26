@@ -24,6 +24,7 @@ URIM/
 │       ├── data-source-onboarding/
 │       ├── feature-engineering/
 │       ├── half-goals-intelligence/
+│       ├── kairos-stake-guard/
 │       ├── live-match-engine/
 │       ├── model-training/
 │       ├── no-bet-risk-engine/
@@ -39,6 +40,7 @@ URIM/
 │       ├── data-source-onboarding/
 │       ├── feature-engineering/
 │       ├── half-goals-intelligence/
+│       ├── kairos-stake-guard/
 │       ├── live-match-engine/
 │       ├── model-training/
 │       ├── no-bet-risk-engine/
@@ -79,12 +81,15 @@ URIM/
 │   ├── 27_INCIDENT_RESPONSE.md
 │   ├── 28_PROVIDER_ONBOARDING_CHECKLIST.md
 │   ├── 29_HALF_GOALS_INTELLIGENCE_ENGINE.md
+│   ├── 34_URIM_BRANDING_AND_KAIROS_ENGINE.md
+│   ├── 35_KAIROS_STAKE_GUARD.md
 │   ├── REFERENCES.md
 │   └── exec-plans/
 │       ├── TECH_DEBT.md
 │       ├── active/
 │       │   ├── 000-foundation-plan.md
-│       │   └── 2026-06-26-half-goals-intelligence-engine.md
+│       │   ├── 2026-06-26-half-goals-intelligence-engine.md
+│       │   └── 2026-06-26-urim-branding-kairos-stake-guard.md
 │       └── completed/
 │           └── 2026-06-26-urim-rename-phase.md
 ├── manifest.json

@@ -42,10 +42,12 @@ Une classe peut avoir la probabilité la plus élevée avec une confiance faible
 - Statut du match, reports, prolongations et annulations.
 - Compétition, saison, équipe domicile, équipe extérieure et lieu.
 - Historique par mi-temps des équipes et adversaires.
-- Cotes horodatées du marché si disponibles, uniquement `as_of prediction_time`.
+- Cotes horodatées du marché si disponibles, uniquement `as_of prediction_time`. La marge bookmaker doit être retirée avant toute comparaison avec les probabilités du modèle (E046).
 - Lineups, blessures, suspensions et contexte tactique seulement si disponibles avant `prediction_time`.
 - Météo, repos, calendrier et déplacement lorsque couverts par des sources réelles.
 - Provenance complète : `provider`, `provider_event_id`, `observed_at`, `fetched_at`, `available_at`, `source_version`, `quality_flags`, `raw_hash`.
+
+Voir `docs/04_REAL_DATA_SOURCES.md` pour la liste des fournisseurs couvrant les scores mi-temps et les minutes de buts. Voir `docs/28_PROVIDER_ONBOARDING_CHECKLIST.md` avant toute intégration d'un nouveau fournisseur.
 
 ## Features spécifiques
 - Moyenne de buts 1H et 2H par équipe, domicile/extérieur.
@@ -60,6 +62,8 @@ Une classe peut avoir la probabilité la plus élevée avec une confiance faible
 - Indicateurs de missing explicites, jamais remplacés silencieusement par zéro.
 
 Toutes les features doivent être calculées `AS OF prediction_time`.
+
+Les statistiques cumulées par mi-temps (moyennes de buts 1H/2H, ratios, tendances, force offensive et défensive) excluent systématiquement le match cible pour prévenir E039.
 
 ## Méthode statistique
 Le modèle de base estime deux distributions de buts :
@@ -83,6 +87,12 @@ Le modèle Poisson par mi-temps est la baseline minimale.
 La Negative Binomial est autorisée si la surdispersion est démontrée hors échantillon, par compétition ou segment. Elle ne doit être retenue que si elle améliore Brier, log loss, calibration et stabilité walk-forward.
 
 Les variantes plus complexes doivent rester secondaires tant qu'elles ne battent pas les baselines.
+
+## Hypothèse d'indépendance G1H / G2H
+
+Le modèle de base suppose `G1H` et `G2H` indépendants. Cette hypothèse peut être violée : une équipe qui mène à la mi-temps change souvent de stratégie, ce qui corrèle négativement les buts des deux périodes.
+
+Avant de retenir un modèle à distributions indépendantes, il est obligatoire de tester cette hypothèse par compétition, saison et contexte de score. Si la corrélation est significative, préférer une modélisation jointe ou documenter la borne d'erreur induite (E020). Le résultat du test doit figurer dans la documentation du modèle et être reproductible hors échantillon.
 
 ## Distribution de différence de buts
 La distribution de `D = G1H - G2H` est le cœur du marché.
@@ -124,10 +134,23 @@ Rapports requis :
 - log loss multiclasses ;
 - ECE/MCE par classe ;
 - reliability diagram par classe ;
-- taille des buckets et intervalles ;
+- taille des buckets et intervalles : minimum `n ≥ 30` observations par bucket pour une courbe de calibration valide (E040) ;
 - segmentation par compétition, saison, marché, domicile/extérieur et confiance.
 
 Une calibration globale ne suffit pas si une classe est mal calibrée.
+
+## Classe minoritaire EQUAL_HALF_GOALS
+
+`EQUAL_HALF_GOALS` est historiquement la classe la plus rare dans la plupart des compétitions. Un modèle Poisson standard peut la sous-estimer systématiquement.
+
+Exigences :
+
+- Mesurer la fréquence historique de `EQUAL_HALF_GOALS` par compétition et segment avant tout entraînement.
+- Si la fréquence observée est inférieure à `10 %` sur le segment, documenter le risque de biais et évaluer une loss function class-weighted (E016, E017).
+- Exiger un volume minimum de `n ≥ 50` matchs avec résultat `EQUAL_HALF_GOALS` par segment de calibration avant de produire des probabilités fiables pour cette classe.
+- Si ce volume n'est pas atteint, la classe `EQUAL_HALF_GOALS` doit porter un flag `LOW_COVERAGE` et le `confidence_score` doit être réduit.
+- En dessous de `n = 20` matchs `EQUAL_HALF_GOALS` sur le segment, retourner `INSUFFICIENT_DATA`.
+- La Negative Binomial ou un modèle joint peut mieux capturer la masse centrale `D = 0` ; évaluer ce gain sur Brier et ECE avant de retenir le modèle (E016).
 
 ## Confidence score
 `confidence_score` est un score de fiabilité, pas une probabilité de victoire du scénario.
@@ -172,7 +195,8 @@ Retourner `NO_BET` ou `INSUFFICIENT_DATA` si :
 - `confidence_score` sous le seuil validé ;
 - observation utilisée avec `available_at > prediction_time` ;
 - cotes manquantes ou stale lorsque la décision dépend du prix ;
-- changement de régime non couvert : entraîneur, effectif, format de compétition ou règle de match.
+- changement de régime non couvert : entraîneur, effectif, format de compétition ou règle de match ;
+- volume `EQUAL_HALF_GOALS` insuffisant sur le segment (`n < 20`) — retourner `INSUFFICIENT_DATA` avec reason code `INSUFFICIENT_HALF_TIME_HISTORY`.
 
 ## Exemple JSON
 ```json

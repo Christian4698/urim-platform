@@ -23,6 +23,8 @@ Créer `URIM` avec :
 - un feature store temporel ;
 - des modèles probabilistes calibrés ;
 - `Kairos Stake Guard` et un `NO_BET Engine` ;
+- le statut d'interface `Kairos éveillé` uniquement quand `Kairos Stake Guard` retourne `KAIROS_AWAKENED` ;
+- des fourchettes prudentes `stake_interval_cdf` en `CDF`, jamais des mises fixes ;
 - un ledger immuable ;
 - une API ;
 - `URIM Dashboard` ;
@@ -41,9 +43,13 @@ Les marchés 1X2, totaux de buts, Both Teams To Score, score exact, corners, fau
 - Pas de garantie de 80 %, score exact ou gain.
 - Pas de recommandation forcée.
 - Pas d’exécution de paris dans le MVP.
+- Pas de martingale.
+- Pas de récupération des pertes.
+- Pas de calcul de mise fondé uniquement sur la probabilité.
 - Missing reste missing.
 - Toute source réelle est horodatée et traçable.
 - Distinguer probabilité et confiance : une probabilité élevée n'est pas une garantie, et un `confidence_score` faible peut déclencher `NO_BET`.
+- Afficher les montants en `CDF` sous forme d'intervalles prudents, jamais comme ordre fixe.
 
 ## Phases
 1. Gouvernance et contrats.
