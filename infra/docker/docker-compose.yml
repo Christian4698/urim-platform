@@ -1,0 +1,35 @@
+name: urim-local
+
+# Local development only. Do not use this compose file for production secrets.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: urim-postgres
+    environment:
+      POSTGRES_DB: urim_local
+      POSTGRES_USER: urim
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-urim_local_only}
+    ports:
+      - "5432:5432"
+    volumes:
+      - urim-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U urim -d urim_local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: urim-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  urim-postgres-data:

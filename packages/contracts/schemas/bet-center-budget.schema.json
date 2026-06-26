@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BetCenterBudget",
+  "type": "object",
+  "required": [
+    "budget_id",
+    "currency",
+    "amount",
+    "real_betting_enabled"
+  ],
+  "properties": {
+    "budget_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "currency": {
+      "type": "string",
+      "default": "CDF"
+    },
+    "amount": {
+      "type": "number",
+      "minimum": 0
+    },
+    "real_betting_enabled": {
+      "type": "boolean",
+      "const": false
+    }
+  },
+  "additionalProperties": false
+}

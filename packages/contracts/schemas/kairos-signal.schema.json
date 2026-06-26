@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "KairosSignal",
+  "type": "object",
+  "required": [
+    "signal_id",
+    "engine_name",
+    "status",
+    "decision",
+    "created_at",
+    "reasons",
+    "data_freshness"
+  ],
+  "properties": {
+    "signal_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "engine_name": {
+      "const": "Kairos"
+    },
+    "status": {
+      "enum": [
+        "KAIROS_SLEEPING",
+        "KAIROS_ATTENTIVE",
+        "KAIROS_AWAKE",
+        "KAIROS_LOCKED"
+      ]
+    },
+    "decision": {
+      "enum": ["ADVICE", "WATCH", "NO_BET", "INSUFFICIENT_DATA", "SUSPENDED"]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reasons": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "data_freshness": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": false
+}

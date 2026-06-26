@@ -1,0 +1,15 @@
+{
+  "name": "urim",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "api:dev": "cd apps/api && uv run uvicorn app.main:app --reload",
+    "api:test": "cd apps/api && uv run pytest",
+    "contracts:validate": "pnpm --filter @urim/contracts validate",
+    "web:build": "pnpm --filter @urim/web build",
+    "web:dev": "pnpm --filter @urim/web dev",
+    "web:lint": "pnpm --filter @urim/web lint",
+    "web:typecheck": "pnpm --filter @urim/web typecheck"
+  }
+}

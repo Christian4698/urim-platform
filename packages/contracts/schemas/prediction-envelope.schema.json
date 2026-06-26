@@ -34,10 +34,7 @@
       "format": "date-time"
     },
     "mode": {
-      "enum": [
-        "PRE_MATCH",
-        "LIVE"
-      ]
+      "enum": ["PRE_MATCH", "LIVE"]
     },
     "market": {
       "type": "string"
@@ -51,19 +48,10 @@
       }
     },
     "calibration_bucket": {
-      "type": [
-        "string",
-        "null"
-      ]
+      "type": ["string", "null"]
     },
     "decision": {
-      "enum": [
-        "ADVICE",
-        "WATCH",
-        "NO_BET",
-        "INSUFFICIENT_DATA",
-        "SUSPENDED"
-      ]
+      "enum": ["ADVICE", "WATCH", "NO_BET", "INSUFFICIENT_DATA", "SUSPENDED"]
     },
     "reasons": {
       "type": "array",
@@ -75,10 +63,7 @@
       "type": "object"
     },
     "odds_snapshot_id": {
-      "type": [
-        "string",
-        "null"
-      ]
+      "type": ["string", "null"]
     },
     "immutable_hash": {
       "type": "string"

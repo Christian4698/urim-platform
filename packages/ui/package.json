@@ -1,0 +1,16 @@
+{
+  "name": "@urim/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.tsx"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1"
+  },
+  "types": "./src/index.tsx",
+  "devDependencies": {
+    "@types/react": "^18.3.18"
+  }
+}

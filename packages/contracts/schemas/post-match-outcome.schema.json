@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PostMatchOutcome",
+  "type": "object",
+  "required": [
+    "outcome_id",
+    "provider",
+    "provider_event_id",
+    "observed_at",
+    "fetched_at",
+    "available_at",
+    "source_version",
+    "quality_flags",
+    "raw_hash"
+  ],
+  "properties": {
+    "outcome_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "provider_event_id": {
+      "type": "string"
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "fetched_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "available_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_version": {
+      "type": "string"
+    },
+    "quality_flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "raw_hash": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,3 +1,7 @@
+# Phase 1 note:
+# This is a future provider-onboarding example only. All providers remain
+# disabled and no provider secrets should be configured during the URIM app
+# skeleton phase.
 providers:
   api_football:
     enabled: false

@@ -1,0 +1,23 @@
+import type { Metadata } from "next";
+import { appConfig } from "@urim/config";
+import { AppShell } from "../components/app-shell";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: `${appConfig.appName} — Dashboard`,
+  description: `${appConfig.appName}, dashboard Phase 1 du moteur ${appConfig.engineName}.`
+};
+
+export default function RootLayout({
+  children
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang={appConfig.defaultLocale}>
+      <body>
+        <AppShell>{children}</AppShell>
+      </body>
+    </html>
+  );
+}

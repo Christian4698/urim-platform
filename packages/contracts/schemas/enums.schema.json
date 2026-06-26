@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UrimEnums",
+  "type": "object",
+  "properties": {
+    "kairos_status": {
+      "enum": [
+        "KAIROS_SLEEPING",
+        "KAIROS_ATTENTIVE",
+        "KAIROS_AWAKE",
+        "KAIROS_LOCKED"
+      ]
+    },
+    "decision": {
+      "enum": ["NO_BET", "INSUFFICIENT_DATA", "ADVICE", "WATCH", "SUSPENDED"]
+    }
+  },
+  "additionalProperties": false
+}

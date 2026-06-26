@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StakeRange",
+  "type": "object",
+  "required": [
+    "currency",
+    "min_stake",
+    "max_stake",
+    "decision",
+    "real_betting_enabled"
+  ],
+  "properties": {
+    "currency": {
+      "type": "string",
+      "default": "CDF"
+    },
+    "min_stake": {
+      "type": "number",
+      "minimum": 0
+    },
+    "max_stake": {
+      "type": "number",
+      "minimum": 0
+    },
+    "decision": {
+      "enum": ["ADVICE", "WATCH", "NO_BET", "INSUFFICIENT_DATA", "SUSPENDED"]
+    },
+    "real_betting_enabled": {
+      "type": "boolean",
+      "const": false
+    }
+  },
+  "additionalProperties": false
+}
