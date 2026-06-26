@@ -1,6 +1,6 @@
-# Prompt — Audit initial
+# Prompt — Audit initial URIM
 
-Lis le kit documentaire et audite le dépôt sans implémenter de fonctionnalité.
+Lis le kit documentaire de `URIM` et audite le dépôt sans implémenter de fonctionnalité.
 
 Livre :
 - arborescence ;

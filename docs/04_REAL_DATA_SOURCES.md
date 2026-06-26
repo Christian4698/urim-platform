@@ -1,4 +1,6 @@
-# Sources de données réelles
+# Sources de données réelles pour URIM
+
+Ces sources alimentent `URIM` via `Kairos` et ne changent pas la politique de données réelles du projet.
 
 | Fournisseur | Usage possible | Statut conseillé |
 |---|---|---|

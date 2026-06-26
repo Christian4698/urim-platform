@@ -1,6 +1,6 @@
 # Prompt maître à envoyer à Codex
 
-Tu travailles dans un dépôt destiné à créer un bot d’intelligence et d’analyse prédictive sportive reposant exclusivement sur des données réelles en production.
+Tu travailles dans un dépôt destiné à créer `URIM`, une application d’intelligence et d’analyse prédictive sportive reposant exclusivement sur des données réelles en production. Son cerveau analytique est `Kairos`.
 
 ## Première obligation
 Avant d’écrire du code :
@@ -13,18 +13,23 @@ Avant d’écrire du code :
 7. Indique les outils et extensions nécessaires. Pour la phase documentaire, précise qu’aucune extension supplémentaire n’est obligatoire.
 
 ## But
-Créer :
-- un moteur pré-match ;
+Créer `URIM` avec :
+- `Kairos` comme moteur pré-match ;
+- `Half Goals Intelligence Engine` comme cœur produit principal ;
+- `HALF_GOAL_DOMINANCE` comme marché principal, avec `FIRST_HALF_MORE_GOALS`, `SECOND_HALF_MORE_GOALS` et `EQUAL_HALF_GOALS` calculés ensemble et normalisés à 100 % ;
 - plus tard un moteur live séparé ;
 - une couche multi-fournisseurs dynamique ;
 - une base canonique avec provenance par champ ;
 - un feature store temporel ;
 - des modèles probabilistes calibrés ;
-- un moteur NO_BET ;
+- `Kairos Stake Guard` et un `NO_BET Engine` ;
 - un ledger immuable ;
 - une API ;
-- un dashboard ;
+- `URIM Dashboard` ;
+- `Bet Center` ;
 - une messagerie entre agents spécialisés.
+
+Les marchés 1X2, totaux de buts, Both Teams To Score, score exact, corners, fautes et cartons restent secondaires tant qu'ils ne renforcent pas le cœur `HALF_GOAL_DOMINANCE`.
 
 ## Contraintes absolues
 - Pas de donnée illustrative en production.
@@ -38,6 +43,7 @@ Créer :
 - Pas d’exécution de paris dans le MVP.
 - Missing reste missing.
 - Toute source réelle est horodatée et traçable.
+- Distinguer probabilité et confiance : une probabilité élevée n'est pas une garantie, et un `confidence_score` faible peut déclencher `NO_BET`.
 
 ## Phases
 1. Gouvernance et contrats.
@@ -46,10 +52,10 @@ Créer :
 4. Premier connecteur réel.
 5. Second connecteur et réconciliation.
 6. Snapshots temporels.
-7. Baselines et walk-forward.
-8. Calibration et NO_BET.
+7. Baselines `Half Goals Intelligence Engine` et walk-forward.
+8. Calibration multiclasses `HALF_GOAL_DOMINANCE` et `Kairos Stake Guard`.
 9. API et ledger.
-10. Dashboard et messagerie.
+10. `URIM Dashboard`, `Bet Center` et messagerie.
 11. Observabilité.
 12. Sécurité et release gate.
 

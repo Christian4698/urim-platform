@@ -1,4 +1,4 @@
-# Architecture — Vue d’ensemble
+# Architecture — Vue d’ensemble URIM
 
 ```text
 Fournisseurs réels
@@ -34,12 +34,12 @@ Feature Store        Live Event Stream
           │               │
           └──────┬────────┘
                  ▼
-Prediction Platform
+Kairos
   ├─ Pré-match
   ├─ Live
   ├─ Calibration
   ├─ Scenario simulation
-  ├─ No-Bet / Risk
+  ├─ Kairos Stake Guard / NO_BET Engine
   └─ Explanation
                  │
                  ▼
@@ -50,8 +50,22 @@ Immutable Prediction Ledger
 API utilisateur      Messagerie des agents
           │                │
           ▼                ▼
-Dashboard / Chat     Audit / alertes / décisions
+URIM Dashboard / Bet Center     Audit / alertes / décisions
 ```
+
+## Nomenclature officielle
+- Application : `URIM`
+- Cerveau analytique : `Kairos`
+- Dashboard : `URIM Dashboard`
+- Centre de mise : `Bet Center`
+- Moteur prudent : `Kairos Stake Guard`
+
+## Modules nommés
+- `Half Goals Intelligence Engine`
+- `Post-Match Learning Engine`
+- `Corners Intelligence Engine`
+- `Fouls & Cards Intelligence Engine`
+- `NO_BET Engine`
 
 ## Découpage recommandé
 - `apps/web` : interface Next.js.

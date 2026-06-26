@@ -1,7 +1,16 @@
-# AGENTS.md — Carte d’instructions Codex
+# AGENTS.md — Carte d’instructions Codex pour URIM
 
 ## Mission
-Construire un système d’intelligence sportive probabiliste, traçable, sécurisé et explicable. Il ne promet jamais un résultat garanti.
+Construire URIM, un système d’intelligence sportive probabiliste, traçable, sécurisé et explicable. Son cerveau analytique est Kairos. Il ne promet jamais un résultat garanti.
+
+## Nomenclature officielle
+- Application : `URIM`
+- Nom court produit : `Urim`
+- Cerveau analytique / moteur technique : `Kairos`
+- Dashboard : `URIM Dashboard`
+- Centre de mise : `Bet Center`
+- Moteur de mise prudente : `Kairos Stake Guard`
+- Propriétaire / créateur possible : `General Tech Consult` / `GTC`
 
 ## Ordre de lecture obligatoire
 1. `docs/index.md`

@@ -1,4 +1,4 @@
-# Prompt — Release review
+# Prompt — Release review URIM / Kairos
 
 Active `prediction-release-gate` et `security-review`.
 

@@ -1,4 +1,6 @@
-# QUALITY_SCORE.md
+# QUALITY_SCORE.md — URIM
+
+Grille de score qualité pour `URIM` et `Kairos`.
 
 | Domaine | Poids |
 |---|---:|

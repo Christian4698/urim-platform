@@ -1,6 +1,15 @@
-# Sports Intelligence Bot — Codex Blueprint
+# URIM — Codex Blueprint
 
-Kit de conception et de gouvernance pour construire un bot d’analyse prédictive sportive fondé sur des données réelles, horodatées et traçables.
+Kit de conception et de gouvernance pour construire URIM, une application d’analyse prédictive sportive fondée sur des données réelles, horodatées et traçables.
+
+## Nomenclature officielle
+- Application : `URIM`
+- Nom court produit : `Urim`
+- Cerveau analytique : `Kairos`
+- Dashboard : `URIM Dashboard`
+- Centre de mise : `Bet Center`
+- Moteur de mise prudente : `Kairos Stake Guard`
+- Propriétaire / créateur possible : `General Tech Consult` / `GTC`
 
 ## Objectifs
 - Produire des probabilités et des scénarios, jamais des certitudes.
@@ -9,7 +18,7 @@ Kit de conception et de gouvernance pour construire un bot d’analyse prédicti
 - Conserver un snapshot immuable de chaque prédiction.
 - Comparer les modèles au marché et aux baselines, pas seulement au taux de réussite.
 - Connecter plusieurs fournisseurs via une couche canonique.
-- Fournir une messagerie simple entre agents spécialisés.
+- Alimenter `URIM Dashboard`, `Bet Center` et une messagerie simple entre agents spécialisés via `Kairos`.
 
 ## Démarrage avec Codex
 1. Copier ce dossier à la racine du dépôt cible.

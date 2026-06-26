@@ -1,4 +1,4 @@
-# Catalogue des 84 erreurs et failles
+# Catalogue des 84 erreurs et failles — URIM / Kairos
 
 ## Erreur ultime
 

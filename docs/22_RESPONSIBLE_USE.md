@@ -1,4 +1,4 @@
-# Usage responsable
+# Usage responsable de URIM
 
 - Probabilités ≠ garanties.
 - Ne pas employer « sûr », « garanti », « sans risque ».
@@ -8,3 +8,5 @@
 - Aucun placement automatique dans le MVP.
 - Publier aussi les périodes négatives.
 - Ne jamais effacer les prédictions perdantes.
+
+`URIM`, `Kairos`, `URIM Dashboard` et `Bet Center` doivent conserver ce langage responsable dans toutes les interfaces.

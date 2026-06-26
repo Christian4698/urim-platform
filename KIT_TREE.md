@@ -1,7 +1,7 @@
-# Arborescence du kit
+# Arborescence du kit URIM
 
 ```text
-sports-intelligence-codex-blueprint/
+URIM/
 ├── AGENTS.md
 ├── ARCHITECTURE.md
 ├── PLANS.md

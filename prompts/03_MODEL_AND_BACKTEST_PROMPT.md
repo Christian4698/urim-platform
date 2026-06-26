@@ -1,4 +1,4 @@
-# Prompt — Modèle et backtest
+# Prompt — Modèle et backtest Kairos
 
 Active `temporal-integrity-guard`, `feature-engineering`, `model-training`, `backtesting-audit`, `calibration-evaluation`.
 

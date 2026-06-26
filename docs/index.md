@@ -1,4 +1,13 @@
-# Index documentaire
+# Index documentaire URIM
+
+## Nomenclature officielle
+- Application : `URIM`
+- Nom court produit : `Urim`
+- Cerveau analytique : `Kairos`
+- Dashboard : `URIM Dashboard`
+- Centre de mise : `Bet Center`
+- Moteur de mise prudente : `Kairos Stake Guard`
+- Propriétaire / créateur possible : `General Tech Consult` / `GTC`
 
 ## Fondations
 - `00_PROJECT_CHARTER.md`
@@ -21,6 +30,7 @@
 - `13_NO_BET_AND_RISK_ENGINE.md`
 - `14_LIVE_PREDICTION_ENGINE.md`
 - `15_ODDS_AND_VALUE.md`
+- `29_HALF_GOALS_INTELLIGENCE_ENGINE.md`
 
 ## Produit et agents
 - `16_AGENT_MESSAGING_SPEC.md`

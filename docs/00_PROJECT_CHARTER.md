@@ -1,7 +1,7 @@
 # Charte du projet
 
 ## Vision
-Créer un moteur d’intelligence sportive qui transforme des données réelles en probabilités, scénarios et explications vérifiables.
+Créer URIM, une application d’intelligence sportive dont le cerveau analytique Kairos transforme des données réelles en probabilités, scénarios et explications vérifiables.
 
 ## Promesse autorisée
 - Estimer des probabilités.
