@@ -1,20 +1,26 @@
 # Usage responsable de URIM
 
-- Probabilités ≠ garanties.
-- Ne pas employer « sûr », « garanti », « sans risque ».
+- Probabilites != garanties.
+- Ne pas employer "sur", "garanti", "sans risque".
 - Ne pas cibler les mineurs.
-- Permettre la désactivation des contenus de pari.
-- Séparer analyse sportive et incitation financière.
+- Permettre la desactivation des contenus de pari.
+- Separer analyse sportive et incitation financiere.
 - Aucun placement automatique dans le MVP.
-- Ne jamais présenter une fourchette de mise comme une garantie.
+- Ne jamais connecter un compte bookmaker dans le MVP.
+- Ne jamais executer une mise reelle.
+- Ne jamais presenter une fourchette de mise comme une garantie.
 - Ne jamais utiliser la martingale.
-- Ne jamais conseiller de récupérer les pertes.
-- Ne jamais afficher une mise fixe comme un ordre d'exécution.
-- Ne jamais confondre une sélection utilisateur avec une validation `Kairos`.
-- Ne jamais apprendre d'une déclaration utilisateur non vérifiée comme si elle était officielle.
-- Publier aussi les périodes négatives.
-- Ne jamais effacer les prédictions perdantes.
+- Ne jamais conseiller de recuperer les pertes.
+- Ne jamais afficher une mise fixe comme un ordre d'execution.
+- Ne jamais confondre une selection utilisateur avec une validation `Kairos`.
+- Ne jamais apprendre d'une declaration utilisateur non verifiee comme si elle etait officielle.
+- Ne jamais laisser un fallback mock remplacer silencieusement une donnee reelle.
+- Ne jamais promouvoir une model card ou data card qui masque ses limites.
+- Publier aussi les periodes negatives.
+- Ne jamais effacer les predictions perdantes.
 
 `URIM`, `Kairos`, `URIM Dashboard` et `Bet Center` doivent conserver ce langage responsable dans toutes les interfaces.
 
-`Kairos éveillé` est un statut d'interface indiquant un signal analytique fort. Il ne doit jamais être présenté comme une certitude, un gain attendu ou une obligation de mise.
+`Kairos eveille` est un statut d'interface indiquant un signal analytique fort. Il ne doit jamais etre presente comme une certitude, un gain attendu ou une obligation de mise.
+
+`Responsible Betting Guard` applique ces regles sur les contenus de pari, les intervalles `CDF`, la desactivation des contenus betting, les alertes de risque et les statuts `NO_BET` / `INSUFFICIENT_DATA`.

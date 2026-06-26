@@ -7,7 +7,7 @@
 - Dashboard : `URIM Dashboard`
 - Centre de mise : `Bet Center`
 - Moteur de mise prudente : `Kairos Stake Guard`
-- Propriétaire / créateur possible : `General Tech Consult` / `GTC`
+- Proprietaire / createur possible : `General Tech Consult` / `GTC`
 
 ## Fondations
 - `00_PROJECT_CHARTER.md`
@@ -15,15 +15,18 @@
 - `02_DOMAIN_GLOSSARY.md`
 - `03_SYSTEM_ARCHITECTURE.md`
 
-## Données
+## Donnees
 - `04_REAL_DATA_SOURCES.md`
 - `05_PROVIDER_CONNECTOR_CONTRACT.md`
 - `06_DATA_PROVENANCE.md`
 - `07_TEMPORAL_INTEGRITY.md`
 - `08_CANONICAL_DATA_MODEL.md`
 - `09_FEATURE_STORE.md`
+- `38_PROVIDER_CAPABILITY_MATRIX.md`
+- `40_DATA_QUALITY_GATE.md`
+- `44_DATA_CARD_TEMPLATE.md`
 
-## Modèles et décisions
+## Modeles et decisions
 - `10_MODELING_SPEC.md`
 - `11_BACKTESTING_PROTOCOL.md`
 - `12_CALIBRATION_AND_EVALUATION.md`
@@ -33,6 +36,8 @@
 - `29_HALF_GOALS_INTELLIGENCE_ENGINE.md`
 - `35_KAIROS_STAKE_GUARD.md`
 - `37_POST_MATCH_LEARNING_ENGINE.md`
+- `39_OFFICIAL_RESULT_VERIFIER.md`
+- `43_MODEL_CARD_TEMPLATE.md`
 
 ## Produit et agents
 - `16_AGENT_MESSAGING_SPEC.md`
@@ -44,8 +49,11 @@
 - `22_RESPONSIBLE_USE.md`
 - `34_URIM_BRANDING_AND_KAIROS_ENGINE.md`
 - `36_BET_CENTER_SPEC.md`
+- `45_DEV_SETUP.md`
+- `41_LOCALE_CURRENCY_I18N.md`
+- `42_RESPONSIBLE_BETTING_GUARD.md`
 
-## Contrôle
+## Controle
 - `23_FAILURE_CATALOG_84.md`
 - `24_ACCEPTANCE_CRITERIA.md`
 - `25_ROADMAP.md`

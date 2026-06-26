@@ -1,8 +1,8 @@
-# CLAUDE.md — Instructions Claude Code pour URIM
+# CLAUDE.md - Instructions Claude Code pour URIM
 
 ## Lecture obligatoire avant toute action
 
-1. `AGENTS.md` — règles Codex, valides aussi pour Claude Code
+1. `AGENTS.md` - regles Codex, valides aussi pour Claude Code
 2. `docs/index.md`
 3. `docs/00_PROJECT_CHARTER.md`
 4. `docs/03_SYSTEM_ARCHITECTURE.md`
@@ -16,7 +16,7 @@
 
 ## Nomenclature officielle
 
-| Rôle | Nom |
+| Role | Nom |
 |---|---|
 | Application | `URIM` |
 | Nom court | `Urim` |
@@ -24,81 +24,106 @@
 | Dashboard | `URIM Dashboard` |
 | Centre de mise | `Bet Center` |
 | Moteur prudent | `Kairos Stake Guard` |
-| Organisation propriétaire | `General Tech Consult` / `GTC` |
+| Organisation proprietaire | `General Tech Consult` / `GTC` |
 
-`GTC` ne désigne jamais le produit — uniquement l'organisation créatrice.
+`GTC` ne designe jamais le produit, uniquement l'organisation creatrice.
 
 ## Interdictions absolues
 
-- Ne jamais utiliser une information future pour une prédiction passée.
-- Ne jamais présenter un mock, une donnée seedée ou une valeur par défaut comme réelle.
-- Ne jamais exposer une clé API au frontend, dans les logs ou dans Git.
-- Ne jamais modifier rétroactivement une prédiction publiée.
-- Ne jamais garantir 80 %, un score exact ou un bénéfice.
+- Ne jamais utiliser une information future pour une prediction passee.
+- Ne jamais presenter un mock, une donnee seedee ou une valeur par defaut comme reelle.
+- Ne jamais exposer une cle API au frontend, dans les logs ou dans Git.
+- Ne jamais modifier retroactivement une prediction publiee.
+- Ne jamais garantir 80 %, un score exact ou un benefice.
 - Ne jamais forcer un conseil : retourner `NO_BET` ou `INSUFFICIENT_DATA`.
-- Ne jamais mélanger pré-match, live et post-match.
-- Ne jamais exécuter un pari ou gérer une mise réelle dans le MVP.
-- Ne jamais connecter un fournisseur réel avant que les cinq prérequis CI soient verts.
+- Ne jamais melanger pre-match, live et post-match.
+- Ne jamais executer un pari ou gerer une mise reelle dans le MVP.
+- Ne jamais connecter un fournisseur reel avant que les prerequis CI soient verts.
+- Ne jamais connecter un compte bookmaker dans le MVP.
 
 ## Contrats obligatoires
 
-Toute **observation** doit porter :
+Toute observation doit porter :
 `provider`, `provider_event_id`, `observed_at`, `fetched_at`, `available_at`, `source_version`, `quality_flags`, `raw_hash`.
 
-Toute **prédiction** doit porter :
+Toute prediction doit porter :
 `prediction_id`, `model_version`, `feature_snapshot_id`, `prediction_time`, `market`, `probabilities`, `calibration_bucket`, `decision`, `reasons`, `data_freshness`, `odds_snapshot_id`, `immutable_hash`.
 
-Schémas canoniques : `schemas/prediction-envelope.schema.json` et `schemas/provider-observation.schema.json`.
+Schemas canoniques : `schemas/prediction-envelope.schema.json` et `schemas/provider-observation.schema.json`.
 
 ## Definition of Done
 
-- Plan créé dans `docs/exec-plans/active/` avant tout changement non trivial (modèle dans `PLANS.md`).
+- Plan cree dans `docs/exec-plans/active/` avant tout changement non trivial.
 - Tests : unit, contract, integration, temporal, property, e2e, security, load, model-regression.
-- Lint, types et scan de sécurité réussis (CI vert).
+- Lint, types et scan de securite reussis.
 - `ALLOW_TEST_FIXTURES=false` et `ALLOW_PRODUCTION_MOCKS=false` en production.
-- Provenance vérifiable par champ.
-- Aucun secret commité (scan CI bloquant).
-- Documentation et `docs/index.md` mis à jour.
-- IDs E001–E084 concernés documentés dans la description de PR.
-- Plan déplacé dans `docs/exec-plans/completed/` à la fin.
+- Provenance verifiable par champ.
+- Aucun secret commite.
+- Documentation et `docs/index.md` mis a jour.
+- IDs E001-E084 concernes documentes dans la description de PR.
+- Plan deplace dans `docs/exec-plans/completed/` a la fin.
 
-## Prérequis avant connexion d'un fournisseur réel
+## Prerequis avant connexion d'un fournisseur reel
 
-1. `.gitignore` commité et `.env` absent du dépôt.
-2. Secret manager configuré — pas de clés dans `.env` local ou CI non chiffré.
-3. Registre fournisseur réel (`config/provider-registry.yaml`, pas `.example`).
+1. `.gitignore` commite et `.env` absent du depot.
+2. Secret manager configure, pas de cles dans `.env` local ou CI non chiffre.
+3. Registre fournisseur reel (`config/provider-registry.yaml`, pas `.example`).
 4. Tests de contrat verts.
-5. CI avec `temporal` suite bloquante.
+5. CI avec suite temporelle bloquante.
+6. `Data Quality Gate` actif.
+7. Provider capability matrix validee.
+
+## Stack recommandee
+
+- Frontend : `Next.js + React + TypeScript`.
+- Backend intelligence : `FastAPI + Python`.
+- Base principale : `PostgreSQL/Supabase` avec `RLS`.
+- Cache et rate limit : `Redis`.
+- Taches MVP : `Celery`.
+- Validation schemas : `Pydantic`.
+- Baselines/calibration : `scikit-learn`.
+- Tracking et registry : `MLflow`.
+- Data quality : `Great Expectations`.
+- Observabilite : `OpenTelemetry + Sentry`.
+- CI/CD et secrets : `GitHub Actions + GitHub Secrets`.
+- Differes : `TimescaleDB`, `Temporal`, live engine avance, `Sportradar` enterprise.
 
 ## Skills Claude Code
 
-Les 16 skills sont dans `.claude/skills/`. Ils sont une copie de `.agents/skills/` (source canonique Codex).
+Les 22 skills sont dans `.claude/skills/`. Ils sont une copie de `.agents/skills/` (source canonique Codex).
 
-**Règle de synchronisation** : toute modification d'un `SKILL.md` doit être appliquée dans les deux répertoires lors du même commit.
+Regle de synchronisation : toute modification d'un `SKILL.md` doit etre appliquee dans les deux repertoires lors du meme commit.
 
 | Skill | Domaine |
 |---|---|
 | `agent-messaging` | Messagerie interne des agents |
 | `backtesting-audit` | Backtest reproductible chronologique |
-| `calibration-evaluation` | Calibration probabiliste et métriques |
 | `bet-center` | Budget hebdomadaire, tickets et performance |
-| `data-source-onboarding` | Intégration fournisseur réel |
-| `feature-engineering` | Features versionnées sans fuite |
-| `half-goals-intelligence` | Marché principal HALF_GOAL_DOMINANCE |
+| `calibration-evaluation` | Calibration probabiliste et metriques |
+| `data-quality-gate` | Validation data quality et blocages |
+| `data-source-onboarding` | Integration fournisseur reel |
+| `feature-engineering` | Features versionnees sans fuite |
+| `half-goals-intelligence` | Marche principal HALF_GOAL_DOMINANCE |
 | `kairos-stake-guard` | Fourchettes CDF, exposition et anti-martingale |
-| `live-match-engine` | Événements live et latence |
-| `model-training` | Entraînement et sélection de modèles |
-| `no-bet-risk-engine` | Règles ADVICE / WATCH / NO_BET |
-| `post-match-learning` | Vérification officielle et apprentissage post-match |
+| `live-match-engine` | Evenements live et latence |
+| `locale-currency-i18n` | Locale `fr-CD`, devise `CDF`, i18n |
+| `model-data-card` | Model cards et data cards |
+| `model-training` | Entrainement et selection de modeles |
+| `no-bet-risk-engine` | Regles ADVICE / WATCH / NO_BET |
+| `official-result-verifier` | Verification officielle post-match |
+| `post-match-learning` | Verification officielle et apprentissage post-match |
 | `prediction-release-gate` | Gate de livraison staging/production |
-| `provider-reconciliation` | Réconciliation multi-fournisseurs |
-| `security-review` | Audit sécurité et conformité |
-| `temporal-integrity-guard` | Détection de data leakage |
+| `provider-capability-matrix` | Capacites et statuts providers |
+| `provider-reconciliation` | Reconciliation multi-fournisseurs |
+| `responsible-betting-guard` | Guard responsable betting |
+| `security-review` | Audit securite et conformite |
+| `temporal-integrity-guard` | Detection de data leakage |
 
-## Erreurs de référence rapide
+## Erreurs de reference rapide
 
-- **Bloquants temporels** : E005, E029, E030, E031, E037, E038, E039
-- **Clés API** : E074
-- **NO_BET obligatoire** : E026
-- **Ledger immuable** : E067, E068
-- **Données fictives** : E001–E004, E071
+- Bloquants temporels : E005, E029, E030, E031, E037, E038, E039
+- Cles API : E074
+- NO_BET obligatoire : E026
+- Ledger immuable : E067, E068
+- Donnees fictives : E001-E004, E071
+- Betting responsable : E075-E084

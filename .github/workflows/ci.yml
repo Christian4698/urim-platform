@@ -64,19 +64,115 @@ jobs:
             exit 1
           fi
 
-  # ── 5. Gate temporel (placeholder — activé dès que les tests existent) ──────
-  temporal-gate:
-    name: Temporal integrity gate
+  # ── 5. Lint Python ──────────────────────────────────────────────────────────
+  lint-python:
+    name: Lint Python (ruff + mypy)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Vérifier existence de la suite temporelle
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Installer les dépendances de lint
+        run: pip install ruff mypy
+      - name: ruff
         run: |
-          if [ -d tests/temporal ]; then
-            echo "Suite temporelle détectée — lancement des tests."
-            # python3 -m pytest tests/temporal -x --tb=short
-            echo "TODO : décommenter la commande pytest quand les tests existent."
+          if find . -name "*.py" -not -path "./.venv/*" | grep -q .; then
+            ruff check . --select=E,W,F,I --ignore=E501
           else
-            echo "AVERTISSEMENT : tests/temporal/ absent. Créer la suite avant la mise en production."
-            echo "Référence : docs/07_TEMPORAL_INTEGRITY.md et E005, E029-E031."
+            echo "Aucun fichier Python trouvé — lint ignoré."
           fi
+      - name: mypy
+        run: |
+          if find . -name "*.py" -not -path "./.venv/*" | grep -q .; then
+            mypy --ignore-missing-imports --python-version 3.12 .
+          else
+            echo "Aucun fichier Python trouvé — mypy ignoré."
+          fi
+
+  # ── 6. Audit dépendances Python ─────────────────────────────────────────────
+  dep-audit-python:
+    name: pip-audit (vulnérabilités Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Installer pip-audit
+        run: pip install pip-audit
+      - name: Auditer les dépendances
+        run: |
+          if [ -f requirements.lock ]; then
+            pip-audit -r requirements.lock --strict
+          elif [ -f requirements.txt ]; then
+            pip-audit -r requirements.txt --strict
+          else
+            echo "Aucun fichier de dépendances Python — audit ignoré (créer requirements.lock)."
+          fi
+
+  # ── 7. Audit dépendances frontend ───────────────────────────────────────────
+  dep-audit-frontend:
+    name: npm audit (vulnérabilités frontend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Auditer les dépendances npm
+        run: |
+          if [ -f apps/web/package.json ]; then
+            cd apps/web
+            npm ci --prefer-offline
+            npm audit --audit-level=high
+          else
+            echo "apps/web/package.json absent — audit npm ignoré."
+          fi
+
+  # ── 8. Scan image Docker ────────────────────────────────────────────────────
+  image-scan:
+    name: Trivy image scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          severity: "HIGH,CRITICAL"
+          exit-code: "1"
+          ignore-unfixed: true
+
+  # ── 9. Gate temporelle (BLOQUANTE) ──────────────────────────────────────────
+  temporal-gate:
+    name: Temporal integrity gate (E005, E029-E031, E037-E039)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Installer pytest
+        run: pip install pytest pytest-asyncio
+      - name: Installer les dépendances projet (si présentes)
+        run: |
+          if [ -f requirements.lock ]; then
+            pip install -r requirements.lock
+          elif [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+      - name: Vérifier que la suite temporelle existe
+        run: |
+          if [ ! -d tests/temporal ]; then
+            echo "ERREUR BLOQUANTE : tests/temporal/ est absent."
+            echo "La suite temporelle (E005, E029-E031, E037-E039) doit exister avant toute merge."
+            echo "Référence : docs/07_TEMPORAL_INTEGRITY.md"
+            exit 1
+          fi
+      - name: Exécuter les tests temporels (fail-fast)
+        run: pytest tests/temporal -x --tb=short -v
+        env:
+          ALLOW_TEST_FIXTURES: "true"
+          ALLOW_PRODUCTION_MOCKS: "false"
