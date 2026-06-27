@@ -1,11 +1,12 @@
 from fastapi import FastAPI
 
-from app.core.config import settings
+from app.core.constants import PHASE_LIVE_ENABLED, PHASE_REAL_BETTING_ENABLED
 
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "no-referrer",
+    "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
 }
 
 
@@ -19,18 +20,19 @@ def add_security_headers(app: FastAPI) -> None:
         return response
 
 
-def phase_three_security_assertions() -> dict[str, bool]:
+def phase_four_security_assertions() -> dict[str, bool]:
     """Expose non-secret safety switches for smoke tests and future gates."""
     return {
         "providers_disabled": True,
         "bookmakers_disabled": True,
         "ml_disabled": True,
-        "live_disabled": not settings.enable_live,
-        "real_betting_disabled": not settings.enable_real_betting,
+        "live_disabled": not PHASE_LIVE_ENABLED,
+        "real_betting_disabled": not PHASE_REAL_BETTING_ENABLED,
         "prediction_creation_disabled": True,
-        "production_mocks_disabled": not settings.allow_production_mocks,
+        "production_mocks_disabled": True,
     }
 
 
+phase_three_security_assertions = phase_four_security_assertions
 phase_two_security_assertions = phase_three_security_assertions
 phase_one_security_assertions = phase_two_security_assertions

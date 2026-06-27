@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
-from app.core.constants import VIRTUAL_INTERNAL
+from app.core.constants import PHASE_LIVE_ENABLED, PHASE_REAL_BETTING_ENABLED, VIRTUAL_INTERNAL
 from app.schemas.common import ApiMetadata
 
 
@@ -34,8 +34,8 @@ def disabled_capabilities() -> CapabilityStatus:
         api_football_connected=False,
         bookmakers_enabled=False,
         ml_enabled=False,
-        live_enabled=False,
-        real_betting_enabled=False,
+        live_enabled=PHASE_LIVE_ENABLED,
+        real_betting_enabled=PHASE_REAL_BETTING_ENABLED,
         bet_center_mode=VIRTUAL_INTERNAL,
         prediction_creation_enabled=False,
         production_mocks_enabled=False,

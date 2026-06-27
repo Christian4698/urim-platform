@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "urim-api"
 version = "0.1.0"
-description = "URIM Phase 2 FastAPI API for the Kairos database foundation."
+description = "URIM Phase 4 FastAPI API/security hardening for the Kairos engine."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

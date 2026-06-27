@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from app.core.security import SECURITY_HEADERS, phase_three_security_assertions
+from app.core.security import SECURITY_HEADERS, phase_four_security_assertions
 from app.main import app
 
 
@@ -15,14 +15,14 @@ def test_health_endpoint() -> None:
         "status": "ok",
         "app_name": "URIM",
         "engine_name": "Kairos",
-        "phase": "phase-3-api-foundation",
+        "phase": "phase-4-security-api-hardening",
     }
 
     for header_name, header_value in SECURITY_HEADERS.items():
         assert response.headers[header_name] == header_value
 
 
-def test_version_endpoint_exposes_phase_three_flags() -> None:
+def test_version_endpoint_exposes_phase_four_safety_overrides() -> None:
     response = client.get("/version")
 
     assert response.status_code == 200
@@ -41,16 +41,16 @@ def test_readiness_endpoint_has_no_required_real_dependencies() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["ready"] is True
-    assert payload["phase"] == "phase-3-api-foundation"
-    assert payload["dependencies"]["redis"] == "not_required_phase_3"
-    assert payload["dependencies"]["sports_providers"] == "disabled_phase_3"
-    assert payload["dependencies"]["bookmakers"] == "disabled_phase_3"
-    assert payload["dependencies"]["ml_models"] == "disabled_phase_3"
-    assert payload["dependencies"]["prediction_creation"] == "disabled_phase_3"
+    assert payload["phase"] == "phase-4-security-api-hardening"
+    assert payload["dependencies"]["redis"] == "not_required_phase_4"
+    assert payload["dependencies"]["sports_providers"] == "disabled_phase_4"
+    assert payload["dependencies"]["bookmakers"] == "disabled_phase_4"
+    assert payload["dependencies"]["ml_models"] == "disabled_phase_4"
+    assert payload["dependencies"]["prediction_creation"] == "disabled_phase_4"
 
 
-def test_phase_three_security_assertions() -> None:
-    assert phase_three_security_assertions() == {
+def test_phase_four_security_assertions() -> None:
+    assert phase_four_security_assertions() == {
         "providers_disabled": True,
         "bookmakers_disabled": True,
         "ml_disabled": True,

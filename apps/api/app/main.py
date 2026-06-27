@@ -2,7 +2,12 @@ from fastapi import FastAPI
 
 from app.api.v1.router import include_api_v1
 from app.core.config import settings
-from app.core.constants import API_PHASE, DISABLED_PHASE_3
+from app.core.constants import (
+    API_PHASE,
+    DISABLED_PHASE_4,
+    PHASE_LIVE_ENABLED,
+    PHASE_REAL_BETTING_ENABLED,
+)
 from app.core.security import add_security_headers
 from app.db.session import get_database_status
 from app.schemas.health import HealthResponse, ReadinessResponse, VersionResponse
@@ -10,7 +15,7 @@ from app.schemas.health import HealthResponse, ReadinessResponse, VersionRespons
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="URIM Phase 3 API foundation for the Kairos engine.",
+    description="URIM Phase 4 security/API hardening for the Kairos engine.",
     openapi_tags=[
         {"name": "system", "description": "Health, readiness and capabilities."},
         {"name": "fixtures", "description": "Read-only fixture skeletons for future phases."},
@@ -43,8 +48,8 @@ def version() -> VersionResponse:
         version=settings.app_version,
         default_locale=settings.default_locale,
         default_currency=settings.default_currency,
-        live_enabled=False,
-        real_betting_enabled=False,
+        live_enabled=PHASE_LIVE_ENABLED,
+        real_betting_enabled=PHASE_REAL_BETTING_ENABLED,
     )
 
 
@@ -55,12 +60,12 @@ def readiness() -> ReadinessResponse:
         phase=API_PHASE,
         dependencies={
             "database": get_database_status(),
-            "redis": "not_required_phase_3",
-            "sports_providers": DISABLED_PHASE_3,
-            "bookmakers": DISABLED_PHASE_3,
-            "ml_models": DISABLED_PHASE_3,
-            "live": DISABLED_PHASE_3,
-            "real_betting": DISABLED_PHASE_3,
-            "prediction_creation": DISABLED_PHASE_3,
+            "redis": "not_required_phase_4",
+            "sports_providers": DISABLED_PHASE_4,
+            "bookmakers": DISABLED_PHASE_4,
+            "ml_models": DISABLED_PHASE_4,
+            "live": DISABLED_PHASE_4,
+            "real_betting": DISABLED_PHASE_4,
+            "prediction_creation": DISABLED_PHASE_4,
         },
     )
