@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.sql.naming import conv
 
 metadata = sa.MetaData(
     naming_convention={
@@ -60,7 +61,7 @@ app_users = sa.Table(
     created_at(),
     updated_at(),
     deleted_at(),
-    sa.CheckConstraint("currency = 'CDF'", name="app_users_currency_cdf"),
+    sa.CheckConstraint("currency = 'CDF'", name=conv("ck_app_users_currency_cdf")),
     sa.UniqueConstraint("external_subject", name="uq_app_users_external_subject"),
     sa.UniqueConstraint("email", name="uq_app_users_email"),
 )
@@ -77,9 +78,9 @@ bankrolls = sa.Table(
     created_at(),
     updated_at(),
     deleted_at(),
-    sa.CheckConstraint("currency = 'CDF'", name="bankrolls_currency_cdf"),
-    sa.CheckConstraint("virtual_balance >= 0", name="bankrolls_virtual_balance_non_negative"),
-    sa.CheckConstraint("real_betting_enabled = false", name="bankrolls_real_betting_disabled"),
+    sa.CheckConstraint("currency = 'CDF'", name=conv("ck_bankrolls_currency_cdf")),
+    sa.CheckConstraint("virtual_balance >= 0", name=conv("ck_bankrolls_virtual_balance_non_negative")),
+    sa.CheckConstraint("real_betting_enabled = false", name=conv("ck_bankrolls_real_betting_disabled")),
 )
 
 bet_center_budgets = sa.Table(
@@ -96,10 +97,13 @@ bet_center_budgets = sa.Table(
     created_at(),
     updated_at(),
     deleted_at(),
-    sa.CheckConstraint("currency = 'CDF'", name="bet_center_budgets_currency_cdf"),
-    sa.CheckConstraint("amount >= 0", name="bet_center_budgets_amount_non_negative"),
-    sa.CheckConstraint("period_end IS NULL OR period_start IS NULL OR period_end >= period_start", name="bet_center_budgets_period_order"),
-    sa.CheckConstraint("real_betting_enabled = false", name="bet_center_budgets_real_betting_disabled"),
+    sa.CheckConstraint("currency = 'CDF'", name=conv("ck_bet_center_budgets_currency_cdf")),
+    sa.CheckConstraint("amount >= 0", name=conv("ck_bet_center_budgets_amount_non_negative")),
+    sa.CheckConstraint(
+        "period_end IS NULL OR period_start IS NULL OR period_end >= period_start",
+        name=conv("ck_bet_center_budgets_period_order"),
+    ),
+    sa.CheckConstraint("real_betting_enabled = false", name=conv("ck_bet_center_budgets_real_betting_disabled")),
 )
 
 providers = sa.Table(
@@ -113,7 +117,7 @@ providers = sa.Table(
     jsonb_col("metadata"),
     created_at(),
     updated_at(),
-    sa.CheckConstraint("production_mock_fallback = false", name="providers_no_production_mock_fallback"),
+    sa.CheckConstraint("production_mock_fallback = false", name=conv("ck_providers_no_production_mock_fallback")),
     sa.UniqueConstraint("provider_key", name="uq_providers_provider_key"),
 )
 
@@ -171,8 +175,8 @@ tickets = sa.Table(
     created_at(),
     updated_at(),
     deleted_at(),
-    sa.CheckConstraint("currency = 'CDF'", name="tickets_currency_cdf"),
-    sa.CheckConstraint("is_real_bet = false", name="tickets_not_real_bet"),
+    sa.CheckConstraint("currency = 'CDF'", name=conv("ck_tickets_currency_cdf")),
+    sa.CheckConstraint("is_real_bet = false", name=conv("ck_tickets_not_real_bet")),
 )
 
 entity_mappings = sa.Table(
@@ -188,8 +192,8 @@ entity_mappings = sa.Table(
     sa.Column("confidence", sa.Numeric(5, 4), nullable=False, server_default="1"),
     jsonb_col("metadata"),
     created_at(),
-    sa.CheckConstraint("valid_to IS NULL OR valid_to >= valid_from", name="entity_mappings_validity_order"),
-    sa.CheckConstraint("confidence >= 0 AND confidence <= 1", name="entity_mappings_confidence_range"),
+    sa.CheckConstraint("valid_to IS NULL OR valid_to >= valid_from", name=conv("ck_entity_mappings_validity_order")),
+    sa.CheckConstraint("confidence >= 0 AND confidence <= 1", name=conv("ck_entity_mappings_confidence_range")),
     sa.UniqueConstraint("provider_id", "provider_entity_type", "provider_entity_id", "valid_from", name="uq_entity_mappings_provider_entity_valid_from"),
 )
 
@@ -225,7 +229,10 @@ provider_observations = sa.Table(
     jsonb_col("quality_flags", default="'[]'::jsonb"),
     jsonb_col("data"),
     created_at(),
-    sa.CheckConstraint("observed_at <= available_at AND available_at <= fetched_at", name="provider_observations_temporal_order"),
+    sa.CheckConstraint(
+        "observed_at <= available_at AND available_at <= fetched_at",
+        name=conv("ck_provider_observations_temporal_order"),
+    ),
 )
 
 feature_snapshots = sa.Table(
@@ -241,7 +248,7 @@ feature_snapshots = sa.Table(
     jsonb_col("features"),
     sa.Column("immutable_hash", sa.String(length=128), nullable=False),
     created_at(),
-    sa.CheckConstraint("max_available_at <= as_of", name="feature_snapshots_available_as_of"),
+    sa.CheckConstraint("max_available_at <= as_of", name=conv("ck_feature_snapshots_available_as_of")),
     sa.UniqueConstraint("feature_hash", name="uq_feature_snapshots_feature_hash"),
     sa.UniqueConstraint("immutable_hash", name="uq_feature_snapshots_immutable_hash"),
 )
@@ -264,7 +271,10 @@ predictions = sa.Table(
     sa.Column("odds_snapshot_id", postgresql.UUID(as_uuid=True), nullable=True),
     sa.Column("immutable_hash", sa.String(length=128), nullable=False),
     created_at(),
-    sa.CheckConstraint("decision IN ('ADVICE', 'WATCH', 'NO_BET', 'INSUFFICIENT_DATA', 'SUSPENDED')", name="predictions_decision"),
+    sa.CheckConstraint(
+        "decision IN ('ADVICE', 'WATCH', 'NO_BET', 'INSUFFICIENT_DATA', 'SUSPENDED')",
+        name=conv("ck_predictions_decision"),
+    ),
     sa.UniqueConstraint("prediction_id", name="uq_predictions_prediction_id"),
     sa.UniqueConstraint("immutable_hash", name="uq_predictions_immutable_hash"),
 )
@@ -278,7 +288,7 @@ prediction_versions = sa.Table(
     jsonb_col("prediction_payload"),
     sa.Column("immutable_hash", sa.String(length=128), nullable=False),
     created_at(),
-    sa.CheckConstraint("version_number >= 1", name="prediction_versions_version_positive"),
+    sa.CheckConstraint("version_number >= 1", name=conv("ck_prediction_versions_version_positive")),
     sa.UniqueConstraint("prediction_id", "version_number", name="uq_prediction_versions_prediction_version"),
     sa.UniqueConstraint("immutable_hash", name="uq_prediction_versions_immutable_hash"),
 )
@@ -299,12 +309,24 @@ ticket_selections = sa.Table(
     created_at(),
     updated_at(),
     deleted_at(),
-    sa.CheckConstraint("odds_decimal IS NULL OR odds_decimal > 1", name="ticket_selections_odds_decimal"),
-    sa.CheckConstraint("stake_suggestion_min IS NULL OR stake_suggestion_min >= 0", name="ticket_selections_stake_min_non_negative"),
-    sa.CheckConstraint("stake_suggestion_max IS NULL OR stake_suggestion_max >= 0", name="ticket_selections_stake_max_non_negative"),
-    sa.CheckConstraint("stake_suggestion_min IS NULL OR stake_suggestion_max IS NULL OR stake_suggestion_max >= stake_suggestion_min", name="ticket_selections_stake_order"),
-    sa.CheckConstraint("decision IN ('ADVICE', 'WATCH', 'NO_BET', 'INSUFFICIENT_DATA', 'SUSPENDED')", name="ticket_selections_decision"),
-    sa.CheckConstraint("real_betting_enabled = false", name="ticket_selections_real_betting_disabled"),
+    sa.CheckConstraint("odds_decimal IS NULL OR odds_decimal > 1", name=conv("ck_ticket_selections_odds_decimal")),
+    sa.CheckConstraint(
+        "stake_suggestion_min IS NULL OR stake_suggestion_min >= 0",
+        name=conv("ck_ticket_selections_stake_min_non_negative"),
+    ),
+    sa.CheckConstraint(
+        "stake_suggestion_max IS NULL OR stake_suggestion_max >= 0",
+        name=conv("ck_ticket_selections_stake_max_non_negative"),
+    ),
+    sa.CheckConstraint(
+        "stake_suggestion_min IS NULL OR stake_suggestion_max IS NULL OR stake_suggestion_max >= stake_suggestion_min",
+        name=conv("ck_ticket_selections_stake_order"),
+    ),
+    sa.CheckConstraint(
+        "decision IN ('ADVICE', 'WATCH', 'NO_BET', 'INSUFFICIENT_DATA', 'SUSPENDED')",
+        name=conv("ck_ticket_selections_decision"),
+    ),
+    sa.CheckConstraint("real_betting_enabled = false", name=conv("ck_ticket_selections_real_betting_disabled")),
 )
 
 post_match_outcomes = sa.Table(
@@ -323,7 +345,10 @@ post_match_outcomes = sa.Table(
     sa.Column("raw_hash", sa.String(length=128), nullable=False),
     jsonb_col("outcome_payload"),
     created_at(),
-    sa.CheckConstraint("observed_at <= available_at AND available_at <= fetched_at", name="post_match_outcomes_temporal_order"),
+    sa.CheckConstraint(
+        "observed_at <= available_at AND available_at <= fetched_at",
+        name=conv("ck_post_match_outcomes_temporal_order"),
+    ),
 )
 
 audit_logs = sa.Table(
@@ -353,7 +378,7 @@ incidents = sa.Table(
     jsonb_col("metadata"),
     created_at(),
     updated_at(),
-    sa.CheckConstraint("resolved_at IS NULL OR resolved_at >= opened_at", name="incidents_resolved_after_opened"),
+    sa.CheckConstraint("resolved_at IS NULL OR resolved_at >= opened_at", name=conv("ck_incidents_resolved_after_opened")),
 )
 
 sa.Index("ix_bankrolls_app_user_id", bankrolls.c.app_user_id)

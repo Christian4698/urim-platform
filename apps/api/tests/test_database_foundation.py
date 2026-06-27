@@ -42,6 +42,41 @@ REQUIRED_TABLES = {
     "incidents",
 }
 
+EXPECTED_CHECK_CONSTRAINTS = {
+    "app_users": {"ck_app_users_currency_cdf"},
+    "bankrolls": {
+        "ck_bankrolls_currency_cdf",
+        "ck_bankrolls_real_betting_disabled",
+        "ck_bankrolls_virtual_balance_non_negative",
+    },
+    "bet_center_budgets": {
+        "ck_bet_center_budgets_amount_non_negative",
+        "ck_bet_center_budgets_currency_cdf",
+        "ck_bet_center_budgets_period_order",
+        "ck_bet_center_budgets_real_betting_disabled",
+    },
+    "providers": {"ck_providers_no_production_mock_fallback"},
+    "tickets": {"ck_tickets_currency_cdf", "ck_tickets_not_real_bet"},
+    "entity_mappings": {
+        "ck_entity_mappings_confidence_range",
+        "ck_entity_mappings_validity_order",
+    },
+    "provider_observations": {"ck_provider_observations_temporal_order"},
+    "feature_snapshots": {"ck_feature_snapshots_available_as_of"},
+    "predictions": {"ck_predictions_decision"},
+    "prediction_versions": {"ck_prediction_versions_version_positive"},
+    "ticket_selections": {
+        "ck_ticket_selections_decision",
+        "ck_ticket_selections_odds_decimal",
+        "ck_ticket_selections_real_betting_disabled",
+        "ck_ticket_selections_stake_max_non_negative",
+        "ck_ticket_selections_stake_min_non_negative",
+        "ck_ticket_selections_stake_order",
+    },
+    "post_match_outcomes": {"ck_post_match_outcomes_temporal_order"},
+    "incidents": {"ck_incidents_resolved_after_opened"},
+}
+
 
 def test_alembic_config_loads_initial_revision() -> None:
     config = Config(str(ALEMBIC_INI))
@@ -60,6 +95,16 @@ def test_alembic_config_loads_initial_revision() -> None:
 
 def test_metadata_declares_required_foundation_tables() -> None:
     assert REQUIRED_TABLES.issubset(set(metadata.tables))
+
+
+def test_metadata_check_constraint_names_match_phase_two_migration() -> None:
+    for table_name, expected_names in EXPECTED_CHECK_CONSTRAINTS.items():
+        actual_names = {
+            constraint.name
+            for constraint in metadata.tables[table_name].constraints
+            if isinstance(constraint, sa.CheckConstraint)
+        }
+        assert actual_names == expected_names
 
 
 def test_provider_observation_provenance_columns_exist() -> None:
