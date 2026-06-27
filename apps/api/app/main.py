@@ -1,12 +1,13 @@
 from fastapi import FastAPI
 
 from app.core.config import settings
+from app.db.session import get_database_status
 from app.schemas.health import HealthResponse, ReadinessResponse, VersionResponse
 
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="URIM Phase 1 API skeleton for the Kairos engine.",
+    description="URIM Phase 2 API for the Kairos database foundation.",
 )
 
 
@@ -16,7 +17,7 @@ def health() -> HealthResponse:
         status="ok",
         app_name=settings.app_name,
         engine_name=settings.engine_name,
-        phase="phase-1-app-skeleton",
+        phase="phase-2-database-migrations",
     )
 
 
@@ -37,12 +38,14 @@ def version() -> VersionResponse:
 def readiness() -> ReadinessResponse:
     return ReadinessResponse(
         ready=True,
-        phase="phase-1-app-skeleton",
+        phase="phase-2-database-migrations",
         dependencies={
-            "database": "not_required_phase_1",
-            "redis": "not_required_phase_1",
-            "sports_providers": "disabled_phase_1",
-            "bookmakers": "disabled_phase_1",
-            "ml_models": "disabled_phase_1",
+            "database": get_database_status(),
+            "redis": "not_required_phase_2",
+            "sports_providers": "disabled_phase_2",
+            "bookmakers": "disabled_phase_2",
+            "ml_models": "disabled_phase_2",
+            "live": "disabled_phase_2",
+            "real_betting": "disabled_phase_2",
         },
     )
