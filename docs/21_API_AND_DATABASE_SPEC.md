@@ -1,4 +1,4 @@
-# API et base de données
+# API et base de donnees
 
 ## Endpoints
 `GET /matches`, `GET /matches/{id}`, `POST /analyses`, `GET /predictions/{id}`, `GET /predictions/{id}/provenance`, `GET /models`, `GET /providers/health`, `GET /calibration`, `GET /agent-messages`, `POST /admin/providers/{id}/disable`.
@@ -8,8 +8,15 @@ providers, provider_capabilities, provider_observations, raw_payload_refs, canon
 
 Timestamps UTC, contraintes uniques, foreign keys, append-only et index temporels.
 
-## Phase 3 API foundation
+## Phase 3 API Foundation
 Les endpoints Phase 3 sont limites a une fondation FastAPI versionnee, des statuts systeme et des collections skeleton read-only. Ils ne creent pas de predictions, ne connectent pas de fournisseur, n'exposent aucun bookmaker et n'executent aucune mise reelle.
+
+## Phase 4 API/Security Hardening
+La Phase 4 conserve les endpoints skeleton read-only et ajoute uniquement du hardening API/securite.
+
+Les headers de securite publics incluent une CSP API-first restrictive : `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`. Cette politique peut limiter le rendu des docs interactives; aucun portail docs, auth complete, RBAC complet, session, cookie ou changement CORS n'est ajoute en Phase 4.
+
+`/version` et `/api/v1/system/capabilities` exposent des overrides de securite de phase : `live_enabled=false` et `real_betting_enabled=false` meme si une configuration locale est modifiee. Providers, API-Football, bookmakers, ML, prediction creation, production mocks et production seeds restent desactives.
 
 ## Post-Match Learning
 Le futur Post-Match Learning ne peut apprendre que depuis des resultats officiels verifies dans `post_match_outcomes`.

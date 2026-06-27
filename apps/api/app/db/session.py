@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from threading import RLock
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
@@ -6,8 +7,10 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
 
+_engine_lock = RLock()
 _engine: Engine | None = None
 _engine_url: str | None = None
+_session_factory: sessionmaker[Session] | None = None
 
 
 def is_database_configured() -> bool:
@@ -16,24 +19,38 @@ def is_database_configured() -> bool:
 
 def get_database_status() -> str:
     if not is_database_configured():
-        return "not_configured_phase_3"
-    return "configured_not_checked_phase_3"
+        return "not_configured_phase_4"
+    return "configured_not_checked_phase_4"
 
 
 def get_engine() -> Engine:
-    global _engine, _engine_url
+    engine, _ = _get_engine_and_session_factory()
+    return engine
 
-    if not settings.database_url:
-        raise RuntimeError("DATABASE_URL is required to create a database engine.")
 
-    if _engine is None or _engine_url != settings.database_url:
-        if _engine is not None:
-            _engine.dispose()
-        _engine = create_engine(settings.database_url, pool_pre_ping=True)
-        _engine_url = settings.database_url
-        SessionLocal.configure(bind=_engine)
+def get_session_factory() -> sessionmaker[Session]:
+    _, factory = _get_engine_and_session_factory()
+    return factory
 
-    return _engine
+
+def _get_engine_and_session_factory() -> tuple[Engine, sessionmaker[Session]]:
+    global _engine, _engine_url, _session_factory
+
+    with _engine_lock:
+        database_url = settings.database_url
+        if not database_url:
+            raise RuntimeError("DATABASE_URL is required to create a database engine.")
+
+        if _engine is None or _engine_url != database_url:
+            if _engine is not None:
+                _engine.dispose()
+            _engine = create_engine(database_url, pool_pre_ping=True)
+            _engine_url = database_url
+            _session_factory = sessionmaker(bind=_engine, autoflush=False)
+        elif _session_factory is None:
+            _session_factory = sessionmaker(bind=_engine, autoflush=False)
+
+        return _engine, _session_factory
 
 
 def create_database_engine() -> Engine:
@@ -41,22 +58,17 @@ def create_database_engine() -> Engine:
 
 
 def reset_database_engine() -> None:
-    global _engine, _engine_url
+    global _engine, _engine_url, _session_factory
 
-    if _engine is not None:
-        _engine.dispose()
-    _engine = None
-    _engine_url = None
-    SessionLocal.configure(bind=None)
-
-
-SessionLocal = sessionmaker(autocommit=False, autoflush=False)
+    with _engine_lock:
+        if _engine is not None:
+            _engine.dispose()
+        _engine = None
+        _engine_url = None
+        _session_factory = None
 
 
 def get_db() -> Generator[Session, None, None]:
-    get_engine()
-    db = SessionLocal()
-    try:
+    session_factory = get_session_factory()
+    with session_factory() as db:
         yield db
-    finally:
-        db.close()
