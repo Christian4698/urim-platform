@@ -90,4 +90,4 @@ def test_version_and_capabilities_ignore_dangerous_settings(
     assert capabilities["prediction_creation_enabled"] is False
     assert capabilities["production_mocks_enabled"] is False
     assert capabilities["production_seed_enabled"] is False
-    assert capabilities["bet_center_mode"] == "virtual_internal_phase_3"
+    assert capabilities["bet_center_mode"] == "virtual_internal"

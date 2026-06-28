@@ -16,7 +16,7 @@ def test_system_capabilities_keep_dangerous_features_disabled() -> None:
         "engine_name": "Kairos",
         "locale": "fr-CD",
         "currency": "CDF",
-        "phase": "phase-4-security-api-hardening",
+        "phase": "phase-5-api-runtime-cleanup",
     }
 
     capabilities = payload["capabilities"]
@@ -26,7 +26,7 @@ def test_system_capabilities_keep_dangerous_features_disabled() -> None:
     assert capabilities["ml_enabled"] is False
     assert capabilities["live_enabled"] is False
     assert capabilities["real_betting_enabled"] is False
-    assert capabilities["bet_center_mode"] == "virtual_internal_phase_3"
+    assert capabilities["bet_center_mode"] == "virtual_internal"
     assert capabilities["prediction_creation_enabled"] is False
     assert capabilities["production_mocks_enabled"] is False
     assert capabilities["production_seed_enabled"] is False
@@ -48,9 +48,9 @@ def test_skeleton_collections_are_read_only_and_empty(path: str, resource: str) 
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["metadata"]["phase"] == "phase-4-security-api-hardening"
+    assert payload["metadata"]["phase"] == "phase-5-api-runtime-cleanup"
     assert payload["resource"] == resource
-    assert payload["status"] == "read_only_skeleton_phase_3"
+    assert payload["status"] == "read_only_skeleton"
     assert payload["items"] == []
     assert payload["pagination"] == {"limit": 0, "offset": 0, "total": 0}
     assert payload["safeguards"]
