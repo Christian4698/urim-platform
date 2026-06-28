@@ -10,7 +10,7 @@ def list_post_match_outcomes() -> SkeletonCollectionResponse:
     return empty_collection(
         "post_match_outcomes",
         [
-            "No production sports outcomes are fabricated in Phase 4.",
+            "No production sports outcomes are fabricated in Phase 5.",
             "Future Post-Match Learning must learn only from verified post_match_outcomes.",
         ],
     )

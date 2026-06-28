@@ -18,6 +18,13 @@ Les headers de securite publics incluent une CSP API-first restrictive : `defaul
 
 `/version` et `/api/v1/system/capabilities` exposent des overrides de securite de phase : `live_enabled=false` et `real_betting_enabled=false` meme si une configuration locale est modifiee. Providers, API-Football, bookmakers, ML, prediction creation, production mocks et production seeds restent desactives.
 
+## Phase 5 API Runtime Cleanup
+La Phase 5 conserve les endpoints skeleton read-only et stabilise les statuts runtime publics : `read_only_skeleton`, `virtual_internal`, `disabled` et `not_required`.
+
+La CSP reste stricte et API-first : `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`. Swagger UI ou ReDoc peuvent ne pas se rendre interactifs sous cette politique; aucun portail docs, auth complete, RBAC complet, session, cookie ou changement CORS n'est ajoute en Phase 5.
+
+`/version`, `/readiness` et `/api/v1/system/capabilities` restent coherents : live, real betting, providers, API-Football, bookmakers, ML, prediction creation, production mocks et production seeds sont desactives.
+
 ## Post-Match Learning
 Le futur Post-Match Learning ne peut apprendre que depuis des resultats officiels verifies dans `post_match_outcomes`.
 

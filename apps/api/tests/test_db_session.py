@@ -1,6 +1,8 @@
 from concurrent.futures import ThreadPoolExecutor
+import warnings
 
 import pytest
+from sqlalchemy.exc import SADeprecationWarning, SAWarning
 
 from app.core.config import settings
 from app.db.session import (
@@ -22,7 +24,7 @@ def clean_database_engine() -> None:
 def test_database_status_does_not_open_connection_when_unconfigured(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "database_url", None)
 
-    assert get_database_status() == "not_configured_phase_4"
+    assert get_database_status() == "not_configured"
     with pytest.raises(RuntimeError, match="DATABASE_URL is required"):
         get_engine()
 
@@ -103,3 +105,23 @@ def test_concurrent_get_engine_calls_share_one_singleton(monkeypatch: pytest.Mon
         engine_ids = set(executor.map(lambda _: engine_id(), range(32)))
 
     assert len(engine_ids) == 1
+
+
+def test_session_factory_operations_emit_no_sqlalchemy_warnings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "database_url", "sqlite+pysqlite:///:memory:")
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        engine = get_engine()
+        session_factory = get_session_factory()
+        with session_factory() as db:
+            assert db.get_bind() is engine
+
+    sqlalchemy_warnings = [
+        warning
+        for warning in caught
+        if issubclass(warning.category, (SADeprecationWarning, SAWarning))
+    ]
+    assert sqlalchemy_warnings == []

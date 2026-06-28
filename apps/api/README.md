@@ -2,20 +2,20 @@
 
 FastAPI backend for the URIM Kairos engine.
 
-This package currently covers Phase 4 API/security hardening work:
+This package currently covers Phase 5 API runtime cleanup work:
 
 - SQLAlchemy metadata for the PostgreSQL foundation schema.
 - Alembic migrations for local and future controlled environments.
 - Versioned FastAPI routes under `/api/v1`.
 - API-first security headers, including a restrictive Content-Security-Policy.
-- Thread-safe SQLAlchemy engine/session-factory reuse keyed by `DATABASE_URL`.
+- Thread-safe SQLAlchemy 2.0-style engine/session-factory reuse keyed by `DATABASE_URL`.
 - Safety overrides that keep live prediction, production mocks, provider connectors, API-Football, bookmakers, prediction creation, and real betting disabled.
 
 It does not connect API-Football, train ML models, execute bets, create real predictions, create production sports results, or seed production data. The Bet Center remains virtual/internal only.
 
-The Phase 4 CSP is intentionally strict for an API surface:
+The Phase 5 CSP remains intentionally strict for an API surface:
 `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`.
-It may restrict interactive documentation rendering; an auth/docs portal is out of scope for Phase 4.
+It may restrict Swagger UI or ReDoc interactive rendering; an auth/docs portal is out of scope for Phase 5.
 
 ## Validation
 

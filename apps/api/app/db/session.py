@@ -6,6 +6,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
+from app.core.constants import DATABASE_CONFIGURED_NOT_CHECKED, DATABASE_NOT_CONFIGURED
 
 _engine_lock = RLock()
 _engine: Engine | None = None
@@ -19,8 +20,8 @@ def is_database_configured() -> bool:
 
 def get_database_status() -> str:
     if not is_database_configured():
-        return "not_configured_phase_4"
-    return "configured_not_checked_phase_4"
+        return DATABASE_NOT_CONFIGURED
+    return DATABASE_CONFIGURED_NOT_CHECKED
 
 
 def get_engine() -> Engine:
@@ -46,9 +47,9 @@ def _get_engine_and_session_factory() -> tuple[Engine, sessionmaker[Session]]:
                 _engine.dispose()
             _engine = create_engine(database_url, pool_pre_ping=True)
             _engine_url = database_url
-            _session_factory = sessionmaker(bind=_engine, autoflush=False)
+            _session_factory = sessionmaker(_engine, autoflush=False, expire_on_commit=False)
         elif _session_factory is None:
-            _session_factory = sessionmaker(bind=_engine, autoflush=False)
+            _session_factory = sessionmaker(_engine, autoflush=False, expire_on_commit=False)
 
         return _engine, _session_factory
 

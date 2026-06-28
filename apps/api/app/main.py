@@ -4,7 +4,8 @@ from app.api.v1.router import include_api_v1
 from app.core.config import settings
 from app.core.constants import (
     API_PHASE,
-    DISABLED_PHASE_4,
+    DISABLED_STATUS,
+    NOT_REQUIRED_STATUS,
     PHASE_LIVE_ENABLED,
     PHASE_REAL_BETTING_ENABLED,
 )
@@ -15,7 +16,7 @@ from app.schemas.health import HealthResponse, ReadinessResponse, VersionRespons
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="URIM Phase 4 security/API hardening for the Kairos engine.",
+    description="URIM Phase 5 API runtime cleanup for the Kairos engine.",
     openapi_tags=[
         {"name": "system", "description": "Health, readiness and capabilities."},
         {"name": "fixtures", "description": "Read-only fixture skeletons for future phases."},
@@ -60,12 +61,12 @@ def readiness() -> ReadinessResponse:
         phase=API_PHASE,
         dependencies={
             "database": get_database_status(),
-            "redis": "not_required_phase_4",
-            "sports_providers": DISABLED_PHASE_4,
-            "bookmakers": DISABLED_PHASE_4,
-            "ml_models": DISABLED_PHASE_4,
-            "live": DISABLED_PHASE_4,
-            "real_betting": DISABLED_PHASE_4,
-            "prediction_creation": DISABLED_PHASE_4,
+            "redis": NOT_REQUIRED_STATUS,
+            "sports_providers": DISABLED_STATUS,
+            "bookmakers": DISABLED_STATUS,
+            "ml_models": DISABLED_STATUS,
+            "live": DISABLED_STATUS,
+            "real_betting": DISABLED_STATUS,
+            "prediction_creation": DISABLED_STATUS,
         },
     )

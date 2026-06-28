@@ -10,7 +10,7 @@ def list_providers() -> SkeletonCollectionResponse:
     return empty_collection(
         "providers",
         [
-            "Provider connectors are disabled in Phase 4.",
+            "Provider connectors are disabled in Phase 5.",
             "API-Football is not connected.",
             "No bookmaker integration is exposed.",
         ],
