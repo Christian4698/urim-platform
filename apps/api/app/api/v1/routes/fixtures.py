@@ -10,7 +10,7 @@ def list_fixtures() -> SkeletonCollectionResponse:
     return empty_collection(
         "fixtures",
         [
-            "No provider connector is enabled in Phase 7.",
+            "No provider connector is enabled in Phase 8.",
             "No real fixtures or production sports data are fabricated.",
         ],
     )

@@ -1,0 +1,208 @@
+from datetime import UTC, datetime
+import json
+import socket
+from typing import Any
+
+from fastapi.testclient import TestClient
+
+from app.core.security import SECURITY_HEADERS
+from app.main import app
+from app.modules.providers.contracts import SportsDataProviderProtocol
+from app.modules.providers.quality import build_quality_report
+from app.modules.providers.sandbox import (
+    SANDBOX_GOLDEN_PAYLOADS,
+    SANDBOX_MODE,
+    SANDBOX_PROVIDER_ID,
+    SandboxProviderAdapter,
+    stable_raw_hash,
+)
+
+client = TestClient(app)
+
+
+def _walk_values(value: Any) -> list[Any]:
+    if isinstance(value, dict):
+        walked: list[Any] = []
+        for nested_value in value.values():
+            walked.extend(_walk_values(nested_value))
+        return walked
+
+    if isinstance(value, list):
+        walked = []
+        for item in value:
+            walked.extend(_walk_values(item))
+        return walked
+
+    return [value]
+
+
+def _walk_keys(value: Any) -> list[str]:
+    if isinstance(value, dict):
+        walked = [str(key) for key in value]
+        for nested_value in value.values():
+            walked.extend(_walk_keys(nested_value))
+        return walked
+
+    if isinstance(value, list):
+        walked = []
+        for item in value:
+            walked.extend(_walk_keys(item))
+        return walked
+
+    return []
+
+
+def test_sandbox_adapter_satisfies_provider_protocol() -> None:
+    assert isinstance(SandboxProviderAdapter(), SportsDataProviderProtocol)
+
+
+def test_sandbox_identity_and_capabilities_remain_disabled() -> None:
+    adapter = SandboxProviderAdapter()
+    identity = adapter.identity()
+
+    assert identity.provider == SANDBOX_PROVIDER_ID
+    assert identity.enabled is False
+    assert identity.api_football_connected is False
+    assert identity.network_calls_enabled is False
+    assert identity.credentials_configured is False
+    assert identity.production_mock_fallback_allowed is False
+    assert adapter.health()["db_ingestion_enabled"] is False
+    assert adapter.health()["prediction_creation_enabled"] is False
+
+    for capability in adapter.capabilities():
+        assert capability.enabled is False
+        assert capability.status == "disabled"
+
+
+def test_sandbox_golden_payloads_are_non_prod_only() -> None:
+    forbidden_keys = {
+        "score",
+        "scores",
+        "result",
+        "results",
+        "winner",
+        "bookmaker",
+        "odds",
+        "api_key",
+        "token",
+        "authorization",
+        "secret",
+        "password",
+        "bearer",
+        "credential",
+        "provider_credentials",
+    }
+    forbidden_values = {
+        "api-football",
+        "Manchester",
+        "Real Madrid",
+        "Barcelona",
+        "PSG",
+        "Liverpool",
+        "Chelsea",
+        "Bayern",
+        "Juventus",
+    }
+
+    assert SANDBOX_GOLDEN_PAYLOADS
+    for payload in SANDBOX_GOLDEN_PAYLOADS:
+        assert payload["fixture_marker"] == SANDBOX_MODE
+        assert payload["provider"] == SANDBOX_PROVIDER_ID
+        assert str(payload["provider_event_id"]).startswith("PLACEHOLDER_SANDBOX_EVENT_")
+        assert "PLACEHOLDER" in json.dumps(payload)
+        assert forbidden_keys.isdisjoint(set(_walk_keys(payload)))
+
+        for value in _walk_values(payload):
+            if isinstance(value, str):
+                assert not any(forbidden_value in value for forbidden_value in forbidden_values)
+
+
+def test_sandbox_mapping_preserves_provenance_and_temporal_order() -> None:
+    adapter = SandboxProviderAdapter()
+    observations = adapter.fetch_fixtures({"from": datetime(2026, 1, 1, tzinfo=UTC)})
+
+    assert len(observations) == len(SANDBOX_GOLDEN_PAYLOADS)
+    for observation, payload in zip(observations, SANDBOX_GOLDEN_PAYLOADS, strict=True):
+        assert observation.provider == SANDBOX_PROVIDER_ID
+        assert observation.provider_event_id == payload["provider_event_id"]
+        assert observation.observed_at.tzinfo is not None
+        assert observation.available_at.tzinfo is not None
+        assert observation.fetched_at.tzinfo is not None
+        assert observation.observed_at <= observation.available_at <= observation.fetched_at
+        assert observation.raw_hash == stable_raw_hash(payload)
+        assert observation.raw_payload_ref is not None
+        assert observation.raw_payload_ref.raw_hash == observation.raw_hash
+        assert observation.raw_payload_ref.endpoint == "sandbox://in-memory"
+        assert "DEMO_NON_PROD" in observation.quality_flags
+        assert "PLACEHOLDER" in json.dumps(observation.data)
+        assert build_quality_report(observation).temporal_order_valid is True
+
+
+def test_sandbox_normalize_and_contract_mappers() -> None:
+    adapter = SandboxProviderAdapter()
+    observation = adapter.fetch_fixture("PLACEHOLDER_SANDBOX_EVENT_001")
+    assert observation.raw_payload_ref is not None
+
+    normalized = adapter.normalize(observation.raw_payload_ref)
+    mapping = adapter.map_entity(observation)
+    temporal_metadata = adapter.temporal_metadata(observation)
+    official_placeholder = adapter.official_result_envelope(observation)
+
+    assert normalized.raw_hash == observation.raw_hash
+    assert mapping.provider_entity_type == "sandbox_fixture"
+    assert mapping.canonical_entity_id is None
+    assert temporal_metadata.available_at == observation.available_at
+    assert official_placeholder.learning_source == "post_match_outcomes_only"
+    assert "score" not in json.dumps(official_placeholder.result_payload).lower()
+    assert "winner" not in json.dumps(official_placeholder.result_payload).lower()
+
+
+def test_sandbox_status_endpoint_is_read_only_safe_and_sanitized() -> None:
+    response = client.get("/api/v1/providers/sandbox/status")
+
+    assert response.status_code == 200
+    for header_name, header_value in SECURITY_HEADERS.items():
+        assert response.headers[header_name] == header_value
+
+    payload = response.json()
+    body = response.text.lower()
+    assert payload["metadata"]["phase"] == "phase-8-provider-sandbox-adapter"
+    assert payload["sandbox_mode"] == SANDBOX_MODE
+    assert payload["provider_enabled"] is False
+    assert payload["api_football_connected"] is False
+    assert payload["network_calls_enabled"] is False
+    assert payload["credentials_configured"] is False
+    assert payload["db_ingestion_enabled"] is False
+    assert payload["prediction_creation_enabled"] is False
+    assert payload["production_mock_fallback_allowed"] is False
+    assert payload["payload_count"] == len(SANDBOX_GOLDEN_PAYLOADS)
+    assert payload["raw_hashes"] == [stable_raw_hash(payload) for payload in SANDBOX_GOLDEN_PAYLOADS]
+    assert payload["qa_markers"] == ["DEMO_NON_PROD", "PLACEHOLDER", "SANDBOX_ONLY"]
+    assert payload["payload_summaries"]
+
+    for secret_token in ("api_key", "password", "provider_credentials", "bearer", "authorization"):
+        assert secret_token not in body
+
+    for summary in payload["payload_summaries"]:
+        assert summary["fixture_marker"] == SANDBOX_MODE
+        assert "PLACEHOLDER" in json.dumps(summary)
+        assert "score" not in json.dumps(summary).lower()
+        assert "winner" not in json.dumps(summary).lower()
+
+
+def test_sandbox_status_post_is_not_available() -> None:
+    response = client.post("/api/v1/providers/sandbox/status", json={})
+
+    assert response.status_code == 405
+
+
+def test_sandbox_status_does_not_open_network_socket(monkeypatch) -> None:
+    def fail_create_connection(*args: object, **kwargs: object) -> None:
+        raise AssertionError("sandbox status must not open network sockets")
+
+    monkeypatch.setattr(socket, "create_connection", fail_create_connection)
+
+    response = client.get("/api/v1/providers/sandbox/status")
+
+    assert response.status_code == 200
+    assert response.json()["network_calls_enabled"] is False
