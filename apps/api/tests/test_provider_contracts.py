@@ -21,7 +21,10 @@ from app.modules.providers.quality import (
 from app.schemas.providers import (
     DISALLOWED_LEARNING_SOURCES,
     POST_MATCH_LEARNING_SOURCE,
+    PROVIDER_ONBOARDING_REQUIREMENTS,
     PROVIDER_QA_REQUIREMENTS,
+    RATE_LIMIT_QUOTA_CONTRACTS,
+    RECONCILIATION_READINESS_REQUIREMENTS,
     CanonicalEntityMapping,
     OfficialResultEnvelope,
     ProviderCapabilityMatrix,
@@ -215,13 +218,18 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
         assert response.headers[header_name] == header_value
 
     payload = response.json()
-    assert payload["metadata"]["phase"] == "phase-8-provider-sandbox-adapter"
+    assert payload["metadata"]["phase"] == "phase-9-provider-sandbox-integration-qa"
     assert payload["providers_enabled"] is False
     assert payload["api_football_connected"] is False
     assert payload["network_calls_enabled"] is False
     assert payload["credentials_configured"] is False
     assert payload["quality_report"]["production_mock_fallback_allowed"] is False
     assert payload["qa_requirements"] == list(PROVIDER_QA_REQUIREMENTS)
+    assert payload["onboarding_requirements"] == list(PROVIDER_ONBOARDING_REQUIREMENTS)
+    assert payload["rate_limit_quota_contracts"] == list(RATE_LIMIT_QUOTA_CONTRACTS)
+    assert payload["reconciliation_readiness"] == list(RECONCILIATION_READINESS_REQUIREMENTS)
+    assert "provider_network_calls=disabled" in payload["rate_limit_quota_contracts"]
+    assert "database_writes=disabled_in_phase_9" in payload["reconciliation_readiness"]
     assert payload["post_match_learning_source"] == POST_MATCH_LEARNING_SOURCE
     assert "tickets.user_declared_profit_loss" in payload["disallowed_learning_sources"]
     assert payload["required_provenance_fields"] == [

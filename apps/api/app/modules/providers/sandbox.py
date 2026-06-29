@@ -186,6 +186,7 @@ class SandboxProviderAdapter:
         return build_quality_report(observation)
 
     def official_result_envelope(self, observation: ProviderObservation) -> OfficialResultEnvelope:
+        """Build a sandbox-only placeholder envelope; this is not a real result verifier."""
         return OfficialResultEnvelope(
             provider=observation.provider,
             provider_event_id=observation.provider_event_id,
@@ -269,6 +270,8 @@ def build_sandbox_provider_status_response() -> SandboxProviderStatusResponse:
             "Sandbox adapter is DEMO_NON_PROD and informational only.",
             "Sandbox adapter reads only in-memory PLACEHOLDER payloads.",
             "No provider network calls, credentials, DB ingestion or prediction creation are enabled.",
+            "Rate-limit, quota and reconciliation contracts are readiness-only in Phase 9.",
+            "Official result envelope output is a sandbox placeholder, not activated Post-Match Learning.",
             "Public sandbox payload summaries are sanitized before exposure.",
         ],
     )

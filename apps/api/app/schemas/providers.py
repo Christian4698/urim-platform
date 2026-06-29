@@ -54,6 +54,50 @@ PROVIDER_QA_REQUIREMENTS = (
     "no_production_mock_fallback",
 )
 
+PROVIDER_ONBOARDING_REQUIREMENTS = (
+    "license_review_required",
+    "quota_documentation_required",
+    "rate_limit_documentation_required",
+    "latency_budget_required",
+    "pagination_contract_required",
+    "retry_policy_required",
+    "circuit_breaker_policy_required",
+    "payload_redaction_required",
+    "monitoring_required",
+    "reconciliation_plan_required",
+    "anonymized_real_golden_payloads_required_before_activation",
+    "security_audit_required",
+)
+
+RATE_LIMIT_QUOTA_CONTRACTS = (
+    "quota_contract_status=readiness_only",
+    "rate_limit_contract_status=readiness_only",
+    "retry_execution=disabled",
+    "circuit_breaker_execution=disabled",
+    "scheduler=disabled",
+    "queue=disabled",
+    "provider_network_calls=disabled",
+)
+
+RECONCILIATION_READINESS_REQUIREMENTS = (
+    "canonical_entity_mapping_required",
+    "field_level_provenance_required",
+    "conflict_marking_required",
+    "silent_overwrite_forbidden",
+    "critical_conflict_blocks_future_predictions",
+    "database_writes=disabled_in_phase_9",
+)
+
+SANDBOX_INTEGRATION_FLOW = (
+    "identity",
+    "payloads",
+    "raw_reference",
+    "observation",
+    "quality_report",
+    "canonical_mapping_placeholder",
+    "official_result_envelope_placeholder",
+)
+
 
 def _require_aware_datetime(value: datetime) -> datetime:
     if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
@@ -83,7 +127,7 @@ class ProviderCapability(BaseModel):
     @model_validator(mode="after")
     def require_disabled_status(self) -> Self:
         if self.status != DISABLED_STATUS:
-            raise ValueError("provider capabilities must remain disabled in Phase 8")
+            raise ValueError("provider capabilities must remain disabled in Phase 9")
         return self
 
 
@@ -105,7 +149,7 @@ class ProviderCapabilityMatrix(BaseModel):
             if capability.capability != capability_name:
                 raise ValueError("provider capability matrix entries must match their field names")
             if capability.enabled is not False or capability.status != DISABLED_STATUS:
-                raise ValueError("provider capability matrix must remain fully disabled in Phase 8")
+                raise ValueError("provider capability matrix must remain fully disabled in Phase 9")
         return self
 
     def as_list(self) -> list[ProviderCapability]:
@@ -229,6 +273,9 @@ class ProviderReadinessResponse(BaseModel):
     )
     quality_report: DataQualityReport = Field(default_factory=DataQualityReport)
     qa_requirements: list[str] = Field(default_factory=lambda: list(PROVIDER_QA_REQUIREMENTS))
+    onboarding_requirements: list[str] = Field(default_factory=lambda: list(PROVIDER_ONBOARDING_REQUIREMENTS))
+    rate_limit_quota_contracts: list[str] = Field(default_factory=lambda: list(RATE_LIMIT_QUOTA_CONTRACTS))
+    reconciliation_readiness: list[str] = Field(default_factory=lambda: list(RECONCILIATION_READINESS_REQUIREMENTS))
     post_match_learning_source: str = POST_MATCH_LEARNING_SOURCE
     disallowed_learning_sources: list[str] = Field(default_factory=lambda: list(DISALLOWED_LEARNING_SOURCES))
     safeguards: list[str] = Field(default_factory=list)
@@ -252,6 +299,10 @@ class SandboxProviderStatusResponse(BaseModel):
     raw_hashes: list[str]
     capabilities: list[ProviderCapability]
     qa_markers: list[str] = Field(default_factory=lambda: list(SANDBOX_QA_MARKERS))
+    onboarding_requirements: list[str] = Field(default_factory=lambda: list(PROVIDER_ONBOARDING_REQUIREMENTS))
+    rate_limit_quota_contracts: list[str] = Field(default_factory=lambda: list(RATE_LIMIT_QUOTA_CONTRACTS))
+    reconciliation_readiness: list[str] = Field(default_factory=lambda: list(RECONCILIATION_READINESS_REQUIREMENTS))
+    sandbox_integration_flow: list[str] = Field(default_factory=lambda: list(SANDBOX_INTEGRATION_FLOW))
     payload_summaries: list[dict[str, Any]] = Field(default_factory=list)
     safeguards: list[str] = Field(default_factory=list)
 
@@ -281,6 +332,9 @@ def build_provider_readiness_response() -> ProviderReadinessResponse:
             "No provider credentials are configured or exposed.",
             "Production mock fallback is forbidden.",
             "Provider QA requires license review, quotas, redaction, monitoring and independent audit.",
+            "Provider onboarding requires quota, rate-limit, latency, pagination, retry, circuit breaker, reconciliation and security audit readiness before activation.",
+            "Rate-limit and quota contracts are readiness-only; no scheduler, queue, retry execution or provider network call is enabled.",
+            "Provider reconciliation readiness is documented without database writes or canonical overwrites.",
             "Sandbox provider status is informational, non-production and does not enable providers.",
             "Post-Match Learning may use only verified post_match_outcomes in a future phase.",
         ],

@@ -54,3 +54,12 @@ Cet adaptateur lit uniquement des payloads en memoire marques `DEMO_NON_PROD` et
 Le mapping sandbox produit seulement des contrats provider : `RawPayloadReference`, `ProviderObservation`, metadata temporelle, rapport qualite et enveloppe officielle placeholder sans resultat sportif. Les `raw_hash` sont stables et calcules depuis le JSON canonique du payload sandbox.
 
 `POST /api/v1/providers/sandbox/status` reste absent et doit retourner `405`.
+
+## Phase 9 Provider Sandbox Integration QA
+La Phase 9 conserve les endpoints read-only `/api/v1/providers/readiness` et `/api/v1/providers/sandbox/status`, puis renforce leur valeur d'audit avant tout provider reel.
+
+Le statut sandbox expose le flux QA `identity -> payloads -> raw_reference -> observation -> quality_report -> canonical_mapping_placeholder -> official_result_envelope_placeholder`. Ce flux reste non-production, sans appel reseau, sans credential, sans ecriture base, sans ingestion canonique et sans creation de prediction.
+
+`official_result_envelope` reste une extension sandbox placeholder uniquement. Il n'entre pas dans le protocole provider general et ne remplace pas le futur Official Result Verifier. Post-Match Learning reste inactif et ne pourra apprendre que depuis des `post_match_outcomes` officiels verifies dans une phase future.
+
+La readiness provider expose aussi les prerequis avant activation reelle : licence, quota, rate limit, latence, pagination, retries, circuit breaker, redaction, monitoring, reconciliation, golden payloads reels anonymises et audit securite. Ces elements sont des contrats readiness-only : aucun scheduler, queue, retry execution, circuit breaker execution ou provider network call n'est ajoute en Phase 9.

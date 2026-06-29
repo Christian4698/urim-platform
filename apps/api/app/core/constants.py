@@ -1,4 +1,4 @@
-API_PHASE = "phase-8-provider-sandbox-adapter"
+API_PHASE = "phase-9-provider-sandbox-integration-qa"
 DATABASE_CONFIGURED_NOT_CHECKED = "configured_not_checked"
 DATABASE_NOT_CONFIGURED = "not_configured"
 DISABLED_STATUS = "disabled"
