@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from app.core.security import SECURITY_HEADERS, phase_seven_security_assertions
+from app.core.security import SECURITY_HEADERS, phase_eight_security_assertions
 from app.main import app
 
 
@@ -15,14 +15,14 @@ def test_health_endpoint() -> None:
         "status": "ok",
         "app_name": "URIM",
         "engine_name": "Kairos",
-        "phase": "phase-7-provider-qa-contract-hardening",
+        "phase": "phase-8-provider-sandbox-adapter",
     }
 
     for header_name, header_value in SECURITY_HEADERS.items():
         assert response.headers[header_name] == header_value
 
 
-def test_version_endpoint_exposes_phase_seven_safety_overrides() -> None:
+def test_version_endpoint_exposes_phase_eight_safety_overrides() -> None:
     response = client.get("/version")
 
     assert response.status_code == 200
@@ -41,7 +41,7 @@ def test_readiness_endpoint_has_no_required_real_dependencies() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["ready"] is True
-    assert payload["phase"] == "phase-7-provider-qa-contract-hardening"
+    assert payload["phase"] == "phase-8-provider-sandbox-adapter"
     assert payload["dependencies"]["redis"] == "not_required"
     assert payload["dependencies"]["sports_providers"] == "disabled"
     assert payload["dependencies"]["bookmakers"] == "disabled"
@@ -49,8 +49,8 @@ def test_readiness_endpoint_has_no_required_real_dependencies() -> None:
     assert payload["dependencies"]["prediction_creation"] == "disabled"
 
 
-def test_phase_seven_security_assertions() -> None:
-    assert phase_seven_security_assertions() == {
+def test_phase_eight_security_assertions() -> None:
+    assert phase_eight_security_assertions() == {
         "providers_disabled": True,
         "bookmakers_disabled": True,
         "ml_disabled": True,

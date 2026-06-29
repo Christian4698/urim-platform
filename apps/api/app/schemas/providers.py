@@ -42,6 +42,7 @@ DISALLOWED_LEARNING_SOURCES = (
     "tickets.user_declared_result",
     "tickets.user_declared_profit_loss",
 )
+SANDBOX_QA_MARKERS = ("DEMO_NON_PROD", "PLACEHOLDER", "SANDBOX_ONLY")
 
 PROVIDER_QA_REQUIREMENTS = (
     "license_review_required",
@@ -82,7 +83,7 @@ class ProviderCapability(BaseModel):
     @model_validator(mode="after")
     def require_disabled_status(self) -> Self:
         if self.status != DISABLED_STATUS:
-            raise ValueError("provider capabilities must remain disabled in Phase 7")
+            raise ValueError("provider capabilities must remain disabled in Phase 8")
         return self
 
 
@@ -104,7 +105,7 @@ class ProviderCapabilityMatrix(BaseModel):
             if capability.capability != capability_name:
                 raise ValueError("provider capability matrix entries must match their field names")
             if capability.enabled is not False or capability.status != DISABLED_STATUS:
-                raise ValueError("provider capability matrix must remain fully disabled in Phase 7")
+                raise ValueError("provider capability matrix must remain fully disabled in Phase 8")
         return self
 
     def as_list(self) -> list[ProviderCapability]:
@@ -235,6 +236,28 @@ class ProviderReadinessResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class SandboxProviderStatusResponse(BaseModel):
+    metadata: ApiMetadata
+    status: str = "sandbox_provider_status"
+    sandbox_mode: Literal["DEMO_NON_PROD"] = "DEMO_NON_PROD"
+    provider_enabled: Literal[False] = False
+    api_football_connected: Literal[False] = False
+    network_calls_enabled: Literal[False] = False
+    credentials_configured: Literal[False] = False
+    db_ingestion_enabled: Literal[False] = False
+    prediction_creation_enabled: Literal[False] = False
+    production_mock_fallback_allowed: Literal[False] = False
+    provider_identity: ProviderIdentity
+    payload_count: int
+    raw_hashes: list[str]
+    capabilities: list[ProviderCapability]
+    qa_markers: list[str] = Field(default_factory=lambda: list(SANDBOX_QA_MARKERS))
+    payload_summaries: list[dict[str, Any]] = Field(default_factory=list)
+    safeguards: list[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid")
+
+
 def disabled_provider_capabilities() -> list[ProviderCapability]:
     return ProviderCapabilityMatrix().as_list()
 
@@ -258,6 +281,7 @@ def build_provider_readiness_response() -> ProviderReadinessResponse:
             "No provider credentials are configured or exposed.",
             "Production mock fallback is forbidden.",
             "Provider QA requires license review, quotas, redaction, monitoring and independent audit.",
+            "Sandbox provider status is informational, non-production and does not enable providers.",
             "Post-Match Learning may use only verified post_match_outcomes in a future phase.",
         ],
     )

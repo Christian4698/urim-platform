@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 from app.schemas.providers import (
     CanonicalEntityMapping,
@@ -14,8 +14,9 @@ from app.schemas.providers import (
 )
 
 
+@runtime_checkable
 class SportsDataProviderProtocol(Protocol):
-    """Protocol-only contract for future provider adapters; no Phase 7 implementation."""
+    """Protocol contract for provider adapters; Phase 8 adds only a non-production sandbox."""
 
     def identity(self) -> ProviderIdentity: ...
 

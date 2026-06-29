@@ -76,3 +76,16 @@ Phase 7 ajoute les exigences QA suivantes a la readiness provider :
 Les golden payloads restent limites aux tests et a la documentation. Ils doivent etre marques `DEMO_NON_PROD` ou `PLACEHOLDER`, ne doivent pas contenir de resultat sportif reel et ne doivent jamais remplacer une observation provider reelle.
 
 La redaction des payloads provider doit masquer recursivement les cles sensibles, notamment `api_key`, `token`, `authorization`, `secret`, `password`, `bearer`, `credential` et `provider_credentials`.
+
+## Phase 8 Sandbox Adapter
+Phase 8 ajoute un adaptateur sandbox interne pour valider les contrats sans fournisseur reel.
+
+Contraintes :
+- payloads uniquement en memoire ;
+- marqueurs `DEMO_NON_PROD`, `PLACEHOLDER` et `SANDBOX_ONLY` obligatoires ;
+- aucun nom d'equipe reel, score, vainqueur, identifiant provider reel, bookmaker ou credential ;
+- aucun appel reseau ;
+- aucune ingestion base de donnees ;
+- aucune prediction creee.
+
+L'endpoint `GET /api/v1/providers/sandbox/status` expose uniquement un statut informatif, les hashes stables des payloads sandbox, les capacites desactivees et des resumes de payloads passes par redaction.

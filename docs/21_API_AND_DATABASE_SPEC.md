@@ -45,3 +45,12 @@ L'endpoint expose les exigences `license_review_required`, `quota_and_rate_limit
 Les golden payloads sont autorises seulement en tests/docs avec marqueurs `DEMO_NON_PROD` ou `PLACEHOLDER`. Ils ne doivent contenir aucun resultat sportif reel, aucune cle fournisseur et aucun credential.
 
 Les payloads provider doivent passer par une redaction recursive avant exposition, log ou rapport QA. Les cles sensibles comme `api_key`, `token`, `authorization`, `secret`, `password`, `bearer`, `credential` et `provider_credentials` sont masquees.
+
+## Phase 8 Provider Sandbox Adapter
+La Phase 8 ajoute un adaptateur sandbox interne et un endpoint read-only `/api/v1/providers/sandbox/status`.
+
+Cet adaptateur lit uniquement des payloads en memoire marques `DEMO_NON_PROD` et `PLACEHOLDER`. Il ne connecte pas API-Football, n'appelle pas Internet, n'utilise aucune cle API, n'expose aucun credential, n'ingere rien en base et ne cree aucune prediction.
+
+Le mapping sandbox produit seulement des contrats provider : `RawPayloadReference`, `ProviderObservation`, metadata temporelle, rapport qualite et enveloppe officielle placeholder sans resultat sportif. Les `raw_hash` sont stables et calcules depuis le JSON canonique du payload sandbox.
+
+`POST /api/v1/providers/sandbox/status` reste absent et doit retourner `405`.

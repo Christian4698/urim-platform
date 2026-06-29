@@ -17,6 +17,7 @@ PUBLIC_GET_ENDPOINTS = (
     "/api/v1/tickets",
     "/api/v1/providers",
     "/api/v1/providers/readiness",
+    "/api/v1/providers/sandbox/status",
     "/api/v1/post-match/outcomes",
 )
 
@@ -27,6 +28,7 @@ DANGEROUS_POST_ENDPOINTS = (
     "/api/v1/tickets",
     "/api/v1/providers",
     "/api/v1/providers/readiness",
+    "/api/v1/providers/sandbox/status",
     "/api/v1/post-match/outcomes",
 )
 
@@ -42,7 +44,7 @@ SECRET_TOKENS = (
 
 
 @pytest.mark.parametrize("path", PUBLIC_GET_ENDPOINTS)
-def test_public_get_endpoints_include_phase_seven_security_headers(path: str) -> None:
+def test_public_get_endpoints_include_phase_eight_security_headers(path: str) -> None:
     response = client.get(path)
 
     assert response.status_code == 200
