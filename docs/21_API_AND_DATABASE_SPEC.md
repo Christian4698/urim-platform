@@ -29,3 +29,10 @@ La CSP reste stricte et API-first : `default-src 'none'; frame-ancestors 'none';
 Le futur Post-Match Learning ne peut apprendre que depuis des resultats officiels verifies dans `post_match_outcomes`.
 
 Les champs `tickets.user_declared_result` et `tickets.user_declared_profit_loss` servent uniquement a l'experience utilisateur du Bet Center virtuel/interne. Ils ne sont jamais une source d'apprentissage, d'evaluation modele, de calibration, de backtest ou de resultat officiel.
+
+## Phase 6 Provider Readiness Contracts
+La Phase 6 ajoute uniquement des contrats provider et un endpoint read-only `/api/v1/providers/readiness`.
+
+Cet endpoint n'appelle aucun provider, ne charge aucune cle API, ne connecte pas API-Football et ne cree aucune prediction. Il expose les exigences de provenance, la matrice de capacites futures toutes desactivees, la regle temporelle `observed_at <= available_at <= fetched_at`, la future contrainte `available_at <= prediction_time` et l'interdiction de fallback mock en production.
+
+Les observations provider futures doivent conserver `provider`, `provider_event_id`, `observed_at`, `available_at`, `fetched_at`, `source_version`, `raw_hash` et `quality_flags`. Les mappings canoniques restent audites et ne doivent pas ecraser silencieusement une observation divergente.

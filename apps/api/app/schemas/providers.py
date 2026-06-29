@@ -1,0 +1,251 @@
+from datetime import datetime
+from typing import Any, Literal, Self
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from app.core.constants import DISABLED_STATUS
+from app.schemas.common import ApiMetadata, build_metadata
+
+ProviderCapabilityName = Literal[
+    "fixtures",
+    "results",
+    "standings",
+    "lineups",
+    "events",
+    "odds",
+    "injuries",
+]
+
+PROVIDER_CAPABILITY_NAMES: tuple[ProviderCapabilityName, ...] = (
+    "fixtures",
+    "results",
+    "standings",
+    "lineups",
+    "events",
+    "odds",
+    "injuries",
+)
+
+REQUIRED_PROVENANCE_FIELDS: tuple[str, ...] = (
+    "provider",
+    "provider_event_id",
+    "observed_at",
+    "available_at",
+    "fetched_at",
+    "source_version",
+    "raw_hash",
+    "quality_flags",
+)
+
+POST_MATCH_LEARNING_SOURCE = "post_match_outcomes_only"
+DISALLOWED_LEARNING_SOURCES = (
+    "tickets.user_declared_result",
+    "tickets.user_declared_profit_loss",
+)
+
+
+def _require_aware_datetime(value: datetime) -> datetime:
+    if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+        raise ValueError("provider timestamps must be timezone-aware")
+    return value
+
+
+class ProviderIdentity(BaseModel):
+    provider: str = Field(min_length=1)
+    display_name: str = Field(min_length=1)
+    enabled: Literal[False] = False
+    api_football_connected: Literal[False] = False
+    network_calls_enabled: Literal[False] = False
+    credentials_configured: Literal[False] = False
+    production_mock_fallback_allowed: Literal[False] = False
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ProviderCapability(BaseModel):
+    capability: ProviderCapabilityName
+    enabled: Literal[False] = False
+    status: str = DISABLED_STATUS
+
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def require_disabled_status(self) -> Self:
+        if self.status != DISABLED_STATUS:
+            raise ValueError("provider capabilities must remain disabled in Phase 6")
+        return self
+
+
+class ProviderCapabilityMatrix(BaseModel):
+    fixtures: ProviderCapability = Field(default_factory=lambda: ProviderCapability(capability="fixtures"))
+    results: ProviderCapability = Field(default_factory=lambda: ProviderCapability(capability="results"))
+    standings: ProviderCapability = Field(default_factory=lambda: ProviderCapability(capability="standings"))
+    lineups: ProviderCapability = Field(default_factory=lambda: ProviderCapability(capability="lineups"))
+    events: ProviderCapability = Field(default_factory=lambda: ProviderCapability(capability="events"))
+    odds: ProviderCapability = Field(default_factory=lambda: ProviderCapability(capability="odds"))
+    injuries: ProviderCapability = Field(default_factory=lambda: ProviderCapability(capability="injuries"))
+
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def require_matching_disabled_capabilities(self) -> Self:
+        for capability_name in PROVIDER_CAPABILITY_NAMES:
+            capability = getattr(self, capability_name)
+            if capability.capability != capability_name:
+                raise ValueError("provider capability matrix entries must match their field names")
+            if capability.enabled is not False or capability.status != DISABLED_STATUS:
+                raise ValueError("provider capability matrix must remain fully disabled in Phase 6")
+        return self
+
+    def as_list(self) -> list[ProviderCapability]:
+        return [getattr(self, capability_name) for capability_name in PROVIDER_CAPABILITY_NAMES]
+
+
+class TemporalAvailabilityMetadata(BaseModel):
+    provider: str = Field(min_length=1)
+    provider_event_id: str = Field(min_length=1)
+    observed_at: datetime
+    available_at: datetime
+    fetched_at: datetime
+    source_version: str = Field(min_length=1)
+    raw_hash: str = Field(min_length=1)
+    quality_flags: list[str]
+
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("observed_at", "available_at", "fetched_at")
+    @classmethod
+    def timestamps_must_be_aware(cls, value: datetime) -> datetime:
+        return _require_aware_datetime(value)
+
+    @model_validator(mode="after")
+    def validate_temporal_order(self) -> Self:
+        if not self.observed_at <= self.available_at <= self.fetched_at:
+            raise ValueError("provider timestamps must satisfy observed_at <= available_at <= fetched_at")
+        return self
+
+
+class RawPayloadReference(BaseModel):
+    provider: str = Field(min_length=1)
+    provider_event_id: str = Field(min_length=1)
+    fetched_at: datetime
+    source_version: str = Field(min_length=1)
+    raw_hash: str = Field(min_length=1)
+    endpoint: str | None = None
+    storage_uri: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("fetched_at")
+    @classmethod
+    def fetched_at_must_be_aware(cls, value: datetime) -> datetime:
+        return _require_aware_datetime(value)
+
+
+class ProviderObservation(TemporalAvailabilityMetadata):
+    raw_payload_ref: RawPayloadReference | None = None
+    data: dict[str, Any] = Field(default_factory=dict)
+
+
+class CanonicalEntityMapping(BaseModel):
+    provider: str = Field(min_length=1)
+    provider_entity_id: str = Field(min_length=1)
+    provider_entity_type: str = Field(min_length=1)
+    canonical_entity_id: str | None = None
+    valid_from: datetime
+    valid_to: datetime | None = None
+    confidence: float = Field(ge=0, le=1)
+    quality_flags: list[str]
+
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("valid_from", "valid_to")
+    @classmethod
+    def validity_timestamps_must_be_aware(cls, value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        return _require_aware_datetime(value)
+
+    @model_validator(mode="after")
+    def validate_validity_order(self) -> Self:
+        if self.valid_to is not None and self.valid_to < self.valid_from:
+            raise ValueError("valid_to must be greater than or equal to valid_from")
+        return self
+
+
+class OfficialResultEnvelope(TemporalAvailabilityMetadata):
+    result_payload: dict[str, Any] = Field(default_factory=dict)
+    learning_source: str = POST_MATCH_LEARNING_SOURCE
+    disallowed_learning_sources: list[str] = Field(default_factory=lambda: list(DISALLOWED_LEARNING_SOURCES))
+
+    @model_validator(mode="after")
+    def validate_learning_source(self) -> Self:
+        if self.learning_source != POST_MATCH_LEARNING_SOURCE:
+            raise ValueError("official result learning source must be post_match_outcomes_only")
+        return self
+
+
+class DataQualityReport(BaseModel):
+    status: str = "contract_only"
+    providers_enabled: Literal[False] = False
+    network_calls_enabled: Literal[False] = False
+    production_mock_fallback_allowed: Literal[False] = False
+    required_fields: list[str] = Field(default_factory=lambda: list(REQUIRED_PROVENANCE_FIELDS))
+    quality_flags: list[str] = Field(default_factory=list)
+    temporal_order_valid: bool = True
+    complete_provenance: bool = True
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ProviderReadinessResponse(BaseModel):
+    metadata: ApiMetadata
+    status: str = "provider_readiness_contract_only"
+    providers_enabled: Literal[False] = False
+    api_football_connected: Literal[False] = False
+    network_calls_enabled: Literal[False] = False
+    credentials_configured: Literal[False] = False
+    provider_identities: list[ProviderIdentity] = Field(default_factory=list)
+    capability_matrix: ProviderCapabilityMatrix = Field(default_factory=ProviderCapabilityMatrix)
+    capabilities: list[ProviderCapability] = Field(default_factory=list)
+    required_provenance_fields: list[str] = Field(default_factory=lambda: list(REQUIRED_PROVENANCE_FIELDS))
+    temporal_contract: list[str] = Field(
+        default_factory=lambda: [
+            "observed_at <= available_at <= fetched_at",
+            "available_at <= prediction_time",
+        ]
+    )
+    quality_report: DataQualityReport = Field(default_factory=DataQualityReport)
+    post_match_learning_source: str = POST_MATCH_LEARNING_SOURCE
+    disallowed_learning_sources: list[str] = Field(default_factory=lambda: list(DISALLOWED_LEARNING_SOURCES))
+    safeguards: list[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+def disabled_provider_capabilities() -> list[ProviderCapability]:
+    return ProviderCapabilityMatrix().as_list()
+
+
+def build_provider_readiness_response() -> ProviderReadinessResponse:
+    capability_matrix = ProviderCapabilityMatrix()
+    return ProviderReadinessResponse(
+        metadata=build_metadata(),
+        provider_identities=[
+            ProviderIdentity(
+                provider="api-football",
+                display_name="API-Football future contract only",
+            )
+        ],
+        capability_matrix=capability_matrix,
+        capabilities=capability_matrix.as_list(),
+        safeguards=[
+            "Provider contracts are defined but no provider connector is active.",
+            "API-Football is not connected.",
+            "No outbound provider network calls are enabled.",
+            "No provider credentials are configured or exposed.",
+            "Production mock fallback is forbidden.",
+            "Post-Match Learning may use only verified post_match_outcomes in a future phase.",
+        ],
+    )
