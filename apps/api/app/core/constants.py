@@ -1,4 +1,4 @@
-API_PHASE = "phase-5-api-runtime-cleanup"
+API_PHASE = "phase-6-provider-readiness-contracts"
 DATABASE_CONFIGURED_NOT_CHECKED = "configured_not_checked"
 DATABASE_NOT_CONFIGURED = "not_configured"
 DISABLED_STATUS = "disabled"

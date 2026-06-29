@@ -1,1 +1,1 @@
-"""Provider module placeholder. No real sports API connector exists in Phase 1."""
+"""Provider contract module. No real sports API connector exists in Phase 6."""

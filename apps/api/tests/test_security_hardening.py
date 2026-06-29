@@ -16,6 +16,7 @@ PUBLIC_GET_ENDPOINTS = (
     "/api/v1/predictions",
     "/api/v1/tickets",
     "/api/v1/providers",
+    "/api/v1/providers/readiness",
     "/api/v1/post-match/outcomes",
 )
 
@@ -25,6 +26,7 @@ DANGEROUS_POST_ENDPOINTS = (
     "/api/v1/predictions",
     "/api/v1/tickets",
     "/api/v1/providers",
+    "/api/v1/providers/readiness",
     "/api/v1/post-match/outcomes",
 )
 
