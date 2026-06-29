@@ -15,7 +15,7 @@ from app.schemas.providers import (
 
 
 class SportsDataProviderProtocol(Protocol):
-    """Protocol-only contract for future provider adapters; no Phase 6 implementation."""
+    """Protocol-only contract for future provider adapters; no Phase 7 implementation."""
 
     def identity(self) -> ProviderIdentity: ...
 

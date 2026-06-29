@@ -43,6 +43,16 @@ DISALLOWED_LEARNING_SOURCES = (
     "tickets.user_declared_profit_loss",
 )
 
+PROVIDER_QA_REQUIREMENTS = (
+    "license_review_required",
+    "quota_and_rate_limit_required",
+    "golden_payloads_required",
+    "payload_redaction_required",
+    "monitoring_required",
+    "independent_audit_required",
+    "no_production_mock_fallback",
+)
+
 
 def _require_aware_datetime(value: datetime) -> datetime:
     if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
@@ -72,7 +82,7 @@ class ProviderCapability(BaseModel):
     @model_validator(mode="after")
     def require_disabled_status(self) -> Self:
         if self.status != DISABLED_STATUS:
-            raise ValueError("provider capabilities must remain disabled in Phase 6")
+            raise ValueError("provider capabilities must remain disabled in Phase 7")
         return self
 
 
@@ -94,7 +104,7 @@ class ProviderCapabilityMatrix(BaseModel):
             if capability.capability != capability_name:
                 raise ValueError("provider capability matrix entries must match their field names")
             if capability.enabled is not False or capability.status != DISABLED_STATUS:
-                raise ValueError("provider capability matrix must remain fully disabled in Phase 6")
+                raise ValueError("provider capability matrix must remain fully disabled in Phase 7")
         return self
 
     def as_list(self) -> list[ProviderCapability]:
@@ -217,6 +227,7 @@ class ProviderReadinessResponse(BaseModel):
         ]
     )
     quality_report: DataQualityReport = Field(default_factory=DataQualityReport)
+    qa_requirements: list[str] = Field(default_factory=lambda: list(PROVIDER_QA_REQUIREMENTS))
     post_match_learning_source: str = POST_MATCH_LEARNING_SOURCE
     disallowed_learning_sources: list[str] = Field(default_factory=lambda: list(DISALLOWED_LEARNING_SOURCES))
     safeguards: list[str] = Field(default_factory=list)
@@ -246,6 +257,7 @@ def build_provider_readiness_response() -> ProviderReadinessResponse:
             "No outbound provider network calls are enabled.",
             "No provider credentials are configured or exposed.",
             "Production mock fallback is forbidden.",
+            "Provider QA requires license review, quotas, redaction, monitoring and independent audit.",
             "Post-Match Learning may use only verified post_match_outcomes in a future phase.",
         ],
     )

@@ -1,0 +1,38 @@
+GOLDEN_PAYLOADS = [
+    {
+        "fixture_marker": "DEMO_NON_PROD",
+        "provider": "demo-provider-contract-only",
+        "provider_event_id": "PLACEHOLDER_EVENT_001",
+        "observed_at": "2026-01-01T10:00:00+00:00",
+        "available_at": "2026-01-01T11:00:00+00:00",
+        "fetched_at": "2026-01-01T12:00:00+00:00",
+        "source_version": "DEMO_NON_PROD_v1",
+        "raw_hash": "PLACEHOLDER_RAW_HASH_001",
+        "quality_flags": ["DEMO_NON_PROD", "PLACEHOLDER"],
+        "payload": {
+            "competition": "PLACEHOLDER_COMPETITION",
+            "home_team": "PLACEHOLDER_HOME_TEAM",
+            "away_team": "PLACEHOLDER_AWAY_TEAM",
+            "status": "PLACEHOLDER_ONLY",
+            "data_state": "PLACEHOLDER_NO_RESULT",
+        },
+    },
+    {
+        "fixture_marker": "DEMO_NON_PROD",
+        "provider": "demo-provider-contract-only",
+        "provider_event_id": "PLACEHOLDER_EVENT_002",
+        "observed_at": "2026-01-02T10:00:00+00:00",
+        "available_at": "2026-01-02T11:00:00+00:00",
+        "fetched_at": "2026-01-02T12:00:00+00:00",
+        "source_version": "DEMO_NON_PROD_v1",
+        "raw_hash": "PLACEHOLDER_RAW_HASH_002",
+        "quality_flags": ["DEMO_NON_PROD", "PLACEHOLDER"],
+        "payload": {
+            "competition": "PLACEHOLDER_COMPETITION",
+            "home_team": "PLACEHOLDER_HOME_TEAM",
+            "away_team": "PLACEHOLDER_AWAY_TEAM",
+            "status": "PLACEHOLDER_ONLY",
+            "data_state": "PLACEHOLDER_NO_RESULT",
+        },
+    },
+]
