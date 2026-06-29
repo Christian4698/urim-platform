@@ -16,6 +16,12 @@ from app.modules.providers.sandbox import (
     SandboxProviderAdapter,
     stable_raw_hash,
 )
+from app.schemas.providers import (
+    PROVIDER_ONBOARDING_REQUIREMENTS,
+    RATE_LIMIT_QUOTA_CONTRACTS,
+    RECONCILIATION_READINESS_REQUIREMENTS,
+    SANDBOX_INTEGRATION_FLOW,
+)
 
 client = TestClient(app)
 
@@ -54,6 +60,13 @@ def _walk_keys(value: Any) -> list[str]:
 
 def test_sandbox_adapter_satisfies_provider_protocol() -> None:
     assert isinstance(SandboxProviderAdapter(), SportsDataProviderProtocol)
+
+
+def test_official_result_envelope_remains_sandbox_only_extension() -> None:
+    adapter = SandboxProviderAdapter()
+
+    assert "official_result_envelope" not in SportsDataProviderProtocol.__dict__
+    assert hasattr(adapter, "official_result_envelope")
 
 
 def test_sandbox_identity_and_capabilities_remain_disabled() -> None:
@@ -105,14 +118,14 @@ def test_sandbox_golden_payloads_are_non_prod_only() -> None:
     }
 
     assert SANDBOX_GOLDEN_PAYLOADS
-    for payload in SANDBOX_GOLDEN_PAYLOADS:
-        assert payload["fixture_marker"] == SANDBOX_MODE
-        assert payload["provider"] == SANDBOX_PROVIDER_ID
-        assert str(payload["provider_event_id"]).startswith("PLACEHOLDER_SANDBOX_EVENT_")
-        assert "PLACEHOLDER" in json.dumps(payload)
-        assert forbidden_keys.isdisjoint(set(_walk_keys(payload)))
+    for golden_payload in SANDBOX_GOLDEN_PAYLOADS:
+        assert golden_payload["fixture_marker"] == SANDBOX_MODE
+        assert golden_payload["provider"] == SANDBOX_PROVIDER_ID
+        assert str(golden_payload["provider_event_id"]).startswith("PLACEHOLDER_SANDBOX_EVENT_")
+        assert "PLACEHOLDER" in json.dumps(golden_payload)
+        assert forbidden_keys.isdisjoint(set(_walk_keys(golden_payload)))
 
-        for value in _walk_values(payload):
+        for value in _walk_values(golden_payload):
             if isinstance(value, str):
                 assert not any(forbidden_value in value for forbidden_value in forbidden_values)
 
@@ -138,7 +151,7 @@ def test_sandbox_mapping_preserves_provenance_and_temporal_order() -> None:
         assert build_quality_report(observation).temporal_order_valid is True
 
 
-def test_sandbox_normalize_and_contract_mappers() -> None:
+def test_sandbox_full_integration_flow_is_contract_only() -> None:
     adapter = SandboxProviderAdapter()
     observation = adapter.fetch_fixture("PLACEHOLDER_SANDBOX_EVENT_001")
     assert observation.raw_payload_ref is not None
@@ -146,15 +159,53 @@ def test_sandbox_normalize_and_contract_mappers() -> None:
     normalized = adapter.normalize(observation.raw_payload_ref)
     mapping = adapter.map_entity(observation)
     temporal_metadata = adapter.temporal_metadata(observation)
+    quality_report = adapter.quality_report(observation)
     official_placeholder = adapter.official_result_envelope(observation)
 
     assert normalized.raw_hash == observation.raw_hash
     assert mapping.provider_entity_type == "sandbox_fixture"
     assert mapping.canonical_entity_id is None
     assert temporal_metadata.available_at == observation.available_at
+    assert quality_report.complete_provenance is True
+    assert quality_report.temporal_order_valid is True
     assert official_placeholder.learning_source == "post_match_outcomes_only"
+    assert "NO_OFFICIAL_DATA" in official_placeholder.quality_flags
+    assert official_placeholder.result_payload["data_state"] == "PLACEHOLDER_NO_OFFICIAL_DATA"
     assert "score" not in json.dumps(official_placeholder.result_payload).lower()
     assert "winner" not in json.dumps(official_placeholder.result_payload).lower()
+
+
+def test_sandbox_payload_summaries_redact_test_only_sensitive_placeholder_values() -> None:
+    sensitive_placeholder_payload = {
+        "fixture_marker": "DEMO_NON_PROD",
+        "provider": SANDBOX_PROVIDER_ID,
+        "provider_event_id": "PLACEHOLDER_SANDBOX_EVENT_SENSITIVE",
+        "observed_at": "2026-01-03T10:00:00+00:00",
+        "available_at": "2026-01-03T11:00:00+00:00",
+        "fetched_at": "2026-01-03T12:00:00+00:00",
+        "source_version": "SANDBOX_DEMO_NON_PROD_v1",
+        "quality_flags": ["DEMO_NON_PROD", "PLACEHOLDER", "SANDBOX_ONLY"],
+        "payload": {
+            "safe_status": "PLACEHOLDER_ONLY",
+            "api_key": "DEMO_NON_PROD_FAKE_API_KEY_VALUE",
+            "nested": {
+                "Authorization": "Bearer DEMO_NON_PROD_FAKE_TOKEN",
+                "provider_credentials": {"password": "DEMO_NON_PROD_FAKE_PASSWORD"},
+            },
+        },
+    }
+    adapter = SandboxProviderAdapter(payloads=(sensitive_placeholder_payload,))
+
+    summaries = adapter.payload_summaries()
+    serialized = json.dumps(summaries)
+
+    assert summaries[0]["payload"]["safe_status"] == "PLACEHOLDER_ONLY"
+    assert summaries[0]["payload"]["api_key"] == "[REDACTED]"
+    assert summaries[0]["payload"]["nested"]["Authorization"] == "[REDACTED]"
+    assert summaries[0]["payload"]["nested"]["provider_credentials"] == "[REDACTED]"
+    assert "DEMO_NON_PROD_FAKE_API_KEY_VALUE" not in serialized
+    assert "DEMO_NON_PROD_FAKE_TOKEN" not in serialized
+    assert "DEMO_NON_PROD_FAKE_PASSWORD" not in serialized
 
 
 def test_sandbox_status_endpoint_is_read_only_safe_and_sanitized() -> None:
@@ -166,7 +217,7 @@ def test_sandbox_status_endpoint_is_read_only_safe_and_sanitized() -> None:
 
     payload = response.json()
     body = response.text.lower()
-    assert payload["metadata"]["phase"] == "phase-8-provider-sandbox-adapter"
+    assert payload["metadata"]["phase"] == "phase-9-provider-sandbox-integration-qa"
     assert payload["sandbox_mode"] == SANDBOX_MODE
     assert payload["provider_enabled"] is False
     assert payload["api_football_connected"] is False
@@ -176,8 +227,14 @@ def test_sandbox_status_endpoint_is_read_only_safe_and_sanitized() -> None:
     assert payload["prediction_creation_enabled"] is False
     assert payload["production_mock_fallback_allowed"] is False
     assert payload["payload_count"] == len(SANDBOX_GOLDEN_PAYLOADS)
-    assert payload["raw_hashes"] == [stable_raw_hash(payload) for payload in SANDBOX_GOLDEN_PAYLOADS]
+    assert payload["raw_hashes"] == [stable_raw_hash(golden_payload) for golden_payload in SANDBOX_GOLDEN_PAYLOADS]
     assert payload["qa_markers"] == ["DEMO_NON_PROD", "PLACEHOLDER", "SANDBOX_ONLY"]
+    assert payload["onboarding_requirements"] == list(PROVIDER_ONBOARDING_REQUIREMENTS)
+    assert payload["rate_limit_quota_contracts"] == list(RATE_LIMIT_QUOTA_CONTRACTS)
+    assert payload["reconciliation_readiness"] == list(RECONCILIATION_READINESS_REQUIREMENTS)
+    assert payload["sandbox_integration_flow"] == list(SANDBOX_INTEGRATION_FLOW)
+    assert "provider_network_calls=disabled" in payload["rate_limit_quota_contracts"]
+    assert "database_writes=disabled_in_phase_9" in payload["reconciliation_readiness"]
     assert payload["payload_summaries"]
 
     for secret_token in ("api_key", "password", "provider_credentials", "bearer", "authorization"):

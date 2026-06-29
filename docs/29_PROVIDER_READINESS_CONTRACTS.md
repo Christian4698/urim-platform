@@ -89,3 +89,23 @@ Contraintes :
 - aucune prediction creee.
 
 L'endpoint `GET /api/v1/providers/sandbox/status` expose uniquement un statut informatif, les hashes stables des payloads sandbox, les capacites desactivees et des resumes de payloads passes par redaction.
+
+## Phase 9 Sandbox Integration QA
+Phase 9 renforce l'auditabilite du sandbox sans connecter de provider reel.
+
+Le flux complet expose ou teste uniquement des contrats :
+`identity -> payloads -> raw_reference -> observation -> quality_report -> canonical_mapping_placeholder -> official_result_envelope_placeholder`.
+
+`official_result_envelope` reste volontairement sandbox-only. Il sert a verifier la forme d'une enveloppe future sans resultat sportif, sans score, sans vainqueur et sans activation de Post-Match Learning. Le protocole fournisseur general reste limite aux donnees provider; le futur Official Result Verifier sera une surface separee.
+
+Avant tout provider reel, les prerequis restent obligatoires :
+- licence et redistribution ;
+- quotas, rate limits et couts ;
+- latence, pagination, retries et circuit breaker ;
+- redaction recursive et absence de secret expose ;
+- monitoring, alertes et procedure de desactivation ;
+- reconciliation avec entites canoniques et provenance par champ ;
+- golden payloads reels anonymises ;
+- audit securite independant.
+
+Les contrats quota/rate-limit/reconciliation sont readiness-only en Phase 9. Aucun scheduler, queue, retry execution, circuit breaker execution, appel reseau provider, ecriture DB ou overwrite canonique n'est ajoute.
