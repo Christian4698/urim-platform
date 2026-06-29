@@ -1,6 +1,6 @@
 # Provider Readiness Contracts
 
-Phase 6 prepare les contrats provider URIM/Kairos sans connecter de fournisseur reel.
+Phase 6 prepare les contrats provider URIM/Kairos sans connecter de fournisseur reel. Phase 7 renforce ces contrats avec une couche QA, redaction et golden payloads non-production.
 
 ## Perimetre
 - Aucun connecteur API-Football.
@@ -62,3 +62,17 @@ Une observation disponible apres l'heure de prediction ne peut pas alimenter une
 `GET /api/v1/providers/readiness` retourne uniquement les exigences contractuelles et les statuts desactives.
 
 `POST /api/v1/providers/readiness` n'existe pas et doit retourner `405`.
+
+## Phase 7 QA
+Phase 7 ajoute les exigences QA suivantes a la readiness provider :
+- `license_review_required`
+- `quota_and_rate_limit_required`
+- `golden_payloads_required`
+- `payload_redaction_required`
+- `monitoring_required`
+- `independent_audit_required`
+- `no_production_mock_fallback`
+
+Les golden payloads restent limites aux tests et a la documentation. Ils doivent etre marques `DEMO_NON_PROD` ou `PLACEHOLDER`, ne doivent pas contenir de resultat sportif reel et ne doivent jamais remplacer une observation provider reelle.
+
+La redaction des payloads provider doit masquer recursivement les cles sensibles, notamment `api_key`, `token`, `authorization`, `secret`, `password`, `bearer`, `credential` et `provider_credentials`.

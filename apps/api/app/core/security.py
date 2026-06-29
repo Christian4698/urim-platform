@@ -20,7 +20,7 @@ def add_security_headers(app: FastAPI) -> None:
         return response
 
 
-def phase_six_security_assertions() -> dict[str, bool]:
+def phase_seven_security_assertions() -> dict[str, bool]:
     """Expose non-secret safety switches for smoke tests and future gates."""
     return {
         "providers_disabled": True,
@@ -31,10 +31,3 @@ def phase_six_security_assertions() -> dict[str, bool]:
         "prediction_creation_disabled": True,
         "production_mocks_disabled": True,
     }
-
-
-phase_five_security_assertions = phase_six_security_assertions
-phase_four_security_assertions = phase_five_security_assertions
-phase_three_security_assertions = phase_four_security_assertions
-phase_two_security_assertions = phase_three_security_assertions
-phase_one_security_assertions = phase_two_security_assertions

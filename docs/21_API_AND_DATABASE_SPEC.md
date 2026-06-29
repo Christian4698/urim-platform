@@ -36,3 +36,12 @@ La Phase 6 ajoute uniquement des contrats provider et un endpoint read-only `/ap
 Cet endpoint n'appelle aucun provider, ne charge aucune cle API, ne connecte pas API-Football et ne cree aucune prediction. Il expose les exigences de provenance, la matrice de capacites futures toutes desactivees, la regle temporelle `observed_at <= available_at <= fetched_at`, la future contrainte `available_at <= prediction_time` et l'interdiction de fallback mock en production.
 
 Les observations provider futures doivent conserver `provider`, `provider_event_id`, `observed_at`, `available_at`, `fetched_at`, `source_version`, `raw_hash` et `quality_flags`. Les mappings canoniques restent audites et ne doivent pas ecraser silencieusement une observation divergente.
+
+## Phase 7 Provider QA Contract Hardening
+La Phase 7 conserve `/api/v1/providers/readiness` en lecture seule et ajoute uniquement des exigences QA provider.
+
+L'endpoint expose les exigences `license_review_required`, `quota_and_rate_limit_required`, `golden_payloads_required`, `payload_redaction_required`, `monitoring_required`, `independent_audit_required` et `no_production_mock_fallback`.
+
+Les golden payloads sont autorises seulement en tests/docs avec marqueurs `DEMO_NON_PROD` ou `PLACEHOLDER`. Ils ne doivent contenir aucun resultat sportif reel, aucune cle fournisseur et aucun credential.
+
+Les payloads provider doivent passer par une redaction recursive avant exposition, log ou rapport QA. Les cles sensibles comme `api_key`, `token`, `authorization`, `secret`, `password`, `bearer`, `credential` et `provider_credentials` sont masquees.
