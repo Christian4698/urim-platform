@@ -1,7 +1,6 @@
 from datetime import UTC, datetime
 import json
 import socket
-from typing import Any
 
 from fastapi.testclient import TestClient
 
@@ -22,40 +21,9 @@ from app.schemas.providers import (
     RECONCILIATION_READINESS_REQUIREMENTS,
     SANDBOX_INTEGRATION_FLOW,
 )
+from tests.helpers.payload_helpers import walk_keys, walk_values
 
 client = TestClient(app)
-
-
-def _walk_values(value: Any) -> list[Any]:
-    if isinstance(value, dict):
-        walked: list[Any] = []
-        for nested_value in value.values():
-            walked.extend(_walk_values(nested_value))
-        return walked
-
-    if isinstance(value, list):
-        walked = []
-        for item in value:
-            walked.extend(_walk_values(item))
-        return walked
-
-    return [value]
-
-
-def _walk_keys(value: Any) -> list[str]:
-    if isinstance(value, dict):
-        walked = [str(key) for key in value]
-        for nested_value in value.values():
-            walked.extend(_walk_keys(nested_value))
-        return walked
-
-    if isinstance(value, list):
-        walked = []
-        for item in value:
-            walked.extend(_walk_keys(item))
-        return walked
-
-    return []
 
 
 def test_sandbox_adapter_satisfies_provider_protocol() -> None:
@@ -123,9 +91,9 @@ def test_sandbox_golden_payloads_are_non_prod_only() -> None:
         assert golden_payload["provider"] == SANDBOX_PROVIDER_ID
         assert str(golden_payload["provider_event_id"]).startswith("PLACEHOLDER_SANDBOX_EVENT_")
         assert "PLACEHOLDER" in json.dumps(golden_payload)
-        assert forbidden_keys.isdisjoint(set(_walk_keys(golden_payload)))
+        assert forbidden_keys.isdisjoint(set(walk_keys(golden_payload)))
 
-        for value in _walk_values(golden_payload):
+        for value in walk_values(golden_payload):
             if isinstance(value, str):
                 assert not any(forbidden_value in value for forbidden_value in forbidden_values)
 
@@ -217,7 +185,7 @@ def test_sandbox_status_endpoint_is_read_only_safe_and_sanitized() -> None:
 
     payload = response.json()
     body = response.text.lower()
-    assert payload["metadata"]["phase"] == "phase-9-provider-sandbox-integration-qa"
+    assert payload["metadata"]["phase"] == "phase-10-provider-onboarding-gate"
     assert payload["sandbox_mode"] == SANDBOX_MODE
     assert payload["provider_enabled"] is False
     assert payload["api_football_connected"] is False
@@ -234,7 +202,9 @@ def test_sandbox_status_endpoint_is_read_only_safe_and_sanitized() -> None:
     assert payload["reconciliation_readiness"] == list(RECONCILIATION_READINESS_REQUIREMENTS)
     assert payload["sandbox_integration_flow"] == list(SANDBOX_INTEGRATION_FLOW)
     assert "provider_network_calls=disabled" in payload["rate_limit_quota_contracts"]
-    assert "database_writes=disabled_in_phase_9" in payload["reconciliation_readiness"]
+    assert "database_writes=disabled_in_phase_10" in payload["reconciliation_readiness"]
+    assert payload["onboarding_gate"]["status"] == "blocked_until_real_provider_audit"
+    assert payload["onboarding_gate"]["can_activate"] is False
     assert payload["payload_summaries"]
 
     for secret_token in ("api_key", "password", "provider_credentials", "bearer", "authorization"):

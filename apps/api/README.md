@@ -2,7 +2,7 @@
 
 FastAPI backend for the URIM Kairos engine.
 
-This package currently covers Phase 9 provider sandbox integration QA work:
+This package currently covers Phase 10 provider onboarding gate work:
 
 - SQLAlchemy metadata for the PostgreSQL foundation schema.
 - Alembic migrations for local and future controlled environments.
@@ -14,14 +14,17 @@ This package currently covers Phase 9 provider sandbox integration QA work:
 - Provider QA helpers for contract-only golden payload checks and payload redaction.
 - Read-only sandbox provider status under `/api/v1/providers/sandbox/status`.
 - Readiness-only onboarding, quota/rate-limit, and reconciliation requirements for future providers.
+- Provider onboarding gate that blocks real provider activation until a future independent audit.
 
 It does not connect API-Football, train ML models, execute bets, create real predictions, create production sports results, or seed production data. The Bet Center remains virtual/internal only.
 
-The Phase 9 CSP remains intentionally strict for an API surface:
+The Phase 10 CSP remains intentionally strict for an API surface:
 `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`.
-It may restrict Swagger UI or ReDoc interactive rendering; an auth/docs portal is out of scope for Phase 9.
+It may restrict Swagger UI or ReDoc interactive rendering; an auth/docs portal is out of scope for Phase 10.
 
 `official_result_envelope` remains a sandbox-only placeholder used to test future wiring shape. Real Official Result Verifier behavior and Post-Match Learning activation remain out of scope.
+
+Future provider secret environment variable names are documented only in local configuration examples with empty values. Public API responses expose readiness categories, never secret names or values.
 
 ## Validation
 

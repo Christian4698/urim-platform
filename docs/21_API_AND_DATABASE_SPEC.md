@@ -63,3 +63,14 @@ Le statut sandbox expose le flux QA `identity -> payloads -> raw_reference -> ob
 `official_result_envelope` reste une extension sandbox placeholder uniquement. Il n'entre pas dans le protocole provider general et ne remplace pas le futur Official Result Verifier. Post-Match Learning reste inactif et ne pourra apprendre que depuis des `post_match_outcomes` officiels verifies dans une phase future.
 
 La readiness provider expose aussi les prerequis avant activation reelle : licence, quota, rate limit, latence, pagination, retries, circuit breaker, redaction, monitoring, reconciliation, golden payloads reels anonymises et audit securite. Ces elements sont des contrats readiness-only : aucun scheduler, queue, retry execution, circuit breaker execution ou provider network call n'est ajoute en Phase 9.
+
+## Phase 10 Provider Onboarding Gate
+La Phase 10 ajoute un gate d'activation provider dans `/api/v1/providers/readiness`.
+
+Le gate retourne `blocked_until_real_provider_audit`, `can_activate=false` et `providers_enabled=false`. Il liste les raisons de blocage tant que licence, quotas, rate limits, latence, pagination, retries/circuit breaker, redaction, monitoring, reconciliation, golden payloads reels anonymises, audit securite et gestion secrete des credentials ne sont pas valides.
+
+Les exigences QA restent separees des exigences onboarding : QA verifie les payloads, la provenance, la redaction et les contrats; onboarding couvre les conditions business, operations et securite avant activation reelle.
+
+Les noms de variables d'environnement futurs pour secrets provider sont documentes uniquement en configuration locale avec valeurs vides. Les reponses publiques exposent seulement des categories et un statut de readiness, jamais des noms de variables secretes ni des valeurs.
+
+Aucune migration, ecriture DB, connexion provider, API-Football, bookmaker, prediction reelle, ML ou seed production n'est ajoute en Phase 10.

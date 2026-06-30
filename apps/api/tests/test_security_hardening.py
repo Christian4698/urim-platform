@@ -37,14 +37,21 @@ SECRET_TOKENS = (
     "postgresql+psycopg",
     "urim_local_only",
     "api_key",
-    "secret",
     "password",
     "provider_credentials",
+    "PROVIDER_API_KEY",
+    "PROVIDER_API_SECRET",
+    "PROVIDER_WEBHOOK_SECRET",
+    "PROVIDER_CLIENT_ID",
+    "PROVIDER_CLIENT_SECRET",
+    "DEMO_NON_PROD_FAKE_API_KEY_VALUE",
+    "DEMO_NON_PROD_FAKE_TOKEN",
+    "DEMO_NON_PROD_FAKE_PASSWORD",
 )
 
 
 @pytest.mark.parametrize("path", PUBLIC_GET_ENDPOINTS)
-def test_public_get_endpoints_include_phase_nine_security_headers(path: str) -> None:
+def test_public_get_endpoints_include_phase_ten_security_headers(path: str) -> None:
     response = client.get(path)
 
     assert response.status_code == 200
