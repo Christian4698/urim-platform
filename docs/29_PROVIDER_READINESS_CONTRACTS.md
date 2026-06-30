@@ -109,3 +109,22 @@ Avant tout provider reel, les prerequis restent obligatoires :
 - audit securite independant.
 
 Les contrats quota/rate-limit/reconciliation sont readiness-only en Phase 9. Aucun scheduler, queue, retry execution, circuit breaker execution, appel reseau provider, ecriture DB ou overwrite canonique n'est ajoute.
+
+## Phase 10 Provider Onboarding Gate
+Phase 10 ajoute un gate explicite avant toute activation provider reelle.
+
+Statut public attendu :
+- `status=blocked_until_real_provider_audit`
+- `can_activate=false`
+- `providers_enabled=false`
+- `api_football_connected=false`
+- `network_calls_enabled=false`
+- `db_ingestion_enabled=false`
+
+La checklist d'activation reste incomplete par defaut : licence, quotas, rate limits, latence, pagination, retries, circuit breaker, redaction, monitoring, reconciliation, golden payloads reels anonymises, audit securite et gestion secrete des credentials doivent etre valides dans une phase future.
+
+Les exigences QA et onboarding restent distinctes :
+- QA requirements : validation des payloads, provenance, redaction et comportement des contrats.
+- Onboarding requirements : conditions business, operations et securite avant activation provider reelle.
+
+Les secrets provider futurs ne sont jamais exposes dans les reponses publiques. Les noms d'environnement sont seulement des placeholders vides dans les fichiers de configuration exemple; les valeurs reelles devront passer par un environnement securise ou un secret manager.

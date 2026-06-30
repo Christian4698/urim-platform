@@ -1,7 +1,6 @@
 from datetime import UTC, datetime, timedelta
 import json
 import socket
-from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -34,6 +33,7 @@ from app.schemas.providers import (
     TemporalAvailabilityMetadata,
 )
 from tests.fixtures.provider_golden_payloads import GOLDEN_PAYLOADS
+from tests.helpers.payload_helpers import walk_keys, walk_values
 
 client = TestClient(app)
 
@@ -218,18 +218,23 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
         assert response.headers[header_name] == header_value
 
     payload = response.json()
-    assert payload["metadata"]["phase"] == "phase-9-provider-sandbox-integration-qa"
+    assert payload["metadata"]["phase"] == "phase-10-provider-onboarding-gate"
     assert payload["providers_enabled"] is False
     assert payload["api_football_connected"] is False
     assert payload["network_calls_enabled"] is False
     assert payload["credentials_configured"] is False
     assert payload["quality_report"]["production_mock_fallback_allowed"] is False
     assert payload["qa_requirements"] == list(PROVIDER_QA_REQUIREMENTS)
+    assert payload["qa_requirements_description"]
     assert payload["onboarding_requirements"] == list(PROVIDER_ONBOARDING_REQUIREMENTS)
+    assert payload["onboarding_requirements_description"]
     assert payload["rate_limit_quota_contracts"] == list(RATE_LIMIT_QUOTA_CONTRACTS)
     assert payload["reconciliation_readiness"] == list(RECONCILIATION_READINESS_REQUIREMENTS)
     assert "provider_network_calls=disabled" in payload["rate_limit_quota_contracts"]
-    assert "database_writes=disabled_in_phase_9" in payload["reconciliation_readiness"]
+    assert "database_writes=disabled_in_phase_10" in payload["reconciliation_readiness"]
+    assert payload["onboarding_gate"]["status"] == "blocked_until_real_provider_audit"
+    assert payload["onboarding_gate"]["can_activate"] is False
+    assert payload["onboarding_gate"]["providers_enabled"] is False
     assert payload["post_match_learning_source"] == POST_MATCH_LEARNING_SOURCE
     assert "tickets.user_declared_profit_loss" in payload["disallowed_learning_sources"]
     assert payload["required_provenance_fields"] == [
@@ -330,38 +335,6 @@ def test_sanitize_provider_payload_masks_sensitive_keys_recursively() -> None:
     assert "demo-bearer-value" not in serialized
 
 
-def _walk_values(value: Any) -> list[Any]:
-    if isinstance(value, dict):
-        walked: list[Any] = []
-        for nested_value in value.values():
-            walked.extend(_walk_values(nested_value))
-        return walked
-
-    if isinstance(value, list):
-        walked = []
-        for item in value:
-            walked.extend(_walk_values(item))
-        return walked
-
-    return [value]
-
-
-def _walk_keys(value: Any) -> list[str]:
-    if isinstance(value, dict):
-        walked = [str(key) for key in value]
-        for nested_value in value.values():
-            walked.extend(_walk_keys(nested_value))
-        return walked
-
-    if isinstance(value, list):
-        walked = []
-        for item in value:
-            walked.extend(_walk_keys(item))
-        return walked
-
-    return []
-
-
 def test_golden_payloads_are_demo_only_and_not_production_results() -> None:
     forbidden_result_keys = {"score", "scores", "result", "winner", "home_score", "away_score"}
     forbidden_real_names = {"Manchester", "Real Madrid", "Barcelona", "PSG", "Liverpool"}
@@ -370,7 +343,7 @@ def test_golden_payloads_are_demo_only_and_not_production_results() -> None:
     for payload in GOLDEN_PAYLOADS:
         assert payload["fixture_marker"] == "DEMO_NON_PROD"
         assert "PLACEHOLDER" in json.dumps(payload)
-        assert forbidden_result_keys.isdisjoint(set(_walk_keys(payload)))
-        for value in _walk_values(payload):
+        assert forbidden_result_keys.isdisjoint(set(walk_keys(payload)))
+        for value in walk_values(payload):
             if isinstance(value, str):
                 assert not any(real_name in value for real_name in forbidden_real_names)
