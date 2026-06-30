@@ -2,7 +2,7 @@
 
 FastAPI backend for the URIM Kairos engine.
 
-This package currently covers Phase 10 provider onboarding gate work:
+This package currently covers Phase 11 provider onboarding gate hardening work:
 
 - SQLAlchemy metadata for the PostgreSQL foundation schema.
 - Alembic migrations for local and future controlled environments.
@@ -18,9 +18,9 @@ This package currently covers Phase 10 provider onboarding gate work:
 
 It does not connect API-Football, train ML models, execute bets, create real predictions, create production sports results, or seed production data. The Bet Center remains virtual/internal only.
 
-The Phase 10 CSP remains intentionally strict for an API surface:
+The Phase 11 CSP remains intentionally strict for an API surface:
 `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`.
-It may restrict Swagger UI or ReDoc interactive rendering; an auth/docs portal is out of scope for Phase 10.
+It may restrict Swagger UI or ReDoc interactive rendering; an auth/docs portal is out of scope for Phase 11.
 
 `official_result_envelope` remains a sandbox-only placeholder used to test future wiring shape. Real Official Result Verifier behavior and Post-Match Learning activation remain out of scope.
 

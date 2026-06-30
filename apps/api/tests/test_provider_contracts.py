@@ -218,7 +218,7 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
         assert response.headers[header_name] == header_value
 
     payload = response.json()
-    assert payload["metadata"]["phase"] == "phase-10-provider-onboarding-gate"
+    assert payload["metadata"]["phase"] == "phase-11-provider-onboarding-gate-hardening"
     assert payload["providers_enabled"] is False
     assert payload["api_football_connected"] is False
     assert payload["network_calls_enabled"] is False
@@ -231,7 +231,7 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
     assert payload["rate_limit_quota_contracts"] == list(RATE_LIMIT_QUOTA_CONTRACTS)
     assert payload["reconciliation_readiness"] == list(RECONCILIATION_READINESS_REQUIREMENTS)
     assert "provider_network_calls=disabled" in payload["rate_limit_quota_contracts"]
-    assert "database_writes=disabled_in_phase_10" in payload["reconciliation_readiness"]
+    assert "database_writes=disabled_in_phase_11" in payload["reconciliation_readiness"]
     assert payload["onboarding_gate"]["status"] == "blocked_until_real_provider_audit"
     assert payload["onboarding_gate"]["can_activate"] is False
     assert payload["onboarding_gate"]["providers_enabled"] is False
