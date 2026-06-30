@@ -74,3 +74,10 @@ Les exigences QA restent separees des exigences onboarding : QA verifie les payl
 Les noms de variables d'environnement futurs pour secrets provider sont documentes uniquement en configuration locale avec valeurs vides. Les reponses publiques exposent seulement des categories et un statut de readiness, jamais des noms de variables secretes ni des valeurs.
 
 Aucune migration, ecriture DB, connexion provider, API-Football, bookmaker, prediction reelle, ML ou seed production n'est ajoute en Phase 10.
+
+## Phase 11 Provider Onboarding Gate Hardening
+La Phase 11 durcit le gate sans changer sa surface publique principale.
+
+`refuse_provider_activation` reste structurellement bloquant : les champs critiques utilisent des valeurs `false` et les objets checklist ou secret-readiness fournis par appel interne sont reinitialises a des valeurs sures. Cela ferme l'ambiguite des objets construits artificiellement sans validation.
+
+`.env.example` reste limite a des placeholders vides et normalise en LF. Aucune cle reelle, aucun connecteur, aucun appel reseau, aucune ecriture DB et aucune migration ne sont ajoutes.

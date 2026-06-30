@@ -51,7 +51,7 @@ SECRET_TOKENS = (
 
 
 @pytest.mark.parametrize("path", PUBLIC_GET_ENDPOINTS)
-def test_public_get_endpoints_include_phase_ten_security_headers(path: str) -> None:
+def test_public_get_endpoints_include_phase_eleven_security_headers(path: str) -> None:
     response = client.get(path)
 
     assert response.status_code == 200

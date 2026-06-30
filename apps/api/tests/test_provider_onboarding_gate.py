@@ -68,7 +68,50 @@ def test_provider_activation_guard_refuses_even_with_constructed_inputs() -> Non
 
     assert gate.can_activate is False
     assert gate.providers_enabled is False
-    assert "phase_10_blocks_real_provider_activation" in gate.blocking_reasons
+    assert "phase_11_keeps_real_provider_activation_blocked" in gate.blocking_reasons
+    assert gate.checklist.license_validated is False
+    assert gate.checklist.quotas_known is False
+    assert gate.checklist.rate_limits_known is False
+    assert gate.checklist.secure_env_secret_management_validated is False
+    assert gate.secret_readiness.configured is False
+    assert gate.secret_readiness.secret_values_present is False
+    assert gate.secret_readiness.public_env_var_names_exposed is False
+
+
+def test_refuse_provider_activation_documents_structural_blocking() -> None:
+    doc = refuse_provider_activation.__doc__
+
+    assert doc is not None
+    assert "Literal[False]" in doc
+    assert "does not contain conditional activation logic" in doc
+
+
+def test_build_provider_onboarding_gate_resets_bypassed_inputs() -> None:
+    checklist = ProviderActivationChecklist.model_construct(
+        license_validated=True,
+        quotas_known=True,
+        rate_limits_known=True,
+        latency_measured=True,
+        pagination_documented=True,
+        retries_defined=True,
+        circuit_breaker_defined=True,
+        redaction_verified=True,
+        monitoring_defined=True,
+        reconciliation_strategy_defined=True,
+        anonymized_real_golden_payloads_available=True,
+        security_audit_validated=True,
+        secure_env_secret_management_validated=True,
+    )
+    secret_readiness = ProviderSecretReadiness.model_construct(
+        configured=True,
+        secret_values_present=True,
+        public_env_var_names_exposed=True,
+    )
+
+    gate = build_provider_onboarding_gate(checklist=checklist, secret_readiness=secret_readiness)
+
+    assert gate.checklist.model_dump() == ProviderActivationChecklist().model_dump()
+    assert gate.secret_readiness.model_dump() == ProviderSecretReadiness().model_dump()
 
 
 def test_provider_readiness_exposes_gate_without_secret_env_names() -> None:
@@ -109,7 +152,10 @@ def test_sandbox_status_exposes_blocked_gate_without_secret_env_names() -> None:
 
 
 def test_future_provider_secret_env_names_are_empty_placeholders_only() -> None:
-    env_lines = ENV_EXAMPLE.read_text(encoding="utf-8").splitlines()
+    env_bytes = ENV_EXAMPLE.read_bytes()
+    env_lines = env_bytes.decode("utf-8").splitlines()
+
+    assert b"\r\n" not in env_bytes
 
     for env_name in FUTURE_PROVIDER_SECRET_ENV_NAMES:
         assert f"{env_name}=" in env_lines

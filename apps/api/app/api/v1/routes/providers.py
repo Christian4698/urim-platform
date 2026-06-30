@@ -16,7 +16,7 @@ def list_providers() -> SkeletonCollectionResponse:
     return empty_collection(
         "providers",
         [
-            "Provider connectors are disabled in Phase 10.",
+            "Provider connectors are disabled in Phase 11.",
             "Provider onboarding gate blocks real provider activation.",
             "API-Football is not connected.",
             "Sandbox provider status is informational and non-production.",

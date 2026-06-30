@@ -1,4 +1,4 @@
-API_PHASE = "phase-10-provider-onboarding-gate"
+API_PHASE = "phase-11-provider-onboarding-gate-hardening"
 DATABASE_CONFIGURED_NOT_CHECKED = "configured_not_checked"
 DATABASE_NOT_CONFIGURED = "not_configured"
 DISABLED_STATUS = "disabled"

@@ -89,7 +89,7 @@ PROVIDER_ACTIVATION_BLOCKING_REASONS = (
     "anonymized_real_golden_payloads_missing",
     "security_audit_not_validated",
     "secure_secret_management_not_validated",
-    "phase_10_blocks_real_provider_activation",
+    "phase_11_keeps_real_provider_activation_blocked",
 )
 
 PROVIDER_SECRET_READINESS_CATEGORIES = (
@@ -114,7 +114,7 @@ RECONCILIATION_READINESS_REQUIREMENTS = (
     "conflict_marking_required",
     "silent_overwrite_forbidden",
     "critical_conflict_blocks_future_predictions",
-    "database_writes=disabled_in_phase_10",
+    "database_writes=disabled_in_phase_11",
 )
 
 SANDBOX_INTEGRATION_FLOW = (
@@ -201,7 +201,7 @@ class ProviderCapability(BaseModel):
     @model_validator(mode="after")
     def require_disabled_status(self) -> Self:
         if self.status != DISABLED_STATUS:
-            raise ValueError("provider capabilities must remain disabled in Phase 10")
+            raise ValueError("provider capabilities must remain disabled in Phase 11")
         return self
 
 
@@ -223,7 +223,7 @@ class ProviderCapabilityMatrix(BaseModel):
             if capability.capability != capability_name:
                 raise ValueError("provider capability matrix entries must match their field names")
             if capability.enabled is not False or capability.status != DISABLED_STATUS:
-                raise ValueError("provider capability matrix must remain fully disabled in Phase 10")
+                raise ValueError("provider capability matrix must remain fully disabled in Phase 11")
         return self
 
     def as_list(self) -> list[ProviderCapability]:

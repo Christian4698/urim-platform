@@ -1,1 +1,1 @@
-"""Provider readiness contract module. No real sports API connector exists in Phase 10."""
+"""Provider readiness contract module. No real sports API connector exists in Phase 11."""
