@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { appConfig } from "@urim/config";
-import { StatusPill } from "@urim/ui";
+import { StatusBadge } from "./dashboard-ui";
 import { navigationItems } from "../lib/navigation";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -22,7 +22,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             src="/brand/logo/urim-logo-horizontal.svg"
             width={220}
           />
-          <span>Sports Intelligence Platform · Moteur {appConfig.engineName}</span>
+          <span>Sports Intelligence Platform · Internal intelligence console</span>
         </div>
 
         <nav className="nav-list">
@@ -37,15 +37,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 href={item.href}
                 key={item.href}
               >
+                <span className="nav-link-indicator" aria-hidden="true" />
                 {item.label}
               </Link>
             );
           })}
         </nav>
 
-        <p className="sidebar-note">
-          Phase 1 : aucun flux fournisseur, aucune prédiction réelle, aucune mise réelle.
-        </p>
+        <div className="sidebar-note">
+          <StatusBadge tone="cyan">Read-only skeleton</StatusBadge>
+          <p>No provider feed, no real prediction, no stake execution.</p>
+        </div>
       </aside>
 
       <main className="main-area">
@@ -62,9 +64,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               />
               <strong>Console URIM</strong>
             </div>
-            <span>Locale {appConfig.defaultLocale} · Devise {appConfig.defaultCurrency}</span>
+            <span>
+              Kairos engine · Locale {appConfig.defaultLocale} · Currency{" "}
+              {appConfig.defaultCurrency}
+            </span>
           </div>
-          <StatusPill tone="warning">PLACEHOLDER — Phase future</StatusPill>
+          <div className="topbar-status">
+            <StatusBadge tone="cyan">Kairos Signal · Read-only</StatusBadge>
+            <StatusBadge tone="warning">Provider disabled</StatusBadge>
+          </div>
         </div>
         <div className="content">{children}</div>
       </main>
