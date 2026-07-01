@@ -147,11 +147,13 @@ export function SystemTable({
         <tbody>
           {rows.map((row) => (
             <tr key={row.label}>
-              <th scope="row">{row.label}</th>
-              <td>
+              <th data-label="Layer" scope="row">
+                {row.label}
+              </th>
+              <td data-label="Status">
                 <StatusBadge tone={row.tone ?? "neutral"}>{row.status}</StatusBadge>
               </td>
-              <td>{row.detail}</td>
+              <td data-label="Scope">{row.detail}</td>
             </tr>
           ))}
         </tbody>
