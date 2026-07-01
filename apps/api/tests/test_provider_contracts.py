@@ -220,7 +220,7 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
         assert response.headers[header_name] == header_value
 
     payload = response.json()
-    assert payload["metadata"]["phase"] == "phase-14-real-provider-adapter-shell"
+    assert payload["metadata"]["phase"] == "phase-15-provider-activation-readiness-final-gate"
     assert payload["providers_enabled"] is False
     assert payload["api_football_connected"] is False
     assert payload["network_calls_enabled"] is False
@@ -269,6 +269,16 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
     assert shell_status["db_ingestion_enabled"] is False
     assert shell_status["prediction_creation_enabled"] is False
     assert shell_status["production_payloads_enabled"] is False
+    final_gate = payload["activation_readiness_final_gate"]
+    assert final_gate["status"] == "blocked_until_provider_activation_final_gate_approved"
+    assert final_gate["can_activate_provider"] is False
+    assert final_gate["providers_enabled"] is False
+    assert final_gate["api_football_connected"] is False
+    assert final_gate["network_calls_enabled"] is False
+    assert final_gate["db_ingestion_enabled"] is False
+    assert final_gate["credentials_accepted"] is False
+    assert final_gate["production_provider_allowed"] is False
+    assert final_gate["decision"] == "blocked"
     assert payload["post_match_learning_source"] == POST_MATCH_LEARNING_SOURCE
     assert "tickets.user_declared_profit_loss" in payload["disallowed_learning_sources"]
     assert payload["required_provenance_fields"] == [

@@ -139,6 +139,41 @@ PROVIDER_PREFLIGHT_FUTURE_CHECKLIST = (
     "independent_audit_required",
 )
 
+PROVIDER_FINAL_ACTIVATION_PREREQUISITES = (
+    "license_review_completed",
+    "provider_terms_accepted",
+    "quota_limits_documented",
+    "rate_limits_documented",
+    "latency_budget_defined",
+    "egress_policy_defined",
+    "secret_manager_validated",
+    "log_redaction_validated",
+    "monitoring_defined",
+    "alerting_defined",
+    "reconciliation_plan_defined",
+    "rollback_plan_defined",
+    "anonymized_real_golden_payloads_approved",
+    "security_audit_completed",
+)
+
+PROVIDER_FINAL_ACTIVATION_BLOCKING_REASONS = (
+    "license_review_not_completed",
+    "provider_terms_not_accepted",
+    "quota_limits_not_documented",
+    "rate_limits_not_documented",
+    "latency_budget_not_defined",
+    "egress_policy_not_defined",
+    "secret_manager_not_validated",
+    "log_redaction_not_validated",
+    "monitoring_not_defined",
+    "alerting_not_defined",
+    "reconciliation_plan_not_defined",
+    "rollback_plan_not_defined",
+    "anonymized_real_golden_payloads_not_approved",
+    "security_audit_not_completed",
+    "phase_15_final_gate_keeps_provider_activation_blocked",
+)
+
 SANDBOX_INTEGRATION_FLOW = (
     "identity",
     "payloads",
@@ -263,6 +298,49 @@ class ProviderRealProviderShellStatus(BaseModel):
             "No HTTP client, provider URL, endpoint path, credential or request execution is configured.",
             "Provider egress guard blocks all future real-provider network attempts.",
         ]
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ProviderFinalActivationPrerequisites(BaseModel):
+    license_review_completed: Literal[False] = False
+    provider_terms_accepted: Literal[False] = False
+    quota_limits_documented: Literal[False] = False
+    rate_limits_documented: Literal[False] = False
+    latency_budget_defined: Literal[False] = False
+    egress_policy_defined: Literal[False] = False
+    secret_manager_validated: Literal[False] = False
+    log_redaction_validated: Literal[False] = False
+    monitoring_defined: Literal[False] = False
+    alerting_defined: Literal[False] = False
+    reconciliation_plan_defined: Literal[False] = False
+    rollback_plan_defined: Literal[False] = False
+    anonymized_real_golden_payloads_approved: Literal[False] = False
+    security_audit_completed: Literal[False] = False
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ProviderActivationReadinessFinalGate(BaseModel):
+    status: Literal["blocked_until_provider_activation_final_gate_approved"] = (
+        "blocked_until_provider_activation_final_gate_approved"
+    )
+    can_activate_provider: Literal[False] = False
+    providers_enabled: Literal[False] = False
+    api_football_connected: Literal[False] = False
+    network_calls_enabled: Literal[False] = False
+    db_ingestion_enabled: Literal[False] = False
+    credentials_accepted: Literal[False] = False
+    production_provider_allowed: Literal[False] = False
+    prerequisites: ProviderFinalActivationPrerequisites = Field(default_factory=ProviderFinalActivationPrerequisites)
+    required_prerequisites: list[str] = Field(default_factory=lambda: list(PROVIDER_FINAL_ACTIVATION_PREREQUISITES))
+    blocking_reasons: list[str] = Field(default_factory=lambda: list(PROVIDER_FINAL_ACTIVATION_BLOCKING_REASONS))
+    decision: Literal["blocked"] = "blocked"
+    decision_rationale: str = (
+        "Real provider activation remains blocked until license, terms, quotas, rate limits, latency, egress, "
+        "secret management, redaction, monitoring, alerting, reconciliation, rollback, anonymized real golden "
+        "payloads and security audit evidence are approved."
     )
 
     model_config = ConfigDict(extra="forbid")
@@ -451,6 +529,9 @@ class ProviderReadinessResponse(BaseModel):
     real_provider_shell_status: ProviderRealProviderShellStatus = Field(
         default_factory=ProviderRealProviderShellStatus
     )
+    activation_readiness_final_gate: ProviderActivationReadinessFinalGate = Field(
+        default_factory=ProviderActivationReadinessFinalGate
+    )
     post_match_learning_source: str = POST_MATCH_LEARNING_SOURCE
     disallowed_learning_sources: list[str] = Field(default_factory=lambda: list(DISALLOWED_LEARNING_SOURCES))
     safeguards: list[str] = Field(default_factory=list)
@@ -492,6 +573,9 @@ def disabled_provider_capabilities() -> list[ProviderCapability]:
 
 
 def build_provider_readiness_response() -> ProviderReadinessResponse:
+    from app.modules.providers.activation_readiness_final_gate import (
+        build_provider_activation_readiness_final_gate,
+    )
     from app.modules.providers.real_provider_shell import build_real_provider_shell_status
     from app.modules.providers.secret_safety import build_provider_secret_safety_summary
 
@@ -511,6 +595,7 @@ def build_provider_readiness_response() -> ProviderReadinessResponse:
         secret_safety=build_provider_secret_safety_summary(),
         preflight_review=ProviderPreflightSafetyReview(),
         real_provider_shell_status=build_real_provider_shell_status(),
+        activation_readiness_final_gate=build_provider_activation_readiness_final_gate(),
         safeguards=[
             "Provider contracts are defined but no provider connector is active.",
             "API-Football is not connected.",
@@ -526,6 +611,7 @@ def build_provider_readiness_response() -> ProviderReadinessResponse:
             "Provider reconciliation readiness is documented without database writes or canonical overwrites.",
             "Provider preflight review remains blocked until a future explicit audit approval.",
             "Real provider adapter shell is present only as a blocked structure with no URL, credential, HTTP client or request path.",
+            "Provider activation readiness final gate remains blocked until all final prerequisites are approved.",
             "Sandbox provider status is informational, non-production and does not enable providers.",
             "Post-Match Learning may use only verified post_match_outcomes in a future phase.",
         ],

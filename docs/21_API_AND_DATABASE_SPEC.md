@@ -111,3 +111,25 @@ Le shell ne contient aucune URL provider, aucun chemin endpoint, aucun nom de se
 secrete et aucune dependance HTTP active. Toute methode qui produirait des donnees provider leve une erreur
 controlee avant tout appel reseau. Aucune migration, ecriture DB, prediction, resultat sportif, bookmaker,
 ML ou seed production n'est ajoute.
+
+## Phase 15 Provider Activation Readiness Final Gate
+La Phase 15 ajoute un dernier gate read-only avant toute future activation provider reelle.
+
+`/api/v1/providers/readiness` expose `activation_readiness_final_gate` avec :
+- `status=blocked_until_provider_activation_final_gate_approved` ;
+- `can_activate_provider=false` ;
+- `providers_enabled=false` ;
+- `api_football_connected=false` ;
+- `network_calls_enabled=false` ;
+- `db_ingestion_enabled=false` ;
+- `credentials_accepted=false` ;
+- `production_provider_allowed=false` ;
+- `decision=blocked`.
+
+Les prerequis restent tous `false` par defaut : licence, conditions provider, quotas, rate limits, latence,
+egress, secret manager, redaction logs, monitoring, alerting, reconciliation, rollback, golden payloads reels
+anonymises et audit securite.
+
+Ce gate est un contrat final de readiness uniquement. Il ne connecte pas API-Football, ne cree aucun POST,
+PUT, PATCH ou DELETE, ne charge aucune cle, n'ajoute aucune URL provider, n'appelle aucun reseau, n'ingere rien
+en base et ne cree aucune prediction ou donnee sportive reelle.
