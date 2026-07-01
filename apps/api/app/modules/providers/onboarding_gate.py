@@ -11,7 +11,7 @@ def build_provider_onboarding_gate(
 ) -> ProviderOnboardingGate:
     """Build a safe blocked gate, resetting any caller-provided sub-objects.
 
-    Phase 11 deliberately ignores checklist and secret-readiness inputs because
+    Phase 12 preserves this behavior and ignores checklist and secret-readiness inputs because
     they may have been created with Pydantic `model_construct` and bypassed
     `Literal[False]` validation. Real activation remains future work.
     """
@@ -30,7 +30,7 @@ def refuse_provider_activation(
 
     The gate is blocked by Pydantic `Literal[False]` fields and by resetting
     all caller-provided checklist and secret-readiness inputs to safe defaults.
-    This function does not contain conditional activation logic in Phase 11.
+    This function does not contain conditional activation logic in Phase 12.
     """
     return build_provider_onboarding_gate(
         checklist=checklist,

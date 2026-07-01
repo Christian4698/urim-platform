@@ -1,6 +1,6 @@
 # Provider Onboarding Gate
 
-Phase 10 cree un gate de verification avant toute activation provider reelle. Phase 11 durcit ce gate avant toute phase provider reelle.
+Phase 10 cree un gate de verification avant toute activation provider reelle. Phase 11 durcit ce gate avant toute phase provider reelle. Phase 12 ajoute la securite des futurs secrets provider sans de-bloquer le gate.
 
 ## Statut
 Le gate reste bloque par defaut :
@@ -32,5 +32,10 @@ Avant une future activation provider, URIM/Kairos doit verifier :
 ## Secrets
 Les noms de variables d'environnement provider futurs peuvent etre documentes avec valeurs vides dans `.env.example`. Les reponses API publiques ne doivent jamais exposer ces noms ni aucune valeur.
 
-## Hors portee Phase 11
+## Phase 12 secret safety
+Le resume public `secret_safety` expose uniquement des categories non sensibles, des compteurs, des booleens bloques et l'exigence de stockage via environnement securise ou secret manager.
+
+Un loader interne peut verifier la presence locale de futures variables provider, mais il ne retourne jamais les noms complets ni les valeurs. Meme si une valeur locale existe, le gate conserve `can_activate=false` et `providers_enabled=false`.
+
+## Hors portee Phase 12
 Aucun connecteur API-Football, aucun appel Internet, aucune cle API reelle, aucun bookmaker, aucune mise reelle, aucun ML, aucune prediction reelle, aucun seed production, aucune ingestion DB et aucune migration ne sont ajoutes.

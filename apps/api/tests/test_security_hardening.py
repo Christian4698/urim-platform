@@ -47,11 +47,16 @@ SECRET_TOKENS = (
     "DEMO_NON_PROD_FAKE_API_KEY_VALUE",
     "DEMO_NON_PROD_FAKE_TOKEN",
     "DEMO_NON_PROD_FAKE_PASSWORD",
+    "DEMO_NON_PROD_FAKE_PHASE12_API_KEY",
+    "DEMO_NON_PROD_FAKE_PHASE12_API_SECRET",
+    "DEMO_NON_PROD_FAKE_PHASE12_WEBHOOK_SECRET",
+    "DEMO_NON_PROD_FAKE_PHASE12_CLIENT_ID",
+    "DEMO_NON_PROD_FAKE_PHASE12_CLIENT_SECRET",
 )
 
 
 @pytest.mark.parametrize("path", PUBLIC_GET_ENDPOINTS)
-def test_public_get_endpoints_include_phase_eleven_security_headers(path: str) -> None:
+def test_public_get_endpoints_include_phase_twelve_security_headers(path: str) -> None:
     response = client.get(path)
 
     assert response.status_code == 200

@@ -16,7 +16,7 @@ from app.schemas.health import HealthResponse, ReadinessResponse, VersionRespons
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="URIM Phase 11 provider onboarding gate hardening for the Kairos engine.",
+    description="URIM Phase 12 provider environment secret safety for the Kairos engine.",
     openapi_tags=[
         {"name": "system", "description": "Health, readiness and capabilities."},
         {"name": "fixtures", "description": "Read-only fixture skeletons for future phases."},

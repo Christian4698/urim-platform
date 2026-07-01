@@ -9,6 +9,7 @@ from app.modules.providers.quality import (
     build_quality_report,
     sanitize_provider_payload,
 )
+from app.modules.providers.secret_safety import build_provider_secret_safety_summary
 from app.schemas.common import build_metadata
 from app.schemas.providers import (
     CanonicalEntityMapping,
@@ -265,13 +266,14 @@ def build_sandbox_provider_status_response() -> SandboxProviderStatusResponse:
         payload_count=len(SANDBOX_GOLDEN_PAYLOADS),
         raw_hashes=adapter.raw_hashes(),
         capabilities=adapter.capabilities(),
+        secret_safety=build_provider_secret_safety_summary(),
         payload_summaries=adapter.payload_summaries(),
         safeguards=[
             "Sandbox adapter is DEMO_NON_PROD and informational only.",
             "Sandbox adapter reads only in-memory PLACEHOLDER payloads.",
             "No provider network calls, credentials, DB ingestion or prediction creation are enabled.",
-            "Provider onboarding gate blocks real provider activation in Phase 11.",
-            "Rate-limit, quota and reconciliation contracts are readiness-only in Phase 11.",
+            "Provider onboarding gate blocks real provider activation in Phase 12.",
+            "Rate-limit, quota, reconciliation and secret safety contracts are readiness-only in Phase 12.",
             "Official result envelope output is a sandbox placeholder, not activated Post-Match Learning.",
             "Public sandbox payload summaries are sanitized before exposure.",
         ],
