@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 from app.main import app
 from app.modules.providers.secret_safety import (
@@ -22,11 +23,11 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 ENV_EXAMPLE = REPO_ROOT / ".env.example"
 GITIGNORE = REPO_ROOT / ".gitignore"
 FAKE_LOCAL_SECRET_VALUES = {
-    "PROVIDER_API_KEY": "DEMO_NON_PROD_FAKE_PHASE13_API_KEY",
-    "PROVIDER_API_SECRET": "DEMO_NON_PROD_FAKE_PHASE13_API_SECRET",
-    "PROVIDER_WEBHOOK_SECRET": "DEMO_NON_PROD_FAKE_PHASE13_WEBHOOK_SECRET",
-    "PROVIDER_CLIENT_ID": "DEMO_NON_PROD_FAKE_PHASE13_CLIENT_ID",
-    "PROVIDER_CLIENT_SECRET": "DEMO_NON_PROD_FAKE_PHASE13_CLIENT_SECRET",
+    "PROVIDER_API_KEY": "DEMO_NON_PROD_FAKE_PHASE14_API_KEY",
+    "PROVIDER_API_SECRET": "DEMO_NON_PROD_FAKE_PHASE14_API_SECRET",
+    "PROVIDER_WEBHOOK_SECRET": "DEMO_NON_PROD_FAKE_PHASE14_WEBHOOK_SECRET",
+    "PROVIDER_CLIENT_ID": "DEMO_NON_PROD_FAKE_PHASE14_CLIENT_ID",
+    "PROVIDER_CLIENT_SECRET": "DEMO_NON_PROD_FAKE_PHASE14_CLIENT_SECRET",
 }
 
 
@@ -73,14 +74,14 @@ def test_secret_safety_loader_never_serializes_names_or_values(monkeypatch: pyte
 def test_secret_exposure_guard_rejects_public_payload_names_and_values(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("PROVIDER_API_KEY", "DEMO_NON_PROD_FAKE_PHASE13_API_KEY")
+    monkeypatch.setenv("PROVIDER_API_KEY", "DEMO_NON_PROD_FAKE_PHASE14_API_KEY")
 
     with pytest.raises(ValueError, match="public payload exposes provider secret metadata"):
         assert_public_payload_has_no_provider_secret_material({"leak": "PROVIDER_API_KEY"})
 
     with pytest.raises(ValueError, match="public payload exposes provider secret material"):
         assert_public_payload_has_no_provider_secret_material(
-            {"leak": "DEMO_NON_PROD_FAKE_PHASE13_API_KEY"}
+            {"leak": "DEMO_NON_PROD_FAKE_PHASE14_API_KEY"}
         )
 
 
@@ -105,6 +106,16 @@ def test_provider_preflight_safety_review_is_blocked_by_default() -> None:
     assert review.blocking_reasons == list(PROVIDER_PREFLIGHT_BLOCKING_REASONS)
     assert review.future_checklist == list(PROVIDER_PREFLIGHT_FUTURE_CHECKLIST)
     assert review.decision == "blocked"
+
+
+def test_provider_preflight_safety_review_rejects_status_override() -> None:
+    with pytest.raises(ValidationError):
+        ProviderPreflightSafetyReview(status="approved")
+
+
+def test_provider_preflight_safety_review_rejects_approved_decision() -> None:
+    with pytest.raises(ValidationError):
+        ProviderPreflightSafetyReview(decision="approved")
 
 
 @pytest.mark.parametrize(

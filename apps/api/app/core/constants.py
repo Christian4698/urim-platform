@@ -1,4 +1,4 @@
-API_PHASE = "phase-13-provider-preflight-safety-review"
+API_PHASE = "phase-14-real-provider-adapter-shell"
 DATABASE_CONFIGURED_NOT_CHECKED = "configured_not_checked"
 DATABASE_NOT_CONFIGURED = "not_configured"
 DISABLED_STATUS = "disabled"
