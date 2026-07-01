@@ -126,6 +126,5 @@ Assets copiés dans `apps/web/public/brand/icons/` :
 - `urim-favicon.png`
 - `urim-app-icon-1024.png`
 
-Les exports source restent disponibles localement dans
-`C:\Users\PC\Downloads\# Refonte logo URIM\assets`. Les planches palette ne sont
-pas intégrées comme assets UI.
+Source exports: external URIM brand package / assets provided by design tool. Les
+planches palette ne sont pas intégrées comme assets UI.

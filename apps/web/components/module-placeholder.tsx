@@ -4,10 +4,9 @@ import {
   MetricRow,
   PageHeader,
   StatusBadge,
-  SystemTable
+  SystemTable,
+  type Tone
 } from "./dashboard-ui";
-
-type Tone = "neutral" | "success" | "warning" | "danger" | "info" | "cyan";
 
 type ModuleCapability = {
   label: string;
