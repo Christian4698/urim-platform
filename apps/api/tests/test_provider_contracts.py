@@ -21,6 +21,8 @@ from app.schemas.providers import (
     DISALLOWED_LEARNING_SOURCES,
     POST_MATCH_LEARNING_SOURCE,
     PROVIDER_ONBOARDING_REQUIREMENTS,
+    PROVIDER_PREFLIGHT_BLOCKING_REASONS,
+    PROVIDER_PREFLIGHT_FUTURE_CHECKLIST,
     PROVIDER_QA_REQUIREMENTS,
     RATE_LIMIT_QUOTA_CONTRACTS,
     RECONCILIATION_READINESS_REQUIREMENTS,
@@ -218,7 +220,7 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
         assert response.headers[header_name] == header_value
 
     payload = response.json()
-    assert payload["metadata"]["phase"] == "phase-12-provider-env-secret-safety"
+    assert payload["metadata"]["phase"] == "phase-13-provider-preflight-safety-review"
     assert payload["providers_enabled"] is False
     assert payload["api_football_connected"] is False
     assert payload["network_calls_enabled"] is False
@@ -231,7 +233,7 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
     assert payload["rate_limit_quota_contracts"] == list(RATE_LIMIT_QUOTA_CONTRACTS)
     assert payload["reconciliation_readiness"] == list(RECONCILIATION_READINESS_REQUIREMENTS)
     assert "provider_network_calls=disabled" in payload["rate_limit_quota_contracts"]
-    assert "database_writes=disabled_in_phase_12" in payload["reconciliation_readiness"]
+    assert "database_writes=disabled_in_phase_13" in payload["reconciliation_readiness"]
     assert payload["onboarding_gate"]["status"] == "blocked_until_real_provider_audit"
     assert payload["onboarding_gate"]["can_activate"] is False
     assert payload["onboarding_gate"]["providers_enabled"] is False
@@ -241,6 +243,17 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
     assert payload["secret_safety"]["activation_allowed"] is False
     assert payload["secret_safety"]["raw_values_exposed"] is False
     assert payload["secret_safety"]["public_env_var_names_exposed"] is False
+    preflight_review = payload["preflight_review"]
+    assert preflight_review["status"] == "blocked_until_real_provider_preflight_approved"
+    assert preflight_review["real_provider_preparation_ready"] is False
+    assert preflight_review["providers_enabled"] is False
+    assert preflight_review["network_calls_enabled"] is False
+    assert preflight_review["credentials_configured"] is False
+    assert preflight_review["db_ingestion_enabled"] is False
+    assert preflight_review["api_football_connected"] is False
+    assert preflight_review["blocking_reasons"] == list(PROVIDER_PREFLIGHT_BLOCKING_REASONS)
+    assert preflight_review["future_checklist"] == list(PROVIDER_PREFLIGHT_FUTURE_CHECKLIST)
+    assert preflight_review["decision"] == "blocked"
     assert payload["post_match_learning_source"] == POST_MATCH_LEARNING_SOURCE
     assert "tickets.user_declared_profit_loss" in payload["disallowed_learning_sources"]
     assert payload["required_provenance_fields"] == [

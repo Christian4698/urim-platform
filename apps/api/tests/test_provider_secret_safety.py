@@ -10,17 +10,23 @@ from app.modules.providers.secret_safety import (
     build_provider_secret_safety_summary,
     validate_env_example_provider_placeholders,
 )
+from app.schemas.providers import (
+    EXPECTED_FUTURE_PROVIDER_SECRET_COUNT,
+    PROVIDER_PREFLIGHT_BLOCKING_REASONS,
+    PROVIDER_PREFLIGHT_FUTURE_CHECKLIST,
+    ProviderPreflightSafetyReview,
+)
 
 client = TestClient(app)
 REPO_ROOT = Path(__file__).resolve().parents[3]
 ENV_EXAMPLE = REPO_ROOT / ".env.example"
 GITIGNORE = REPO_ROOT / ".gitignore"
 FAKE_LOCAL_SECRET_VALUES = {
-    "PROVIDER_API_KEY": "DEMO_NON_PROD_FAKE_PHASE12_API_KEY",
-    "PROVIDER_API_SECRET": "DEMO_NON_PROD_FAKE_PHASE12_API_SECRET",
-    "PROVIDER_WEBHOOK_SECRET": "DEMO_NON_PROD_FAKE_PHASE12_WEBHOOK_SECRET",
-    "PROVIDER_CLIENT_ID": "DEMO_NON_PROD_FAKE_PHASE12_CLIENT_ID",
-    "PROVIDER_CLIENT_SECRET": "DEMO_NON_PROD_FAKE_PHASE12_CLIENT_SECRET",
+    "PROVIDER_API_KEY": "DEMO_NON_PROD_FAKE_PHASE13_API_KEY",
+    "PROVIDER_API_SECRET": "DEMO_NON_PROD_FAKE_PHASE13_API_SECRET",
+    "PROVIDER_WEBHOOK_SECRET": "DEMO_NON_PROD_FAKE_PHASE13_WEBHOOK_SECRET",
+    "PROVIDER_CLIENT_ID": "DEMO_NON_PROD_FAKE_PHASE13_CLIENT_ID",
+    "PROVIDER_CLIENT_SECRET": "DEMO_NON_PROD_FAKE_PHASE13_CLIENT_SECRET",
 }
 
 
@@ -56,6 +62,7 @@ def test_secret_safety_loader_never_serializes_names_or_values(monkeypatch: pyte
     assert summary.raw_values_exposed is False
     assert summary.public_env_var_names_exposed is False
     assert summary.category_count == len(summary.secret_categories)
+    assert summary.expected_secret_count == EXPECTED_FUTURE_PROVIDER_SECRET_COUNT
     assert summary.expected_secret_count == len(FUTURE_PROVIDER_SECRET_ENV_NAMES)
 
     for env_name, secret_value in FAKE_LOCAL_SECRET_VALUES.items():
@@ -66,15 +73,38 @@ def test_secret_safety_loader_never_serializes_names_or_values(monkeypatch: pyte
 def test_secret_exposure_guard_rejects_public_payload_names_and_values(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("PROVIDER_API_KEY", "DEMO_NON_PROD_FAKE_PHASE12_API_KEY")
+    monkeypatch.setenv("PROVIDER_API_KEY", "DEMO_NON_PROD_FAKE_PHASE13_API_KEY")
 
     with pytest.raises(ValueError, match="public payload exposes provider secret metadata"):
         assert_public_payload_has_no_provider_secret_material({"leak": "PROVIDER_API_KEY"})
 
     with pytest.raises(ValueError, match="public payload exposes provider secret material"):
         assert_public_payload_has_no_provider_secret_material(
-            {"leak": "DEMO_NON_PROD_FAKE_PHASE12_API_KEY"}
+            {"leak": "DEMO_NON_PROD_FAKE_PHASE13_API_KEY"}
         )
+
+
+def test_secret_safety_loader_documents_ignored_local_presence() -> None:
+    doc = build_provider_secret_safety_summary.__doc__
+
+    assert doc is not None
+    assert "Local presence is inspected" in doc
+    assert "never returned, logged or serialized" in doc
+
+
+def test_provider_preflight_safety_review_is_blocked_by_default() -> None:
+    review = ProviderPreflightSafetyReview()
+
+    assert review.status == "blocked_until_real_provider_preflight_approved"
+    assert review.real_provider_preparation_ready is False
+    assert review.providers_enabled is False
+    assert review.network_calls_enabled is False
+    assert review.credentials_configured is False
+    assert review.db_ingestion_enabled is False
+    assert review.api_football_connected is False
+    assert review.blocking_reasons == list(PROVIDER_PREFLIGHT_BLOCKING_REASONS)
+    assert review.future_checklist == list(PROVIDER_PREFLIGHT_FUTURE_CHECKLIST)
+    assert review.decision == "blocked"
 
 
 @pytest.mark.parametrize(

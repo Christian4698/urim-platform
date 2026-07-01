@@ -1,6 +1,6 @@
 # Provider Onboarding Gate
 
-Phase 10 cree un gate de verification avant toute activation provider reelle. Phase 11 durcit ce gate avant toute phase provider reelle. Phase 12 ajoute la securite des futurs secrets provider sans de-bloquer le gate.
+Phase 10 cree un gate de verification avant toute activation provider reelle. Phase 11 durcit ce gate avant toute phase provider reelle. Phase 12 ajoute la securite des futurs secrets provider sans de-bloquer le gate. Phase 13 ajoute une revue preflight bloquee avant toute future preparation provider reelle.
 
 ## Statut
 Le gate reste bloque par defaut :
@@ -37,5 +37,8 @@ Le resume public `secret_safety` expose uniquement des categories non sensibles,
 
 Un loader interne peut verifier la presence locale de futures variables provider, mais il ne retourne jamais les noms complets ni les valeurs. Meme si une valeur locale existe, le gate conserve `can_activate=false` et `providers_enabled=false`.
 
-## Hors portee Phase 12
+## Phase 13 preflight
+Le resume public `preflight_review` conserve `real_provider_preparation_ready=false`. La preparation provider reelle reste bloquee tant que secret manager, egress controls, quotas/rate limits, licence, monitoring, reconciliation et audit independant ne sont pas approuves dans une phase future.
+
+## Hors portee Phase 13
 Aucun connecteur API-Football, aucun appel Internet, aucune cle API reelle, aucun bookmaker, aucune mise reelle, aucun ML, aucune prediction reelle, aucun seed production, aucune ingestion DB et aucune migration ne sont ajoutes.

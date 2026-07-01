@@ -19,11 +19,15 @@ def build_provider_secret_safety_summary(
 ) -> ProviderSecretSafetySummary:
     """Inspect future provider secret presence without exposing names or values.
 
-    Phase 12 intentionally keeps provider activation blocked even if local
-    developer secret values exist. The returned model contains only public-safe
-    categories, counts and disabled booleans.
+    Phase 13 intentionally keeps provider activation blocked even if local
+    developer secret values exist. Local presence is inspected only to preserve
+    the future validation shape; it is never returned, logged or serialized.
+    The returned model contains only public-safe categories, counts and disabled
+    booleans.
     """
     environment = os.environ if environ is None else environ
+    # Presence is deliberately consumed and discarded so public summaries never
+    # reveal whether a developer has local provider secrets configured.
     _ = any(bool(environment.get(env_name)) for env_name in FUTURE_PROVIDER_SECRET_ENV_NAMES)
     return ProviderSecretSafetySummary()
 
