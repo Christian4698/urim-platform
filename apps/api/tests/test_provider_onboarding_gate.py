@@ -23,6 +23,8 @@ from app.schemas.providers import (
 client = TestClient(app)
 REPO_ROOT = Path(__file__).resolve().parents[3]
 ENV_EXAMPLE = REPO_ROOT / ".env.example"
+
+
 def test_provider_onboarding_gate_blocks_activation_by_default() -> None:
     gate = build_provider_onboarding_gate()
 
@@ -63,7 +65,7 @@ def test_provider_activation_guard_refuses_even_with_constructed_inputs() -> Non
 
     assert gate.can_activate is False
     assert gate.providers_enabled is False
-    assert "phase_12_keeps_real_provider_activation_blocked" in gate.blocking_reasons
+    assert "phase_13_keeps_real_provider_activation_blocked" in gate.blocking_reasons
     assert gate.checklist.license_validated is False
     assert gate.checklist.quotas_known is False
     assert gate.checklist.rate_limits_known is False

@@ -89,7 +89,7 @@ PROVIDER_ACTIVATION_BLOCKING_REASONS = (
     "anonymized_real_golden_payloads_missing",
     "security_audit_not_validated",
     "secure_secret_management_not_validated",
-    "phase_12_keeps_real_provider_activation_blocked",
+    "phase_13_keeps_real_provider_activation_blocked",
 )
 
 PROVIDER_SECRET_READINESS_CATEGORIES = (
@@ -97,6 +97,7 @@ PROVIDER_SECRET_READINESS_CATEGORIES = (
     "webhook_signing_material",
     "client_auth_material",
 )
+EXPECTED_FUTURE_PROVIDER_SECRET_COUNT = 5
 
 RATE_LIMIT_QUOTA_CONTRACTS = (
     "quota_contract_status=readiness_only",
@@ -114,7 +115,28 @@ RECONCILIATION_READINESS_REQUIREMENTS = (
     "conflict_marking_required",
     "silent_overwrite_forbidden",
     "critical_conflict_blocks_future_predictions",
-    "database_writes=disabled_in_phase_12",
+    "database_writes=disabled_in_phase_13",
+)
+
+PROVIDER_PREFLIGHT_BLOCKING_REASONS = (
+    "real_provider_preflight_not_approved",
+    "secret_manager_not_validated",
+    "egress_controls_not_validated",
+    "quota_and_rate_limit_plan_not_validated",
+    "provider_license_not_validated",
+    "monitoring_not_validated",
+    "reconciliation_not_validated",
+    "independent_audit_not_completed",
+)
+
+PROVIDER_PREFLIGHT_FUTURE_CHECKLIST = (
+    "secret_manager_required",
+    "egress_controls_required",
+    "quota_and_rate_limit_required",
+    "provider_license_required",
+    "monitoring_required",
+    "reconciliation_required",
+    "independent_audit_required",
 )
 
 SANDBOX_INTEGRATION_FLOW = (
@@ -185,7 +207,8 @@ class ProviderSecretSafetySummary(BaseModel):
     public_env_var_names_exposed: Literal[False] = False
     secret_categories: list[str] = Field(default_factory=lambda: list(PROVIDER_SECRET_READINESS_CATEGORIES))
     category_count: int = len(PROVIDER_SECRET_READINESS_CATEGORIES)
-    expected_secret_count: int = 5
+    # Kept as a schema-local count to avoid importing internal secret env names into public models.
+    expected_secret_count: int = EXPECTED_FUTURE_PROVIDER_SECRET_COUNT
     storage_requirement: str = "future_secret_manager_or_secure_environment_only"
     safeguards: list[str] = Field(
         default_factory=lambda: [
@@ -193,6 +216,25 @@ class ProviderSecretSafetySummary(BaseModel):
             "Future provider secret environment names are internal-only and not returned publicly.",
             "Provider activation remains blocked until a real provider audit validates secret management.",
         ]
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ProviderPreflightSafetyReview(BaseModel):
+    status: str = "blocked_until_real_provider_preflight_approved"
+    real_provider_preparation_ready: Literal[False] = False
+    providers_enabled: Literal[False] = False
+    network_calls_enabled: Literal[False] = False
+    credentials_configured: Literal[False] = False
+    db_ingestion_enabled: Literal[False] = False
+    api_football_connected: Literal[False] = False
+    blocking_reasons: list[str] = Field(default_factory=lambda: list(PROVIDER_PREFLIGHT_BLOCKING_REASONS))
+    future_checklist: list[str] = Field(default_factory=lambda: list(PROVIDER_PREFLIGHT_FUTURE_CHECKLIST))
+    decision: str = "blocked"
+    decision_rationale: str = (
+        "Real-provider preparation remains blocked until secret management, egress, quota, license, "
+        "monitoring, reconciliation and independent audit evidence are approved."
     )
 
     model_config = ConfigDict(extra="forbid")
@@ -224,7 +266,7 @@ class ProviderCapability(BaseModel):
     @model_validator(mode="after")
     def require_disabled_status(self) -> Self:
         if self.status != DISABLED_STATUS:
-            raise ValueError("provider capabilities must remain disabled in Phase 12")
+            raise ValueError("provider capabilities must remain disabled in Phase 13")
         return self
 
 
@@ -246,7 +288,7 @@ class ProviderCapabilityMatrix(BaseModel):
             if capability.capability != capability_name:
                 raise ValueError("provider capability matrix entries must match their field names")
             if capability.enabled is not False or capability.status != DISABLED_STATUS:
-                raise ValueError("provider capability matrix must remain fully disabled in Phase 12")
+                raise ValueError("provider capability matrix must remain fully disabled in Phase 13")
         return self
 
     def as_list(self) -> list[ProviderCapability]:
@@ -377,6 +419,7 @@ class ProviderReadinessResponse(BaseModel):
     reconciliation_readiness: list[str] = Field(default_factory=lambda: list(RECONCILIATION_READINESS_REQUIREMENTS))
     onboarding_gate: ProviderOnboardingGate = Field(default_factory=ProviderOnboardingGate)
     secret_safety: ProviderSecretSafetySummary = Field(default_factory=ProviderSecretSafetySummary)
+    preflight_review: ProviderPreflightSafetyReview = Field(default_factory=ProviderPreflightSafetyReview)
     post_match_learning_source: str = POST_MATCH_LEARNING_SOURCE
     disallowed_learning_sources: list[str] = Field(default_factory=lambda: list(DISALLOWED_LEARNING_SOURCES))
     safeguards: list[str] = Field(default_factory=list)
@@ -402,6 +445,7 @@ class SandboxProviderStatusResponse(BaseModel):
     qa_markers: list[str] = Field(default_factory=lambda: list(SANDBOX_QA_MARKERS))
     onboarding_gate: ProviderOnboardingGate = Field(default_factory=ProviderOnboardingGate)
     secret_safety: ProviderSecretSafetySummary = Field(default_factory=ProviderSecretSafetySummary)
+    preflight_review: ProviderPreflightSafetyReview = Field(default_factory=ProviderPreflightSafetyReview)
     onboarding_requirements: list[str] = Field(default_factory=lambda: list(PROVIDER_ONBOARDING_REQUIREMENTS))
     rate_limit_quota_contracts: list[str] = Field(default_factory=lambda: list(RATE_LIMIT_QUOTA_CONTRACTS))
     reconciliation_readiness: list[str] = Field(default_factory=lambda: list(RECONCILIATION_READINESS_REQUIREMENTS))
@@ -433,6 +477,7 @@ def build_provider_readiness_response() -> ProviderReadinessResponse:
         capabilities=capability_matrix.as_list(),
         onboarding_gate=onboarding_gate,
         secret_safety=build_provider_secret_safety_summary(),
+        preflight_review=ProviderPreflightSafetyReview(),
         safeguards=[
             "Provider contracts are defined but no provider connector is active.",
             "API-Football is not connected.",
@@ -446,6 +491,7 @@ def build_provider_readiness_response() -> ProviderReadinessResponse:
             "Provider onboarding requires quota, rate-limit, latency, pagination, retry, circuit breaker, reconciliation and security audit readiness before activation.",
             "Rate-limit and quota contracts are readiness-only; no scheduler, queue, retry execution or provider network call is enabled.",
             "Provider reconciliation readiness is documented without database writes or canonical overwrites.",
+            "Provider preflight review remains blocked until a future explicit audit approval.",
             "Sandbox provider status is informational, non-production and does not enable providers.",
             "Post-Match Learning may use only verified post_match_outcomes in a future phase.",
         ],

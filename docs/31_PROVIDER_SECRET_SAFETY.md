@@ -23,5 +23,10 @@ Le loader Phase 12 peut inspecter l'environnement local pour confirmer que le co
 - compteurs
 - exigence de stockage securise
 
+## Phase 13 preflight
+La Phase 13 conserve les garanties Phase 12 et ajoute une decision preflight publique separee. Cette decision reste bloquee et ne revele pas les noms complets de variables provider ni les valeurs locales.
+
+La presence locale d'un secret peut etre inspectee par le loader pour garder la forme de validation future, mais cette presence est consommee puis ignoree. Elle ne change jamais `configured=false`, `missing=true` ou `real_provider_preparation_ready=false`.
+
 ## Hors portee
 Aucun connecteur provider, aucun appel reseau, aucune cle reelle, aucun bookmaker, aucune mise reelle, aucun ML, aucune prediction reelle, aucune ingestion DB et aucune migration ne sont ajoutes.

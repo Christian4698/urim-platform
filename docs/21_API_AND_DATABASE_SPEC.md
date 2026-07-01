@@ -90,3 +90,10 @@ La Phase 12 prepare la securite des futurs secrets provider sans activer de four
 Le loader secret-safe peut inspecter l'environnement local pour les tests et futures validations, mais il ne serialise jamais les valeurs brutes et ne de-bloque jamais le gate. `can_activate=false`, `providers_enabled=false`, `network_calls_enabled=false`, `db_ingestion_enabled=false` et `blocked_until_real_provider_audit` restent inchanges.
 
 Aucune migration, ecriture DB, connexion provider, API-Football, bookmaker, prediction reelle, ML ou seed production n'est ajoute en Phase 12.
+
+## Phase 13 Provider Preflight Safety Review
+La Phase 13 ajoute une decision preflight lisible avant toute future preparation provider reelle.
+
+`/api/v1/providers/readiness` et `/api/v1/providers/sandbox/status` exposent `preflight_review` avec `status=blocked_until_real_provider_preflight_approved` et `real_provider_preparation_ready=false`. Les raisons de blocage couvrent secret manager, egress controls, quotas/rate limits, licence provider, monitoring, reconciliation et audit independant.
+
+Cette decision reste informative et read-only. Elle n'active aucun provider, n'appelle aucun reseau, ne charge aucune cle, n'ecrit rien en base et ne cree aucune prediction.
