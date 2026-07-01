@@ -2,7 +2,7 @@
 
 FastAPI backend for the URIM Kairos engine.
 
-This package currently covers Phase 13 provider preflight safety review work:
+This package currently covers Phase 14 real provider adapter shell work:
 
 - SQLAlchemy metadata for the PostgreSQL foundation schema.
 - Alembic migrations for local and future controlled environments.
@@ -17,16 +17,21 @@ This package currently covers Phase 13 provider preflight safety review work:
 - Provider onboarding gate that blocks real provider activation until a future independent audit.
 - Provider secret-safety summaries that expose only public-safe categories, counts and disabled booleans.
 - Provider preflight safety review that keeps controlled real-provider preparation blocked.
+- Real provider adapter shell status that documents a future API-Football provider shape while keeping network,
+  credentials, HTTP client, provider URL, DB ingestion and prediction creation disabled.
 
 It does not connect API-Football, train ML models, execute bets, create real predictions, create production sports results, or seed production data. The Bet Center remains virtual/internal only.
 
-The Phase 13 CSP remains intentionally strict for an API surface:
+The Phase 14 CSP remains intentionally strict for an API surface:
 `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`.
-It may restrict Swagger UI or ReDoc interactive rendering; an auth/docs portal is out of scope for Phase 13.
+It may restrict Swagger UI or ReDoc interactive rendering; an auth/docs portal is out of scope for Phase 14.
 
 `official_result_envelope` remains a sandbox-only placeholder used to test future wiring shape. Real Official Result Verifier behavior and Post-Match Learning activation remain out of scope.
 
 Future provider secret environment variable names are documented only in local configuration examples with empty values. Public API responses expose readiness categories and counts, never secret names or values.
+
+The real provider shell is not a connector. It exposes only disabled metadata and raises a controlled
+`ProviderNetworkDisabledError` before any future data-producing path could perform network I/O.
 
 ## Validation
 

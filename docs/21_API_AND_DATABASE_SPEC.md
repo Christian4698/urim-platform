@@ -97,3 +97,17 @@ La Phase 13 ajoute une decision preflight lisible avant toute future preparation
 `/api/v1/providers/readiness` et `/api/v1/providers/sandbox/status` exposent `preflight_review` avec `status=blocked_until_real_provider_preflight_approved` et `real_provider_preparation_ready=false`. Les raisons de blocage couvrent secret manager, egress controls, quotas/rate limits, licence provider, monitoring, reconciliation et audit independant.
 
 Cette decision reste informative et read-only. Elle n'active aucun provider, n'appelle aucun reseau, ne charge aucune cle, n'ecrit rien en base et ne cree aucune prediction.
+
+## Phase 14 Real Provider Adapter Shell
+La Phase 14 ajoute uniquement un shell d'adaptateur provider reel futur.
+
+`/api/v1/providers/readiness` expose `real_provider_shell_status` avec le label public
+`api_football_future_provider_shell`. Ce statut est informatif et entierement bloque :
+`provider_enabled=false`, `network_calls_enabled=false`, `credentials_configured=false`,
+`http_client_enabled=false`, `provider_base_url_configured=false`, `provider_endpoint_configured=false`,
+`real_requests_enabled=false`, `db_ingestion_enabled=false` et `prediction_creation_enabled=false`.
+
+Le shell ne contient aucune URL provider, aucun chemin endpoint, aucun nom de secret public, aucune valeur
+secrete et aucune dependance HTTP active. Toute methode qui produirait des donnees provider leve une erreur
+controlee avant tout appel reseau. Aucune migration, ecriture DB, prediction, resultat sportif, bookmaker,
+ML ou seed production n'est ajoute.

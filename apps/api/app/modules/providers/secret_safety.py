@@ -19,7 +19,7 @@ def build_provider_secret_safety_summary(
 ) -> ProviderSecretSafetySummary:
     """Inspect future provider secret presence without exposing names or values.
 
-    Phase 13 intentionally keeps provider activation blocked even if local
+    Phase 14 intentionally keeps provider activation blocked even if local
     developer secret values exist. Local presence is inspected only to preserve
     the future validation shape; it is never returned, logged or serialized.
     The returned model contains only public-safe categories, counts and disabled

@@ -16,7 +16,7 @@ from app.schemas.providers import (
 
 @runtime_checkable
 class SportsDataProviderProtocol(Protocol):
-    """Protocol contract for provider adapters; Phase 13 keeps official results out of this surface.
+    """Protocol contract for provider adapters; Phase 14 keeps official results out of this surface.
 
     Sandbox `official_result_envelope` output is a non-production QA helper only. A future
     official result verifier must use `OfficialResultVerifierProtocol` and verified outcomes.

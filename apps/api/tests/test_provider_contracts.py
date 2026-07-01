@@ -220,7 +220,7 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
         assert response.headers[header_name] == header_value
 
     payload = response.json()
-    assert payload["metadata"]["phase"] == "phase-13-provider-preflight-safety-review"
+    assert payload["metadata"]["phase"] == "phase-14-real-provider-adapter-shell"
     assert payload["providers_enabled"] is False
     assert payload["api_football_connected"] is False
     assert payload["network_calls_enabled"] is False
@@ -233,7 +233,7 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
     assert payload["rate_limit_quota_contracts"] == list(RATE_LIMIT_QUOTA_CONTRACTS)
     assert payload["reconciliation_readiness"] == list(RECONCILIATION_READINESS_REQUIREMENTS)
     assert "provider_network_calls=disabled" in payload["rate_limit_quota_contracts"]
-    assert "database_writes=disabled_in_phase_13" in payload["reconciliation_readiness"]
+    assert "database_writes=disabled_in_phase_14" in payload["reconciliation_readiness"]
     assert payload["onboarding_gate"]["status"] == "blocked_until_real_provider_audit"
     assert payload["onboarding_gate"]["can_activate"] is False
     assert payload["onboarding_gate"]["providers_enabled"] is False
@@ -254,6 +254,21 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
     assert preflight_review["blocking_reasons"] == list(PROVIDER_PREFLIGHT_BLOCKING_REASONS)
     assert preflight_review["future_checklist"] == list(PROVIDER_PREFLIGHT_FUTURE_CHECKLIST)
     assert preflight_review["decision"] == "blocked"
+    shell_status = payload["real_provider_shell_status"]
+    assert shell_status["label"] == "api_football_future_provider_shell"
+    assert shell_status["status"] == "blocked_shell_only"
+    assert shell_status["provider_enabled"] is False
+    assert shell_status["providers_enabled"] is False
+    assert shell_status["api_football_connected"] is False
+    assert shell_status["network_calls_enabled"] is False
+    assert shell_status["credentials_configured"] is False
+    assert shell_status["http_client_enabled"] is False
+    assert shell_status["provider_base_url_configured"] is False
+    assert shell_status["provider_endpoint_configured"] is False
+    assert shell_status["real_requests_enabled"] is False
+    assert shell_status["db_ingestion_enabled"] is False
+    assert shell_status["prediction_creation_enabled"] is False
+    assert shell_status["production_payloads_enabled"] is False
     assert payload["post_match_learning_source"] == POST_MATCH_LEARNING_SOURCE
     assert "tickets.user_declared_profit_loss" in payload["disallowed_learning_sources"]
     assert payload["required_provenance_fields"] == [

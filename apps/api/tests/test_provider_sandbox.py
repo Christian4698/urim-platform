@@ -187,7 +187,7 @@ def test_sandbox_status_endpoint_is_read_only_safe_and_sanitized() -> None:
 
     payload = response.json()
     body = response.text.lower()
-    assert payload["metadata"]["phase"] == "phase-13-provider-preflight-safety-review"
+    assert payload["metadata"]["phase"] == "phase-14-real-provider-adapter-shell"
     assert payload["sandbox_mode"] == SANDBOX_MODE
     assert payload["provider_enabled"] is False
     assert payload["api_football_connected"] is False
@@ -204,7 +204,7 @@ def test_sandbox_status_endpoint_is_read_only_safe_and_sanitized() -> None:
     assert payload["reconciliation_readiness"] == list(RECONCILIATION_READINESS_REQUIREMENTS)
     assert payload["sandbox_integration_flow"] == list(SANDBOX_INTEGRATION_FLOW)
     assert "provider_network_calls=disabled" in payload["rate_limit_quota_contracts"]
-    assert "database_writes=disabled_in_phase_13" in payload["reconciliation_readiness"]
+    assert "database_writes=disabled_in_phase_14" in payload["reconciliation_readiness"]
     assert payload["onboarding_gate"]["status"] == "blocked_until_real_provider_audit"
     assert payload["onboarding_gate"]["can_activate"] is False
     assert payload["secret_safety"]["configured"] is False

@@ -89,7 +89,7 @@ PROVIDER_ACTIVATION_BLOCKING_REASONS = (
     "anonymized_real_golden_payloads_missing",
     "security_audit_not_validated",
     "secure_secret_management_not_validated",
-    "phase_13_keeps_real_provider_activation_blocked",
+    "phase_14_keeps_real_provider_activation_blocked",
 )
 
 PROVIDER_SECRET_READINESS_CATEGORIES = (
@@ -115,7 +115,7 @@ RECONCILIATION_READINESS_REQUIREMENTS = (
     "conflict_marking_required",
     "silent_overwrite_forbidden",
     "critical_conflict_blocks_future_predictions",
-    "database_writes=disabled_in_phase_13",
+    "database_writes=disabled_in_phase_14",
 )
 
 PROVIDER_PREFLIGHT_BLOCKING_REASONS = (
@@ -222,7 +222,9 @@ class ProviderSecretSafetySummary(BaseModel):
 
 
 class ProviderPreflightSafetyReview(BaseModel):
-    status: str = "blocked_until_real_provider_preflight_approved"
+    status: Literal["blocked_until_real_provider_preflight_approved"] = (
+        "blocked_until_real_provider_preflight_approved"
+    )
     real_provider_preparation_ready: Literal[False] = False
     providers_enabled: Literal[False] = False
     network_calls_enabled: Literal[False] = False
@@ -231,10 +233,36 @@ class ProviderPreflightSafetyReview(BaseModel):
     api_football_connected: Literal[False] = False
     blocking_reasons: list[str] = Field(default_factory=lambda: list(PROVIDER_PREFLIGHT_BLOCKING_REASONS))
     future_checklist: list[str] = Field(default_factory=lambda: list(PROVIDER_PREFLIGHT_FUTURE_CHECKLIST))
-    decision: str = "blocked"
+    decision: Literal["blocked"] = "blocked"
     decision_rationale: str = (
         "Real-provider preparation remains blocked until secret management, egress, quota, license, "
         "monitoring, reconciliation and independent audit evidence are approved."
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ProviderRealProviderShellStatus(BaseModel):
+    label: Literal["api_football_future_provider_shell"] = "api_football_future_provider_shell"
+    status: Literal["blocked_shell_only"] = "blocked_shell_only"
+    provider_enabled: Literal[False] = False
+    providers_enabled: Literal[False] = False
+    api_football_connected: Literal[False] = False
+    network_calls_enabled: Literal[False] = False
+    credentials_configured: Literal[False] = False
+    http_client_enabled: Literal[False] = False
+    provider_base_url_configured: Literal[False] = False
+    provider_endpoint_configured: Literal[False] = False
+    real_requests_enabled: Literal[False] = False
+    db_ingestion_enabled: Literal[False] = False
+    prediction_creation_enabled: Literal[False] = False
+    production_payloads_enabled: Literal[False] = False
+    safeguards: list[str] = Field(
+        default_factory=lambda: [
+            "Real provider adapter shell is informational and blocked in Phase 14.",
+            "No HTTP client, provider URL, endpoint path, credential or request execution is configured.",
+            "Provider egress guard blocks all future real-provider network attempts.",
+        ]
     )
 
     model_config = ConfigDict(extra="forbid")
@@ -266,7 +294,7 @@ class ProviderCapability(BaseModel):
     @model_validator(mode="after")
     def require_disabled_status(self) -> Self:
         if self.status != DISABLED_STATUS:
-            raise ValueError("provider capabilities must remain disabled in Phase 13")
+            raise ValueError("provider capabilities must remain disabled in Phase 14")
         return self
 
 
@@ -288,7 +316,7 @@ class ProviderCapabilityMatrix(BaseModel):
             if capability.capability != capability_name:
                 raise ValueError("provider capability matrix entries must match their field names")
             if capability.enabled is not False or capability.status != DISABLED_STATUS:
-                raise ValueError("provider capability matrix must remain fully disabled in Phase 13")
+                raise ValueError("provider capability matrix must remain fully disabled in Phase 14")
         return self
 
     def as_list(self) -> list[ProviderCapability]:
@@ -420,6 +448,9 @@ class ProviderReadinessResponse(BaseModel):
     onboarding_gate: ProviderOnboardingGate = Field(default_factory=ProviderOnboardingGate)
     secret_safety: ProviderSecretSafetySummary = Field(default_factory=ProviderSecretSafetySummary)
     preflight_review: ProviderPreflightSafetyReview = Field(default_factory=ProviderPreflightSafetyReview)
+    real_provider_shell_status: ProviderRealProviderShellStatus = Field(
+        default_factory=ProviderRealProviderShellStatus
+    )
     post_match_learning_source: str = POST_MATCH_LEARNING_SOURCE
     disallowed_learning_sources: list[str] = Field(default_factory=lambda: list(DISALLOWED_LEARNING_SOURCES))
     safeguards: list[str] = Field(default_factory=list)
@@ -461,6 +492,7 @@ def disabled_provider_capabilities() -> list[ProviderCapability]:
 
 
 def build_provider_readiness_response() -> ProviderReadinessResponse:
+    from app.modules.providers.real_provider_shell import build_real_provider_shell_status
     from app.modules.providers.secret_safety import build_provider_secret_safety_summary
 
     capability_matrix = ProviderCapabilityMatrix()
@@ -478,6 +510,7 @@ def build_provider_readiness_response() -> ProviderReadinessResponse:
         onboarding_gate=onboarding_gate,
         secret_safety=build_provider_secret_safety_summary(),
         preflight_review=ProviderPreflightSafetyReview(),
+        real_provider_shell_status=build_real_provider_shell_status(),
         safeguards=[
             "Provider contracts are defined but no provider connector is active.",
             "API-Football is not connected.",
@@ -492,6 +525,7 @@ def build_provider_readiness_response() -> ProviderReadinessResponse:
             "Rate-limit and quota contracts are readiness-only; no scheduler, queue, retry execution or provider network call is enabled.",
             "Provider reconciliation readiness is documented without database writes or canonical overwrites.",
             "Provider preflight review remains blocked until a future explicit audit approval.",
+            "Real provider adapter shell is present only as a blocked structure with no URL, credential, HTTP client or request path.",
             "Sandbox provider status is informational, non-production and does not enable providers.",
             "Post-Match Learning may use only verified post_match_outcomes in a future phase.",
         ],
