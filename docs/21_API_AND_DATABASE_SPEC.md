@@ -81,3 +81,12 @@ La Phase 11 durcit le gate sans changer sa surface publique principale.
 `refuse_provider_activation` reste structurellement bloquant : les champs critiques utilisent des valeurs `false` et les objets checklist ou secret-readiness fournis par appel interne sont reinitialises a des valeurs sures. Cela ferme l'ambiguite des objets construits artificiellement sans validation.
 
 `.env.example` reste limite a des placeholders vides et normalise en LF. Aucune cle reelle, aucun connecteur, aucun appel reseau, aucune ecriture DB et aucune migration ne sont ajoutes.
+
+## Phase 12 Provider Env Secret Safety
+La Phase 12 prepare la securite des futurs secrets provider sans activer de fournisseur reel.
+
+`/api/v1/providers/readiness` et `/api/v1/providers/sandbox/status` exposent un resume public `secret_safety` limite a des booleens bloques, categories non sensibles, compteurs et exigences de stockage securise. Les noms complets des variables d'environnement provider et les valeurs locales ne sont jamais retournes dans les reponses publiques.
+
+Le loader secret-safe peut inspecter l'environnement local pour les tests et futures validations, mais il ne serialise jamais les valeurs brutes et ne de-bloque jamais le gate. `can_activate=false`, `providers_enabled=false`, `network_calls_enabled=false`, `db_ingestion_enabled=false` et `blocked_until_real_provider_audit` restent inchanges.
+
+Aucune migration, ecriture DB, connexion provider, API-Football, bookmaker, prediction reelle, ML ou seed production n'est ajoute en Phase 12.

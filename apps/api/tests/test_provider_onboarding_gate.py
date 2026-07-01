@@ -9,6 +9,10 @@ from app.modules.providers.onboarding_gate import (
     build_provider_onboarding_gate,
     refuse_provider_activation,
 )
+from app.modules.providers.secret_safety import (
+    FUTURE_PROVIDER_SECRET_ENV_NAMES,
+    validate_env_example_provider_placeholders,
+)
 from app.schemas.providers import (
     PROVIDER_ACTIVATION_BLOCKING_REASONS,
     PROVIDER_SECRET_READINESS_CATEGORIES,
@@ -19,15 +23,6 @@ from app.schemas.providers import (
 client = TestClient(app)
 REPO_ROOT = Path(__file__).resolve().parents[3]
 ENV_EXAMPLE = REPO_ROOT / ".env.example"
-FUTURE_PROVIDER_SECRET_ENV_NAMES = (
-    "PROVIDER_API_KEY",
-    "PROVIDER_API_SECRET",
-    "PROVIDER_WEBHOOK_SECRET",
-    "PROVIDER_CLIENT_ID",
-    "PROVIDER_CLIENT_SECRET",
-)
-
-
 def test_provider_onboarding_gate_blocks_activation_by_default() -> None:
     gate = build_provider_onboarding_gate()
 
@@ -68,7 +63,7 @@ def test_provider_activation_guard_refuses_even_with_constructed_inputs() -> Non
 
     assert gate.can_activate is False
     assert gate.providers_enabled is False
-    assert "phase_11_keeps_real_provider_activation_blocked" in gate.blocking_reasons
+    assert "phase_12_keeps_real_provider_activation_blocked" in gate.blocking_reasons
     assert gate.checklist.license_validated is False
     assert gate.checklist.quotas_known is False
     assert gate.checklist.rate_limits_known is False
@@ -156,6 +151,7 @@ def test_future_provider_secret_env_names_are_empty_placeholders_only() -> None:
     env_lines = env_bytes.decode("utf-8").splitlines()
 
     assert b"\r\n" not in env_bytes
+    validate_env_example_provider_placeholders(env_bytes.decode("utf-8"))
 
     for env_name in FUTURE_PROVIDER_SECRET_ENV_NAMES:
         assert f"{env_name}=" in env_lines

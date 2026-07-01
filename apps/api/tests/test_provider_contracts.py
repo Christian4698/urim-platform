@@ -218,7 +218,7 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
         assert response.headers[header_name] == header_value
 
     payload = response.json()
-    assert payload["metadata"]["phase"] == "phase-11-provider-onboarding-gate-hardening"
+    assert payload["metadata"]["phase"] == "phase-12-provider-env-secret-safety"
     assert payload["providers_enabled"] is False
     assert payload["api_football_connected"] is False
     assert payload["network_calls_enabled"] is False
@@ -231,10 +231,16 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
     assert payload["rate_limit_quota_contracts"] == list(RATE_LIMIT_QUOTA_CONTRACTS)
     assert payload["reconciliation_readiness"] == list(RECONCILIATION_READINESS_REQUIREMENTS)
     assert "provider_network_calls=disabled" in payload["rate_limit_quota_contracts"]
-    assert "database_writes=disabled_in_phase_11" in payload["reconciliation_readiness"]
+    assert "database_writes=disabled_in_phase_12" in payload["reconciliation_readiness"]
     assert payload["onboarding_gate"]["status"] == "blocked_until_real_provider_audit"
     assert payload["onboarding_gate"]["can_activate"] is False
     assert payload["onboarding_gate"]["providers_enabled"] is False
+    assert payload["secret_safety"]["configured"] is False
+    assert payload["secret_safety"]["missing"] is True
+    assert payload["secret_safety"]["providers_enabled"] is False
+    assert payload["secret_safety"]["activation_allowed"] is False
+    assert payload["secret_safety"]["raw_values_exposed"] is False
+    assert payload["secret_safety"]["public_env_var_names_exposed"] is False
     assert payload["post_match_learning_source"] == POST_MATCH_LEARNING_SOURCE
     assert "tickets.user_declared_profit_loss" in payload["disallowed_learning_sources"]
     assert payload["required_provenance_fields"] == [

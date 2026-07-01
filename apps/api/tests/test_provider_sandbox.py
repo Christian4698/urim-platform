@@ -185,7 +185,7 @@ def test_sandbox_status_endpoint_is_read_only_safe_and_sanitized() -> None:
 
     payload = response.json()
     body = response.text.lower()
-    assert payload["metadata"]["phase"] == "phase-11-provider-onboarding-gate-hardening"
+    assert payload["metadata"]["phase"] == "phase-12-provider-env-secret-safety"
     assert payload["sandbox_mode"] == SANDBOX_MODE
     assert payload["provider_enabled"] is False
     assert payload["api_football_connected"] is False
@@ -202,9 +202,13 @@ def test_sandbox_status_endpoint_is_read_only_safe_and_sanitized() -> None:
     assert payload["reconciliation_readiness"] == list(RECONCILIATION_READINESS_REQUIREMENTS)
     assert payload["sandbox_integration_flow"] == list(SANDBOX_INTEGRATION_FLOW)
     assert "provider_network_calls=disabled" in payload["rate_limit_quota_contracts"]
-    assert "database_writes=disabled_in_phase_11" in payload["reconciliation_readiness"]
+    assert "database_writes=disabled_in_phase_12" in payload["reconciliation_readiness"]
     assert payload["onboarding_gate"]["status"] == "blocked_until_real_provider_audit"
     assert payload["onboarding_gate"]["can_activate"] is False
+    assert payload["secret_safety"]["configured"] is False
+    assert payload["secret_safety"]["missing"] is True
+    assert payload["secret_safety"]["raw_values_exposed"] is False
+    assert payload["secret_safety"]["public_env_var_names_exposed"] is False
     assert payload["payload_summaries"]
 
     for secret_token in ("api_key", "password", "provider_credentials", "bearer", "authorization"):

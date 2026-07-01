@@ -89,7 +89,7 @@ PROVIDER_ACTIVATION_BLOCKING_REASONS = (
     "anonymized_real_golden_payloads_missing",
     "security_audit_not_validated",
     "secure_secret_management_not_validated",
-    "phase_11_keeps_real_provider_activation_blocked",
+    "phase_12_keeps_real_provider_activation_blocked",
 )
 
 PROVIDER_SECRET_READINESS_CATEGORIES = (
@@ -114,7 +114,7 @@ RECONCILIATION_READINESS_REQUIREMENTS = (
     "conflict_marking_required",
     "silent_overwrite_forbidden",
     "critical_conflict_blocks_future_predictions",
-    "database_writes=disabled_in_phase_11",
+    "database_writes=disabled_in_phase_12",
 )
 
 SANDBOX_INTEGRATION_FLOW = (
@@ -175,6 +175,29 @@ class ProviderSecretReadiness(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class ProviderSecretSafetySummary(BaseModel):
+    status: str = "provider_secret_safety_preparation_only"
+    configured: Literal[False] = False
+    missing: Literal[True] = True
+    providers_enabled: Literal[False] = False
+    activation_allowed: Literal[False] = False
+    raw_values_exposed: Literal[False] = False
+    public_env_var_names_exposed: Literal[False] = False
+    secret_categories: list[str] = Field(default_factory=lambda: list(PROVIDER_SECRET_READINESS_CATEGORIES))
+    category_count: int = len(PROVIDER_SECRET_READINESS_CATEGORIES)
+    expected_secret_count: int = 5
+    storage_requirement: str = "future_secret_manager_or_secure_environment_only"
+    safeguards: list[str] = Field(
+        default_factory=lambda: [
+            "Future provider secret values are never serialized in public API responses.",
+            "Future provider secret environment names are internal-only and not returned publicly.",
+            "Provider activation remains blocked until a real provider audit validates secret management.",
+        ]
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class ProviderOnboardingGate(BaseModel):
     status: str = "blocked_until_real_provider_audit"
     can_activate: Literal[False] = False
@@ -201,7 +224,7 @@ class ProviderCapability(BaseModel):
     @model_validator(mode="after")
     def require_disabled_status(self) -> Self:
         if self.status != DISABLED_STATUS:
-            raise ValueError("provider capabilities must remain disabled in Phase 11")
+            raise ValueError("provider capabilities must remain disabled in Phase 12")
         return self
 
 
@@ -223,7 +246,7 @@ class ProviderCapabilityMatrix(BaseModel):
             if capability.capability != capability_name:
                 raise ValueError("provider capability matrix entries must match their field names")
             if capability.enabled is not False or capability.status != DISABLED_STATUS:
-                raise ValueError("provider capability matrix must remain fully disabled in Phase 11")
+                raise ValueError("provider capability matrix must remain fully disabled in Phase 12")
         return self
 
     def as_list(self) -> list[ProviderCapability]:
@@ -353,6 +376,7 @@ class ProviderReadinessResponse(BaseModel):
     rate_limit_quota_contracts: list[str] = Field(default_factory=lambda: list(RATE_LIMIT_QUOTA_CONTRACTS))
     reconciliation_readiness: list[str] = Field(default_factory=lambda: list(RECONCILIATION_READINESS_REQUIREMENTS))
     onboarding_gate: ProviderOnboardingGate = Field(default_factory=ProviderOnboardingGate)
+    secret_safety: ProviderSecretSafetySummary = Field(default_factory=ProviderSecretSafetySummary)
     post_match_learning_source: str = POST_MATCH_LEARNING_SOURCE
     disallowed_learning_sources: list[str] = Field(default_factory=lambda: list(DISALLOWED_LEARNING_SOURCES))
     safeguards: list[str] = Field(default_factory=list)
@@ -377,6 +401,7 @@ class SandboxProviderStatusResponse(BaseModel):
     capabilities: list[ProviderCapability]
     qa_markers: list[str] = Field(default_factory=lambda: list(SANDBOX_QA_MARKERS))
     onboarding_gate: ProviderOnboardingGate = Field(default_factory=ProviderOnboardingGate)
+    secret_safety: ProviderSecretSafetySummary = Field(default_factory=ProviderSecretSafetySummary)
     onboarding_requirements: list[str] = Field(default_factory=lambda: list(PROVIDER_ONBOARDING_REQUIREMENTS))
     rate_limit_quota_contracts: list[str] = Field(default_factory=lambda: list(RATE_LIMIT_QUOTA_CONTRACTS))
     reconciliation_readiness: list[str] = Field(default_factory=lambda: list(RECONCILIATION_READINESS_REQUIREMENTS))
@@ -392,6 +417,8 @@ def disabled_provider_capabilities() -> list[ProviderCapability]:
 
 
 def build_provider_readiness_response() -> ProviderReadinessResponse:
+    from app.modules.providers.secret_safety import build_provider_secret_safety_summary
+
     capability_matrix = ProviderCapabilityMatrix()
     onboarding_gate = ProviderOnboardingGate()
     return ProviderReadinessResponse(
@@ -405,13 +432,15 @@ def build_provider_readiness_response() -> ProviderReadinessResponse:
         capability_matrix=capability_matrix,
         capabilities=capability_matrix.as_list(),
         onboarding_gate=onboarding_gate,
+        secret_safety=build_provider_secret_safety_summary(),
         safeguards=[
             "Provider contracts are defined but no provider connector is active.",
             "API-Football is not connected.",
             "No outbound provider network calls are enabled.",
             "No provider credentials are configured or exposed.",
             "Provider onboarding gate blocks activation until a real provider audit is completed.",
-            "Future provider secret names are documented only outside public API responses and must remain empty until secure secret management exists.",
+            "Future provider secret names and values are never exposed in public API responses.",
+            "Future provider secret placeholders must remain empty until secure secret management exists.",
             "Production mock fallback is forbidden.",
             "Provider QA requires license review, quotas, redaction, monitoring and independent audit.",
             "Provider onboarding requires quota, rate-limit, latency, pagination, retry, circuit breaker, reconciliation and security audit readiness before activation.",
