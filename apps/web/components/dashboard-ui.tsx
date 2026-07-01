@@ -135,25 +135,33 @@ export function SystemTable({
 }) {
   return (
     <div className="system-table-wrap">
-      <table className="system-table">
+      <table className="system-table" role="table">
         <caption>{caption}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Layer</th>
-            <th scope="col">Status</th>
-            <th scope="col">Scope</th>
+        <thead role="rowgroup">
+          <tr role="row">
+            <th role="columnheader" scope="col">
+              Layer
+            </th>
+            <th role="columnheader" scope="col">
+              Status
+            </th>
+            <th role="columnheader" scope="col">
+              Scope
+            </th>
           </tr>
         </thead>
-        <tbody>
+        <tbody role="rowgroup">
           {rows.map((row) => (
-            <tr key={row.label}>
-              <th data-label="Layer" scope="row">
+            <tr key={row.label} role="row">
+              <th data-label="Layer" role="rowheader" scope="row">
                 {row.label}
               </th>
-              <td data-label="Status">
+              <td data-label="Status" role="cell">
                 <StatusBadge tone={row.tone ?? "neutral"}>{row.status}</StatusBadge>
               </td>
-              <td data-label="Scope">{row.detail}</td>
+              <td data-label="Scope" role="cell">
+                {row.detail}
+              </td>
             </tr>
           ))}
         </tbody>
