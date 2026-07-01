@@ -1,18 +1,27 @@
 :root {
-  --background: #f4f6f5;
-  --surface: #ffffff;
-  --surface-muted: #e8ecea;
-  --text: #17201c;
-  --text-muted: #5d6661;
-  --border: #d4ddda;
-  --accent: #16635b;
-  --accent-strong: #0f453f;
-  --gold: #9b7b32;
-  --danger: #9f332b;
-  --success: #2f6b42;
-  --warning: #8a5d18;
-  --info: #315f7c;
-  --shadow: 0 14px 40px rgb(25 23 20 / 0.08);
+  color-scheme: dark;
+  --urim-deep-obsidian: #05070b;
+  --urim-midnight-navy: #0b1220;
+  --urim-ice-white: #f4f7fb;
+  --urim-controlled-cyan: #11d7ff;
+  --urim-deep-blue-accent: #2f6bff;
+  --urim-slate-gray: #64748b;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #38bdf8;
+  --background: var(--urim-deep-obsidian);
+  --surface: var(--urim-midnight-navy);
+  --surface-elevated: #101a2e;
+  --surface-muted: #0f172a;
+  --text: var(--urim-ice-white);
+  --text-muted: #a8b3c7;
+  --border: rgb(244 247 251 / 0.12);
+  --border-strong: rgb(17 215 255 / 0.34);
+  --accent: var(--urim-controlled-cyan);
+  --accent-strong: var(--urim-deep-blue-accent);
+  --focus-ring: 0 0 0 3px rgb(17 215 255 / 0.28);
+  --shadow: 0 18px 46px rgb(0 0 0 / 0.28);
 }
 
 * {
@@ -33,11 +42,59 @@ body {
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
   line-height: 1.5;
+  text-rendering: optimizeLegibility;
 }
 
 a {
   color: inherit;
   text-decoration: none;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 0;
+  box-shadow: var(--focus-ring);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  min-height: 40px;
+  padding: 9px 14px;
+  border: 1px solid rgb(17 215 255 / 0.42);
+  border-radius: 8px;
+  color: var(--urim-deep-obsidian);
+  background: var(--accent);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+button:hover {
+  background: #65e7ff;
+}
+
+input,
+select,
+textarea {
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface-muted);
+}
+
+::selection {
+  color: var(--urim-deep-obsidian);
+  background: var(--accent);
 }
 
 .app-shell {
@@ -55,20 +112,22 @@ a {
   height: 100vh;
   padding: 28px 20px;
   border-right: 1px solid var(--border);
-  background: #fbfcfb;
+  background: #070b13;
 }
 
 .brand {
   display: grid;
-  gap: 4px;
+  gap: 10px;
 }
 
-.brand strong {
-  font-size: 24px;
-  letter-spacing: 0;
+.brand-logo {
+  display: block;
+  width: 176px;
+  height: auto;
 }
 
 .brand span {
+  max-width: 210px;
   color: var(--text-muted);
   font-size: 13px;
 }
@@ -87,14 +146,18 @@ a {
   border-radius: 8px;
   color: var(--text-muted);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    background-color 160ms ease;
 }
 
 .nav-link:hover,
 .nav-link-active {
-  border-color: var(--border);
+  border-color: var(--border-strong);
   color: var(--text);
-  background: var(--surface);
+  background: rgb(17 215 255 / 0.08);
 }
 
 .sidebar-note {
@@ -109,6 +172,7 @@ a {
   display: grid;
   grid-template-rows: auto 1fr;
   min-width: 0;
+  background: var(--background);
 }
 
 .topbar {
@@ -119,16 +183,29 @@ a {
   min-height: 72px;
   padding: 18px 32px;
   border-bottom: 1px solid var(--border);
-  background: rgb(244 246 245 / 0.92);
+  background: rgb(5 7 11 / 0.88);
   backdrop-filter: blur(12px);
 }
 
 .topbar-title {
   display: grid;
-  gap: 2px;
+  gap: 4px;
+}
+
+.topbar-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar-symbol {
+  display: block;
+  width: 22px;
+  height: auto;
 }
 
 .topbar-title strong {
+  color: var(--text);
   font-size: 16px;
 }
 
@@ -152,6 +229,7 @@ a {
 
 .page-header h1 {
   margin: 0;
+  color: var(--text);
   font-size: 52px;
   line-height: 1.02;
   letter-spacing: 0;
@@ -204,6 +282,7 @@ a {
 
 .empty-state h1 {
   margin: 0;
+  color: var(--text);
   font-size: 44px;
   line-height: 1.06;
   letter-spacing: 0;
@@ -219,7 +298,7 @@ a {
 .ui-metric-card {
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--surface);
+  background: linear-gradient(180deg, var(--surface-elevated), var(--surface));
   box-shadow: var(--shadow);
 }
 
@@ -236,6 +315,7 @@ a {
 
 .ui-card-header h2 {
   margin: 0;
+  color: var(--text);
   font-size: 19px;
   line-height: 1.2;
   letter-spacing: 0;
@@ -268,12 +348,18 @@ a {
   border: 1px solid currentColor;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1;
 }
 
 .ui-badge {
   padding: 6px 9px;
+}
+
+.page-header > .ui-badge,
+.empty-state > .ui-badge {
+  align-self: start;
+  justify-self: start;
 }
 
 .ui-status-pill {
@@ -282,27 +368,27 @@ a {
 
 .tone-neutral {
   color: var(--text-muted);
-  background: #f1f4f2;
+  background: rgb(100 116 139 / 0.14);
 }
 
 .tone-success {
   color: var(--success);
-  background: #edf6ef;
+  background: rgb(34 197 94 / 0.12);
 }
 
 .tone-warning {
   color: var(--warning);
-  background: #f7f0dc;
+  background: rgb(245 158 11 / 0.13);
 }
 
 .tone-danger {
   color: var(--danger);
-  background: #fff0ed;
+  background: rgb(239 68 68 / 0.12);
 }
 
 .tone-info {
   color: var(--info);
-  background: #edf4f7;
+  background: rgb(56 189 248 / 0.12);
 }
 
 .ui-metric-card {
@@ -319,19 +405,30 @@ a {
   gap: 12px;
   color: var(--text-muted);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .ui-metric-card strong {
+  color: var(--text);
   font-size: 25px;
   line-height: 1.1;
   letter-spacing: 0;
+  overflow-wrap: anywhere;
 }
 
 .ui-metric-card p {
   margin: 0;
   color: var(--text-muted);
   font-size: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @media (max-width: 900px) {
@@ -345,6 +442,10 @@ a {
     padding: 18px 16px;
     border-right: 0;
     border-bottom: 1px solid var(--border);
+  }
+
+  .brand-logo {
+    width: 148px;
   }
 
   .nav-list {
@@ -381,7 +482,13 @@ a {
 
 @media (max-width: 520px) {
   .nav-list {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .nav-link {
+    min-height: 40px;
+    padding: 9px 10px;
+    font-size: 13px;
   }
 
   .placeholder-list li {
@@ -392,5 +499,15 @@ a {
   .page-header h1,
   .empty-state h1 {
     font-size: 32px;
+  }
+
+  .ui-metric-card strong {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 360px) {
+  .nav-list {
+    grid-template-columns: 1fr;
   }
 }

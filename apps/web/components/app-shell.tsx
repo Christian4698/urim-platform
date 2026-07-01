@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { appConfig } from "@urim/config";
@@ -13,8 +14,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="app-shell">
       <aside className="sidebar" aria-label="Navigation principale">
         <div className="brand">
-          <strong>{appConfig.appName}</strong>
-          <span>Moteur {appConfig.engineName}</span>
+          <Image
+            alt={`${appConfig.appName} logo`}
+            className="brand-logo"
+            height={99}
+            priority
+            src="/brand/logo/urim-logo-horizontal.svg"
+            width={220}
+          />
+          <span>Sports Intelligence Platform · Moteur {appConfig.engineName}</span>
         </div>
 
         <nav className="nav-list">
@@ -43,7 +51,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <main className="main-area">
         <div className="topbar">
           <div className="topbar-title">
-            <strong>Console URIM</strong>
+            <div className="topbar-heading">
+              <Image
+                alt=""
+                aria-hidden="true"
+                className="topbar-symbol"
+                height={44}
+                src="/brand/logo/urim-symbol.svg"
+                width={28}
+              />
+              <strong>Console URIM</strong>
+            </div>
             <span>Locale {appConfig.defaultLocale} · Devise {appConfig.defaultCurrency}</span>
           </div>
           <StatusPill tone="warning">PLACEHOLDER — Phase future</StatusPill>
