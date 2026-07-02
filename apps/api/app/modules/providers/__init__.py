@@ -1,1 +1,1 @@
-"""Provider readiness module. Phase 18 keeps API-Football smoke execution env-gated."""
+"""Provider readiness module. Phase 19 keeps API-Football smoke execution manual-only."""

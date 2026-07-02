@@ -16,7 +16,7 @@ def test_system_capabilities_keep_dangerous_features_disabled() -> None:
         "engine_name": "Kairos",
         "locale": "fr-CD",
         "currency": "CDF",
-            "phase": "phase-18-api-football-env-gated-smoke-client",
+            "phase": "phase-19-api-football-manual-smoke-runner",
     }
 
     capabilities = payload["capabilities"]
@@ -48,7 +48,7 @@ def test_skeleton_collections_are_read_only_and_empty(path: str, resource: str) 
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["metadata"]["phase"] == "phase-18-api-football-env-gated-smoke-client"
+    assert payload["metadata"]["phase"] == "phase-19-api-football-manual-smoke-runner"
     assert payload["resource"] == resource
     assert payload["status"] == "read_only_skeleton"
     assert payload["items"] == []
