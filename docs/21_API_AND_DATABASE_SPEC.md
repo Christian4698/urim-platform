@@ -133,3 +133,21 @@ anonymises et audit securite.
 Ce gate est un contrat final de readiness uniquement. Il ne connecte pas API-Football, ne cree aucun POST,
 PUT, PATCH ou DELETE, ne charge aucune cle, n'ajoute aucune URL provider, n'appelle aucun reseau, n'ingere rien
 en base et ne cree aucune prediction ou donnee sportive reelle.
+
+## Phase 16 API-Football Read-Only Adapter
+La Phase 16 ajoute uniquement une structure d'adaptateur API-Football read-only, desactivee par defaut.
+
+`/api/v1/providers/readiness` expose `api_football_read_only_adapter_status` avec :
+- `status=disabled_until_provider_activation_gate_approved` ;
+- `enabled=false` ;
+- `connected=false` ;
+- `network_calls_enabled=false` ;
+- `db_ingestion_enabled=false` ;
+- `credentials_loaded=false` ;
+- `prediction_creation_enabled=false` ;
+- `betting_enabled=false`.
+
+Les methodes futures `fetch_fixtures`, `fetch_results`, `fetch_team_statistics`, `fetch_standings`,
+`fetch_lineups` et `fetch_events` levent une erreur controlee avant toute execution. Aucun appel reseau,
+client HTTP, socket, URL provider, endpoint reel, cle API, credential, ingestion DB, migration, modele DB,
+prediction, ML, bookmaker, betting ou donnee sportive reelle n'est ajoute.

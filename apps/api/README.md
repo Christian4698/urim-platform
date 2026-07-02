@@ -2,7 +2,7 @@
 
 FastAPI backend for the URIM Kairos engine.
 
-This package currently covers Phase 15 provider activation readiness final gate work:
+This package currently covers Phase 16 API-Football read-only adapter work:
 
 - SQLAlchemy metadata for the PostgreSQL foundation schema.
 - Alembic migrations for local and future controlled environments.
@@ -22,12 +22,14 @@ This package currently covers Phase 15 provider activation readiness final gate 
 - Provider activation readiness final gate that keeps provider activation blocked until license, terms, quotas,
   rate limits, latency, egress, secret management, redaction, monitoring, alerting, reconciliation, rollback,
   anonymized real golden payloads and security audit evidence are approved.
+- API-Football read-only adapter status and blocked adapter methods for fixtures, results, team statistics,
+  standings, lineups and events. The adapter is disabled by default and cannot call the network.
 
 It does not connect API-Football, train ML models, execute bets, create real predictions, create production sports results, or seed production data. The Bet Center remains virtual/internal only.
 
-The Phase 15 CSP remains intentionally strict for an API surface:
+The Phase 16 CSP remains intentionally strict for an API surface:
 `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`.
-It may restrict Swagger UI or ReDoc interactive rendering; an auth/docs portal is out of scope for Phase 15.
+It may restrict Swagger UI or ReDoc interactive rendering; an auth/docs portal is out of scope for Phase 16.
 
 `official_result_envelope` remains a sandbox-only placeholder used to test future wiring shape. Real Official Result Verifier behavior and Post-Match Learning activation remain out of scope.
 
@@ -35,6 +37,10 @@ Future provider secret environment variable names are documented only in local c
 
 The real provider shell is not a connector. It exposes only disabled metadata and raises a controlled
 `ProviderNetworkDisabledError` before any future data-producing path could perform network I/O.
+
+The API-Football read-only adapter is also not connected. It exposes only disabled status metadata and raises
+`ApiFootballProviderDisabledError` before fixtures, results, statistics, standings, lineups or events could
+perform network I/O.
 
 ## Validation
 

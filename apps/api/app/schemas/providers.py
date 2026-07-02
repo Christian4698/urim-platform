@@ -346,6 +346,29 @@ class ProviderActivationReadinessFinalGate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class ProviderApiFootballReadOnlyAdapterStatus(BaseModel):
+    label: Literal["api_football_read_only_adapter"] = "api_football_read_only_adapter"
+    status: Literal["disabled_until_provider_activation_gate_approved"] = (
+        "disabled_until_provider_activation_gate_approved"
+    )
+    enabled: Literal[False] = False
+    connected: Literal[False] = False
+    network_calls_enabled: Literal[False] = False
+    db_ingestion_enabled: Literal[False] = False
+    credentials_loaded: Literal[False] = False
+    prediction_creation_enabled: Literal[False] = False
+    betting_enabled: Literal[False] = False
+    safeguards: list[str] = Field(
+        default_factory=lambda: [
+            "API-Football read-only adapter is disabled by default in Phase 16.",
+            "Network access, credentials, DB ingestion, prediction creation and betting remain blocked.",
+            "Provider activation readiness final gate must be approved before any real provider call exists.",
+        ]
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class ProviderOnboardingGate(BaseModel):
     status: str = "blocked_until_real_provider_audit"
     can_activate: Literal[False] = False
@@ -532,6 +555,9 @@ class ProviderReadinessResponse(BaseModel):
     activation_readiness_final_gate: ProviderActivationReadinessFinalGate = Field(
         default_factory=ProviderActivationReadinessFinalGate
     )
+    api_football_read_only_adapter_status: ProviderApiFootballReadOnlyAdapterStatus = Field(
+        default_factory=ProviderApiFootballReadOnlyAdapterStatus
+    )
     post_match_learning_source: str = POST_MATCH_LEARNING_SOURCE
     disallowed_learning_sources: list[str] = Field(default_factory=lambda: list(DISALLOWED_LEARNING_SOURCES))
     safeguards: list[str] = Field(default_factory=list)
@@ -576,6 +602,7 @@ def build_provider_readiness_response() -> ProviderReadinessResponse:
     from app.modules.providers.activation_readiness_final_gate import (
         build_provider_activation_readiness_final_gate,
     )
+    from app.modules.providers.api_football_adapter import build_api_football_read_only_adapter_status
     from app.modules.providers.real_provider_shell import build_real_provider_shell_status
     from app.modules.providers.secret_safety import build_provider_secret_safety_summary
 
@@ -596,9 +623,11 @@ def build_provider_readiness_response() -> ProviderReadinessResponse:
         preflight_review=ProviderPreflightSafetyReview(),
         real_provider_shell_status=build_real_provider_shell_status(),
         activation_readiness_final_gate=build_provider_activation_readiness_final_gate(),
+        api_football_read_only_adapter_status=build_api_football_read_only_adapter_status(),
         safeguards=[
             "Provider contracts are defined but no provider connector is active.",
             "API-Football is not connected.",
+            "API-Football read-only adapter is present only as a disabled Phase 16 structure.",
             "No outbound provider network calls are enabled.",
             "No provider credentials are configured or exposed.",
             "Provider onboarding gate blocks activation until a real provider audit is completed.",
@@ -612,6 +641,7 @@ def build_provider_readiness_response() -> ProviderReadinessResponse:
             "Provider preflight review remains blocked until a future explicit audit approval.",
             "Real provider adapter shell is present only as a blocked structure with no URL, credential, HTTP client or request path.",
             "Provider activation readiness final gate remains blocked until all final prerequisites are approved.",
+            "API-Football read-only adapter refuses fixtures, results, team statistics, standings, lineups and events by default.",
             "Sandbox provider status is informational, non-production and does not enable providers.",
             "Post-Match Learning may use only verified post_match_outcomes in a future phase.",
         ],

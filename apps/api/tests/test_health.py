@@ -15,7 +15,7 @@ def test_health_endpoint() -> None:
         "status": "ok",
         "app_name": "URIM",
         "engine_name": "Kairos",
-        "phase": "phase-15-provider-activation-readiness-final-gate",
+        "phase": "phase-16-api-football-read-only-adapter",
     }
 
     for header_name, header_value in SECURITY_HEADERS.items():
@@ -41,7 +41,7 @@ def test_readiness_endpoint_has_no_required_real_dependencies() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["ready"] is True
-    assert payload["phase"] == "phase-15-provider-activation-readiness-final-gate"
+    assert payload["phase"] == "phase-16-api-football-read-only-adapter"
     assert payload["dependencies"]["redis"] == "not_required"
     assert payload["dependencies"]["sports_providers"] == "disabled"
     assert payload["dependencies"]["bookmakers"] == "disabled"
