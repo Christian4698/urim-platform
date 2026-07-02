@@ -199,3 +199,20 @@ final provider est consulte et reste bloque.
 
 Aucun endpoint public ne lance le smoke client. Aucun appel reseau n'est active par defaut, aucun resultat smoke
 n'est stocke en base, et aucune prediction, ML, bookmaker, cote, mise ou action betting n'est cree.
+
+## Phase 19 API-Football Manual Smoke Runner
+La Phase 19 ajoute uniquement un runner local/manual-only pour preparer l'execution controlee du smoke client
+API-Football depuis le terminal ou un appel Python local.
+
+Le runner n'ajoute aucun endpoint public et n'est pas appele par FastAPI. Il retourne seulement un resultat
+public-safe avec `executed=false` par defaut, `provider=api-football`, `mode=manual_smoke_only`, `db_writes=false`,
+`prediction_created=false`, `betting_created=false` et un `payload_hash` optionnel en cas de succes via transport
+injecte.
+
+Le runner refuse toute execution si le mode local explicite, le contexte non-production, la confirmation read-only,
+le materiel d'authentification local, le transport injecte ou le gate final provider bloque manquent. Sa sortie est
+validee pour ne jamais contenir payload brut provider, cle, credential, URL provider, nom de variable locale ou
+valeur locale sensible.
+
+Aucun appel reseau n'est automatique, aucune donnee API-Football n'est stockee en base, et aucune ingestion,
+prediction, ML, bookmaker, cote, mise ou action betting n'est creee.

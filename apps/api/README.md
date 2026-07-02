@@ -2,7 +2,7 @@
 
 FastAPI backend for the URIM Kairos engine.
 
-This package currently covers Phase 18 API-Football env-gated smoke client work:
+This package currently covers Phase 19 API-Football manual smoke runner work:
 
 - SQLAlchemy metadata for the PostgreSQL foundation schema.
 - Alembic migrations for local and future controlled environments.
@@ -29,12 +29,14 @@ This package currently covers Phase 18 API-Football env-gated smoke client work:
 - API-Football env-gated smoke client shape. It is internal, disabled by default, requires explicit local
   non-production opt-in and an injected transport, and never exposes local smoke configuration in public API
   responses.
+- API-Football manual smoke runner shape. It is local-only, disabled by default, requires an injected transport,
+  and is never called by FastAPI.
 
 It does not activate API-Football by default, train ML models, execute bets, create real predictions, create production sports results, or seed production data. The Bet Center remains virtual/internal only.
 
-The Phase 18 CSP remains intentionally strict for an API surface:
+The Phase 19 CSP remains intentionally strict for an API surface:
 `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`.
-It may restrict Swagger UI or ReDoc interactive rendering; an auth/docs portal is out of scope for Phase 18.
+It may restrict Swagger UI or ReDoc interactive rendering; an auth/docs portal is out of scope for Phase 19.
 
 `official_result_envelope` remains a sandbox-only placeholder used to test future wiring shape. Real Official Result Verifier behavior and Post-Match Learning activation remain out of scope.
 
@@ -53,6 +55,9 @@ betting.
 
 The API-Football smoke client is also internal. It refuses execution unless all local smoke conditions are met
 and a transport is explicitly injected; public readiness remains false-by-default and redacted.
+
+The API-Football manual smoke runner is not an API endpoint. It can be invoked only as local code and returns a
+public-safe summary with DB writes, prediction creation and betting disabled.
 
 ## Validation
 
