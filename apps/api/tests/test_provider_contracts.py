@@ -220,7 +220,7 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
         assert response.headers[header_name] == header_value
 
     payload = response.json()
-    assert payload["metadata"]["phase"] == "phase-15-provider-activation-readiness-final-gate"
+    assert payload["metadata"]["phase"] == "phase-16-api-football-read-only-adapter"
     assert payload["providers_enabled"] is False
     assert payload["api_football_connected"] is False
     assert payload["network_calls_enabled"] is False
@@ -279,6 +279,15 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
     assert final_gate["credentials_accepted"] is False
     assert final_gate["production_provider_allowed"] is False
     assert final_gate["decision"] == "blocked"
+    api_football_adapter_status = payload["api_football_read_only_adapter_status"]
+    assert api_football_adapter_status["status"] == "disabled_until_provider_activation_gate_approved"
+    assert api_football_adapter_status["enabled"] is False
+    assert api_football_adapter_status["connected"] is False
+    assert api_football_adapter_status["network_calls_enabled"] is False
+    assert api_football_adapter_status["db_ingestion_enabled"] is False
+    assert api_football_adapter_status["credentials_loaded"] is False
+    assert api_football_adapter_status["prediction_creation_enabled"] is False
+    assert api_football_adapter_status["betting_enabled"] is False
     assert payload["post_match_learning_source"] == POST_MATCH_LEARNING_SOURCE
     assert "tickets.user_declared_profit_loss" in payload["disallowed_learning_sources"]
     assert payload["required_provenance_fields"] == [
@@ -321,6 +330,42 @@ def test_provider_readiness_does_not_open_network_socket(monkeypatch: pytest.Mon
 
     assert response.status_code == 200
     assert response.json()["network_calls_enabled"] is False
+
+
+def test_provider_readiness_api_football_adapter_status_is_public_safe() -> None:
+    response = client.get("/api/v1/providers/readiness")
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = json.dumps(payload, sort_keys=True).lower()
+    adapter_status = payload["api_football_read_only_adapter_status"]
+
+    assert adapter_status["enabled"] is False
+    assert adapter_status["connected"] is False
+    assert adapter_status["network_calls_enabled"] is False
+    assert adapter_status["db_ingestion_enabled"] is False
+    assert adapter_status["credentials_loaded"] is False
+    assert adapter_status["prediction_creation_enabled"] is False
+    assert adapter_status["betting_enabled"] is False
+
+    forbidden_fragments = (
+        "https://",
+        "http://",
+        "api-football.com",
+        "api-sports",
+        "rapidapi",
+        "x-rapidapi",
+        "api_key",
+        "token",
+        "password",
+        "provider_credentials",
+        "bookmaker",
+        "winner",
+        "home_score",
+        "away_score",
+    )
+    for fragment in forbidden_fragments:
+        assert fragment not in serialized
 
 
 def test_prediction_time_must_be_timezone_aware() -> None:

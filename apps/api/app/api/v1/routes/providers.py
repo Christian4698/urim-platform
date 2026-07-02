@@ -16,9 +16,10 @@ def list_providers() -> SkeletonCollectionResponse:
     return empty_collection(
         "providers",
         [
-            "Provider connectors are disabled in Phase 15.",
+            "Provider connectors are disabled in Phase 16.",
             "Provider onboarding gate blocks real provider activation.",
             "API-Football is not connected.",
+            "API-Football read-only adapter is disabled by default.",
             "Provider secret safety is prepared without exposing future env names or values.",
             "Provider preflight review is blocked until future audit approval.",
             "Real provider adapter shell is blocked and has no URL, credential or HTTP client.",

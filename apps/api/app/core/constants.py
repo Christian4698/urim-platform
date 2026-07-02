@@ -1,4 +1,4 @@
-API_PHASE = "phase-15-provider-activation-readiness-final-gate"
+API_PHASE = "phase-16-api-football-read-only-adapter"
 DATABASE_CONFIGURED_NOT_CHECKED = "configured_not_checked"
 DATABASE_NOT_CONFIGURED = "not_configured"
 DISABLED_STATUS = "disabled"

@@ -1,1 +1,1 @@
-"""Provider readiness contract module. No real sports API connector exists in Phase 14."""
+"""Provider readiness module. Phase 16 keeps API-Football read-only paths blocked."""
