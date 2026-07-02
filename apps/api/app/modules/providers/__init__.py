@@ -1,1 +1,1 @@
-"""Provider readiness module. Phase 16 keeps API-Football read-only paths blocked."""
+"""Provider readiness module. Phase 17 keeps API-Football transport contracts test-only."""

@@ -18,6 +18,7 @@ from app.modules.providers.quality import (
     validate_required_provenance_fields,
 )
 from app.schemas.providers import (
+    API_FOOTBALL_TEST_RESPONSE_CONTRACTS,
     DISALLOWED_LEARNING_SOURCES,
     POST_MATCH_LEARNING_SOURCE,
     PROVIDER_ONBOARDING_REQUIREMENTS,
@@ -220,7 +221,7 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
         assert response.headers[header_name] == header_value
 
     payload = response.json()
-    assert payload["metadata"]["phase"] == "phase-16-api-football-read-only-adapter"
+    assert payload["metadata"]["phase"] == "phase-17-api-football-test-transport-contracts"
     assert payload["providers_enabled"] is False
     assert payload["api_football_connected"] is False
     assert payload["network_calls_enabled"] is False
@@ -288,6 +289,19 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
     assert api_football_adapter_status["credentials_loaded"] is False
     assert api_football_adapter_status["prediction_creation_enabled"] is False
     assert api_football_adapter_status["betting_enabled"] is False
+    test_transport_status = payload["api_football_test_transport_contracts_status"]
+    assert test_transport_status["status"] == "test_only_contracts_no_public_runtime"
+    assert test_transport_status["test_transport_enabled"] is False
+    assert test_transport_status["public_endpoint_enabled"] is False
+    assert test_transport_status["network_calls_enabled"] is False
+    assert test_transport_status["db_ingestion_enabled"] is False
+    assert test_transport_status["credentials_loaded"] is False
+    assert test_transport_status["prediction_creation_enabled"] is False
+    assert test_transport_status["betting_enabled"] is False
+    assert test_transport_status["production_payloads_enabled"] is False
+    assert test_transport_status["real_provider_connected"] is False
+    assert test_transport_status["response_contracts"] == list(API_FOOTBALL_TEST_RESPONSE_CONTRACTS)
+    assert test_transport_status["required_markers"] == ["TEST_ONLY", "DEMO_NON_PROD", "PLACEHOLDER"]
     assert payload["post_match_learning_source"] == POST_MATCH_LEARNING_SOURCE
     assert "tickets.user_declared_profit_loss" in payload["disallowed_learning_sources"]
     assert payload["required_provenance_fields"] == [
@@ -339,6 +353,7 @@ def test_provider_readiness_api_football_adapter_status_is_public_safe() -> None
     payload = response.json()
     serialized = json.dumps(payload, sort_keys=True).lower()
     adapter_status = payload["api_football_read_only_adapter_status"]
+    test_transport_status = payload["api_football_test_transport_contracts_status"]
 
     assert adapter_status["enabled"] is False
     assert adapter_status["connected"] is False
@@ -347,6 +362,13 @@ def test_provider_readiness_api_football_adapter_status_is_public_safe() -> None
     assert adapter_status["credentials_loaded"] is False
     assert adapter_status["prediction_creation_enabled"] is False
     assert adapter_status["betting_enabled"] is False
+    assert test_transport_status["test_transport_enabled"] is False
+    assert test_transport_status["public_endpoint_enabled"] is False
+    assert test_transport_status["network_calls_enabled"] is False
+    assert test_transport_status["db_ingestion_enabled"] is False
+    assert test_transport_status["credentials_loaded"] is False
+    assert test_transport_status["prediction_creation_enabled"] is False
+    assert test_transport_status["betting_enabled"] is False
 
     forbidden_fragments = (
         "https://",

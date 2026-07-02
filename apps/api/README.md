@@ -2,7 +2,7 @@
 
 FastAPI backend for the URIM Kairos engine.
 
-This package currently covers Phase 16 API-Football read-only adapter work:
+This package currently covers Phase 17 API-Football test transport contract work:
 
 - SQLAlchemy metadata for the PostgreSQL foundation schema.
 - Alembic migrations for local and future controlled environments.
@@ -24,12 +24,14 @@ This package currently covers Phase 16 API-Football read-only adapter work:
   anonymized real golden payloads and security audit evidence are approved.
 - API-Football read-only adapter status and blocked adapter methods for fixtures, results, team statistics,
   standings, lineups and events. The adapter is disabled by default and cannot call the network.
+- API-Football test-only transport contracts for fixtures, results, team statistics, standings, lineups and
+  events. These contracts use in-memory `TEST_ONLY` / `DEMO_NON_PROD` placeholders and have no public runtime.
 
 It does not connect API-Football, train ML models, execute bets, create real predictions, create production sports results, or seed production data. The Bet Center remains virtual/internal only.
 
-The Phase 16 CSP remains intentionally strict for an API surface:
+The Phase 17 CSP remains intentionally strict for an API surface:
 `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`.
-It may restrict Swagger UI or ReDoc interactive rendering; an auth/docs portal is out of scope for Phase 16.
+It may restrict Swagger UI or ReDoc interactive rendering; an auth/docs portal is out of scope for Phase 17.
 
 `official_result_envelope` remains a sandbox-only placeholder used to test future wiring shape. Real Official Result Verifier behavior and Post-Match Learning activation remain out of scope.
 
@@ -41,6 +43,10 @@ The real provider shell is not a connector. It exposes only disabled metadata an
 The API-Football read-only adapter is also not connected. It exposes only disabled status metadata and raises
 `ApiFootballProviderDisabledError` before fixtures, results, statistics, standings, lineups or events could
 perform network I/O.
+
+The API-Football test transport is internal and test-only. It does not import provider HTTP clients, open
+sockets, expose an endpoint, load credentials, ingest data, create predictions, connect bookmakers or execute
+betting.
 
 ## Validation
 
