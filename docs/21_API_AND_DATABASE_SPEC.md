@@ -175,3 +175,27 @@ competition, URL, credential ou donnee sportive de production.
 Le transport test-only n'est pas un endpoint public, ne se charge pas automatiquement et ne remplace jamais un
 provider reel. Aucun appel reseau, client HTTP provider, socket, URL provider, cle API, credential, ingestion
 DB, migration, modele DB, prediction, ML, bookmaker, betting ou donnee sportive reelle n'est ajoute.
+
+## Phase 18 API-Football Env-Gated Smoke Client
+La Phase 18 ajoute uniquement un smoke client API-Football interne, disabled by default et controle par une
+configuration locale explicite non committee.
+
+`/api/v1/providers/readiness` expose `api_football_smoke_client_status` avec :
+- `status=disabled_until_explicit_local_smoke_env` ;
+- `enabled_by_default=false` ;
+- `smoke_mode_enabled=false` ;
+- `network_calls_enabled_by_default=false` ;
+- `public_endpoint_enabled=false` ;
+- `db_ingestion_enabled=false` ;
+- `credentials_exposed=false` ;
+- `prediction_creation_enabled=false` ;
+- `betting_enabled=false` ;
+- `real_provider_connected=false`.
+
+Ce statut ne reflete jamais les noms ou valeurs des variables locales, les credentials, les cles, les URLs
+provider ou les payloads smoke. Le smoke client refuse toute execution sauf si un mode local explicite,
+read-only, non-production, avec materiel d'authentification local et transport injecte est fourni, et si le gate
+final provider est consulte et reste bloque.
+
+Aucun endpoint public ne lance le smoke client. Aucun appel reseau n'est active par defaut, aucun resultat smoke
+n'est stocke en base, et aucune prediction, ML, bookmaker, cote, mise ou action betting n'est cree.

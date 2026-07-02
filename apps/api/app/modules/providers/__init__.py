@@ -1,1 +1,1 @@
-"""Provider readiness module. Phase 17 keeps API-Football transport contracts test-only."""
+"""Provider readiness module. Phase 18 keeps API-Football smoke execution env-gated."""

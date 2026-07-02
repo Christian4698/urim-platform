@@ -8,6 +8,7 @@ from pydantic import ValidationError
 
 from app.core.security import SECURITY_HEADERS
 from app.main import app
+from app.modules.providers.api_football_smoke_client import API_FOOTBALL_SMOKE_ENV_NAMES
 from app.modules.providers.quality import (
     assert_available_before_prediction_time,
     assert_network_calls_disabled,
@@ -221,7 +222,7 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
         assert response.headers[header_name] == header_value
 
     payload = response.json()
-    assert payload["metadata"]["phase"] == "phase-17-api-football-test-transport-contracts"
+    assert payload["metadata"]["phase"] == "phase-18-api-football-env-gated-smoke-client"
     assert payload["providers_enabled"] is False
     assert payload["api_football_connected"] is False
     assert payload["network_calls_enabled"] is False
@@ -302,6 +303,17 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
     assert test_transport_status["real_provider_connected"] is False
     assert test_transport_status["response_contracts"] == list(API_FOOTBALL_TEST_RESPONSE_CONTRACTS)
     assert test_transport_status["required_markers"] == ["TEST_ONLY", "DEMO_NON_PROD", "PLACEHOLDER"]
+    smoke_client_status = payload["api_football_smoke_client_status"]
+    assert smoke_client_status["status"] == "disabled_until_explicit_local_smoke_env"
+    assert smoke_client_status["enabled_by_default"] is False
+    assert smoke_client_status["smoke_mode_enabled"] is False
+    assert smoke_client_status["network_calls_enabled_by_default"] is False
+    assert smoke_client_status["public_endpoint_enabled"] is False
+    assert smoke_client_status["db_ingestion_enabled"] is False
+    assert smoke_client_status["credentials_exposed"] is False
+    assert smoke_client_status["prediction_creation_enabled"] is False
+    assert smoke_client_status["betting_enabled"] is False
+    assert smoke_client_status["real_provider_connected"] is False
     assert payload["post_match_learning_source"] == POST_MATCH_LEARNING_SOURCE
     assert "tickets.user_declared_profit_loss" in payload["disallowed_learning_sources"]
     assert payload["required_provenance_fields"] == [
@@ -328,8 +340,9 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
         assert capability["status"] == "disabled"
 
 
-def test_provider_readiness_post_is_not_available() -> None:
-    response = client.post("/api/v1/providers/readiness", json={})
+@pytest.mark.parametrize("method", ["post", "put", "patch", "delete"])
+def test_provider_readiness_dangerous_methods_are_not_available(method: str) -> None:
+    response = client.request(method.upper(), "/api/v1/providers/readiness", json={})
 
     assert response.status_code == 405
 
@@ -354,6 +367,7 @@ def test_provider_readiness_api_football_adapter_status_is_public_safe() -> None
     serialized = json.dumps(payload, sort_keys=True).lower()
     adapter_status = payload["api_football_read_only_adapter_status"]
     test_transport_status = payload["api_football_test_transport_contracts_status"]
+    smoke_client_status = payload["api_football_smoke_client_status"]
 
     assert adapter_status["enabled"] is False
     assert adapter_status["connected"] is False
@@ -369,6 +383,13 @@ def test_provider_readiness_api_football_adapter_status_is_public_safe() -> None
     assert test_transport_status["credentials_loaded"] is False
     assert test_transport_status["prediction_creation_enabled"] is False
     assert test_transport_status["betting_enabled"] is False
+    assert smoke_client_status["enabled_by_default"] is False
+    assert smoke_client_status["smoke_mode_enabled"] is False
+    assert smoke_client_status["network_calls_enabled_by_default"] is False
+    assert smoke_client_status["db_ingestion_enabled"] is False
+    assert smoke_client_status["credentials_exposed"] is False
+    assert smoke_client_status["prediction_creation_enabled"] is False
+    assert smoke_client_status["betting_enabled"] is False
 
     forbidden_fragments = (
         "https://",
@@ -381,6 +402,8 @@ def test_provider_readiness_api_football_adapter_status_is_public_safe() -> None
         "token",
         "password",
         "provider_credentials",
+        "demo_non_prod_fake_phase18_auth_material",
+        "example.invalid",
         "bookmaker",
         "winner",
         "home_score",
@@ -388,6 +411,8 @@ def test_provider_readiness_api_football_adapter_status_is_public_safe() -> None
     )
     for fragment in forbidden_fragments:
         assert fragment not in serialized
+    for env_name in API_FOOTBALL_SMOKE_ENV_NAMES:
+        assert env_name.lower() not in serialized
 
 
 def test_prediction_time_must_be_timezone_aware() -> None:

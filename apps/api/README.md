@@ -2,7 +2,7 @@
 
 FastAPI backend for the URIM Kairos engine.
 
-This package currently covers Phase 17 API-Football test transport contract work:
+This package currently covers Phase 18 API-Football env-gated smoke client work:
 
 - SQLAlchemy metadata for the PostgreSQL foundation schema.
 - Alembic migrations for local and future controlled environments.
@@ -26,12 +26,15 @@ This package currently covers Phase 17 API-Football test transport contract work
   standings, lineups and events. The adapter is disabled by default and cannot call the network.
 - API-Football test-only transport contracts for fixtures, results, team statistics, standings, lineups and
   events. These contracts use in-memory `TEST_ONLY` / `DEMO_NON_PROD` placeholders and have no public runtime.
+- API-Football env-gated smoke client shape. It is internal, disabled by default, requires explicit local
+  non-production opt-in and an injected transport, and never exposes local smoke configuration in public API
+  responses.
 
-It does not connect API-Football, train ML models, execute bets, create real predictions, create production sports results, or seed production data. The Bet Center remains virtual/internal only.
+It does not activate API-Football by default, train ML models, execute bets, create real predictions, create production sports results, or seed production data. The Bet Center remains virtual/internal only.
 
-The Phase 17 CSP remains intentionally strict for an API surface:
+The Phase 18 CSP remains intentionally strict for an API surface:
 `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`.
-It may restrict Swagger UI or ReDoc interactive rendering; an auth/docs portal is out of scope for Phase 17.
+It may restrict Swagger UI or ReDoc interactive rendering; an auth/docs portal is out of scope for Phase 18.
 
 `official_result_envelope` remains a sandbox-only placeholder used to test future wiring shape. Real Official Result Verifier behavior and Post-Match Learning activation remain out of scope.
 
@@ -47,6 +50,9 @@ perform network I/O.
 The API-Football test transport is internal and test-only. It does not import provider HTTP clients, open
 sockets, expose an endpoint, load credentials, ingest data, create predictions, connect bookmakers or execute
 betting.
+
+The API-Football smoke client is also internal. It refuses execution unless all local smoke conditions are met
+and a transport is explicitly injected; public readiness remains false-by-default and redacted.
 
 ## Validation
 
