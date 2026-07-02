@@ -43,6 +43,14 @@ DISALLOWED_LEARNING_SOURCES = (
     "tickets.user_declared_profit_loss",
 )
 SANDBOX_QA_MARKERS = ("DEMO_NON_PROD", "PLACEHOLDER", "SANDBOX_ONLY")
+API_FOOTBALL_TEST_RESPONSE_CONTRACTS = (
+    "fixtures",
+    "results",
+    "team_statistics",
+    "standings",
+    "lineups",
+    "events",
+)
 
 PROVIDER_QA_REQUIREMENTS = (
     "license_review_required",
@@ -369,6 +377,31 @@ class ProviderApiFootballReadOnlyAdapterStatus(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class ProviderApiFootballTestTransportContractsStatus(BaseModel):
+    label: Literal["api_football_test_transport_contracts"] = "api_football_test_transport_contracts"
+    status: Literal["test_only_contracts_no_public_runtime"] = "test_only_contracts_no_public_runtime"
+    test_transport_enabled: Literal[False] = False
+    public_endpoint_enabled: Literal[False] = False
+    network_calls_enabled: Literal[False] = False
+    db_ingestion_enabled: Literal[False] = False
+    credentials_loaded: Literal[False] = False
+    prediction_creation_enabled: Literal[False] = False
+    betting_enabled: Literal[False] = False
+    production_payloads_enabled: Literal[False] = False
+    real_provider_connected: Literal[False] = False
+    response_contracts: list[str] = Field(default_factory=lambda: list(API_FOOTBALL_TEST_RESPONSE_CONTRACTS))
+    required_markers: list[str] = Field(default_factory=lambda: ["TEST_ONLY", "DEMO_NON_PROD", "PLACEHOLDER"])
+    safeguards: list[str] = Field(
+        default_factory=lambda: [
+            "API-Football test transport contracts are internal test-only contracts.",
+            "No public endpoint, provider network call, credential, DB ingestion, prediction creation or betting is enabled.",
+            "Payloads must remain TEST_ONLY, DEMO_NON_PROD and PLACEHOLDER.",
+        ]
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class ProviderOnboardingGate(BaseModel):
     status: str = "blocked_until_real_provider_audit"
     can_activate: Literal[False] = False
@@ -558,6 +591,9 @@ class ProviderReadinessResponse(BaseModel):
     api_football_read_only_adapter_status: ProviderApiFootballReadOnlyAdapterStatus = Field(
         default_factory=ProviderApiFootballReadOnlyAdapterStatus
     )
+    api_football_test_transport_contracts_status: ProviderApiFootballTestTransportContractsStatus = Field(
+        default_factory=ProviderApiFootballTestTransportContractsStatus
+    )
     post_match_learning_source: str = POST_MATCH_LEARNING_SOURCE
     disallowed_learning_sources: list[str] = Field(default_factory=lambda: list(DISALLOWED_LEARNING_SOURCES))
     safeguards: list[str] = Field(default_factory=list)
@@ -603,6 +639,7 @@ def build_provider_readiness_response() -> ProviderReadinessResponse:
         build_provider_activation_readiness_final_gate,
     )
     from app.modules.providers.api_football_adapter import build_api_football_read_only_adapter_status
+    from app.modules.providers.api_football_transport import build_api_football_test_transport_contracts_status
     from app.modules.providers.real_provider_shell import build_real_provider_shell_status
     from app.modules.providers.secret_safety import build_provider_secret_safety_summary
 
@@ -624,10 +661,12 @@ def build_provider_readiness_response() -> ProviderReadinessResponse:
         real_provider_shell_status=build_real_provider_shell_status(),
         activation_readiness_final_gate=build_provider_activation_readiness_final_gate(),
         api_football_read_only_adapter_status=build_api_football_read_only_adapter_status(),
+        api_football_test_transport_contracts_status=build_api_football_test_transport_contracts_status(),
         safeguards=[
             "Provider contracts are defined but no provider connector is active.",
             "API-Football is not connected.",
             "API-Football read-only adapter is present only as a disabled Phase 16 structure.",
+            "API-Football test transport contracts are internal TEST_ONLY structures with no public runtime.",
             "No outbound provider network calls are enabled.",
             "No provider credentials are configured or exposed.",
             "Provider onboarding gate blocks activation until a real provider audit is completed.",
@@ -642,6 +681,7 @@ def build_provider_readiness_response() -> ProviderReadinessResponse:
             "Real provider adapter shell is present only as a blocked structure with no URL, credential, HTTP client or request path.",
             "Provider activation readiness final gate remains blocked until all final prerequisites are approved.",
             "API-Football read-only adapter refuses fixtures, results, team statistics, standings, lineups and events by default.",
+            "API-Football test transport payloads must stay DEMO_NON_PROD placeholders and must never be production fallback.",
             "Sandbox provider status is informational, non-production and does not enable providers.",
             "Post-Match Learning may use only verified post_match_outcomes in a future phase.",
         ],

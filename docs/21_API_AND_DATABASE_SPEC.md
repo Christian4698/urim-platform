@@ -151,3 +151,27 @@ Les methodes futures `fetch_fixtures`, `fetch_results`, `fetch_team_statistics`,
 `fetch_lineups` et `fetch_events` levent une erreur controlee avant toute execution. Aucun appel reseau,
 client HTTP, socket, URL provider, endpoint reel, cle API, credential, ingestion DB, migration, modele DB,
 prediction, ML, bookmaker, betting ou donnee sportive reelle n'est ajoute.
+
+## Phase 17 API-Football Test Transport & Response Contracts
+La Phase 17 ajoute uniquement des contrats de transport et de reponse API-Football test-only.
+
+`/api/v1/providers/readiness` expose `api_football_test_transport_contracts_status` avec :
+- `status=test_only_contracts_no_public_runtime` ;
+- `test_transport_enabled=false` ;
+- `public_endpoint_enabled=false` ;
+- `network_calls_enabled=false` ;
+- `db_ingestion_enabled=false` ;
+- `credentials_loaded=false` ;
+- `prediction_creation_enabled=false` ;
+- `betting_enabled=false` ;
+- `production_payloads_enabled=false` ;
+- `real_provider_connected=false`.
+
+Le faux transport interne couvre `fixtures`, `results`, `team_statistics`, `standings`, `lineups` et
+`events` avec des payloads `TEST_ONLY`, `DEMO_NON_PROD` et `PLACEHOLDER`. Ces payloads sont en memoire,
+hashes depuis JSON canonique, valides avec timestamps timezone-aware, sans vrai club, score, cote,
+competition, URL, credential ou donnee sportive de production.
+
+Le transport test-only n'est pas un endpoint public, ne se charge pas automatiquement et ne remplace jamais un
+provider reel. Aucun appel reseau, client HTTP provider, socket, URL provider, cle API, credential, ingestion
+DB, migration, modele DB, prediction, ML, bookmaker, betting ou donnee sportive reelle n'est ajoute.

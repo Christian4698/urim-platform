@@ -1,4 +1,4 @@
-API_PHASE = "phase-16-api-football-read-only-adapter"
+API_PHASE = "phase-17-api-football-test-transport-contracts"
 DATABASE_CONFIGURED_NOT_CHECKED = "configured_not_checked"
 DATABASE_NOT_CONFIGURED = "not_configured"
 DISABLED_STATUS = "disabled"
