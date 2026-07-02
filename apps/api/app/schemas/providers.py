@@ -402,6 +402,30 @@ class ProviderApiFootballTestTransportContractsStatus(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class ProviderApiFootballSmokeClientStatus(BaseModel):
+    label: Literal["api_football_env_gated_smoke_client"] = "api_football_env_gated_smoke_client"
+    status: Literal["disabled_until_explicit_local_smoke_env"] = "disabled_until_explicit_local_smoke_env"
+    enabled_by_default: Literal[False] = False
+    smoke_mode_enabled: Literal[False] = False
+    network_calls_enabled_by_default: Literal[False] = False
+    public_endpoint_enabled: Literal[False] = False
+    db_ingestion_enabled: Literal[False] = False
+    credentials_exposed: Literal[False] = False
+    prediction_creation_enabled: Literal[False] = False
+    betting_enabled: Literal[False] = False
+    real_provider_connected: Literal[False] = False
+    safeguards: list[str] = Field(
+        default_factory=lambda: [
+            "API-Football smoke client is internal and disabled by default in Phase 18.",
+            "Smoke execution requires explicit local non-production opt-in and an injected transport.",
+            "Public readiness never exposes smoke environment variable names, values, provider URLs or credentials.",
+            "Smoke responses are not ingested into the database and cannot create predictions or betting actions.",
+        ]
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class ProviderOnboardingGate(BaseModel):
     status: str = "blocked_until_real_provider_audit"
     can_activate: Literal[False] = False
@@ -594,6 +618,9 @@ class ProviderReadinessResponse(BaseModel):
     api_football_test_transport_contracts_status: ProviderApiFootballTestTransportContractsStatus = Field(
         default_factory=ProviderApiFootballTestTransportContractsStatus
     )
+    api_football_smoke_client_status: ProviderApiFootballSmokeClientStatus = Field(
+        default_factory=ProviderApiFootballSmokeClientStatus
+    )
     post_match_learning_source: str = POST_MATCH_LEARNING_SOURCE
     disallowed_learning_sources: list[str] = Field(default_factory=lambda: list(DISALLOWED_LEARNING_SOURCES))
     safeguards: list[str] = Field(default_factory=list)
@@ -639,6 +666,7 @@ def build_provider_readiness_response() -> ProviderReadinessResponse:
         build_provider_activation_readiness_final_gate,
     )
     from app.modules.providers.api_football_adapter import build_api_football_read_only_adapter_status
+    from app.modules.providers.api_football_smoke_client import build_api_football_smoke_client_status
     from app.modules.providers.api_football_transport import build_api_football_test_transport_contracts_status
     from app.modules.providers.real_provider_shell import build_real_provider_shell_status
     from app.modules.providers.secret_safety import build_provider_secret_safety_summary
@@ -662,11 +690,13 @@ def build_provider_readiness_response() -> ProviderReadinessResponse:
         activation_readiness_final_gate=build_provider_activation_readiness_final_gate(),
         api_football_read_only_adapter_status=build_api_football_read_only_adapter_status(),
         api_football_test_transport_contracts_status=build_api_football_test_transport_contracts_status(),
+        api_football_smoke_client_status=build_api_football_smoke_client_status(),
         safeguards=[
             "Provider contracts are defined but no provider connector is active.",
             "API-Football is not connected.",
             "API-Football read-only adapter is present only as a disabled Phase 16 structure.",
             "API-Football test transport contracts are internal TEST_ONLY structures with no public runtime.",
+            "API-Football smoke client is an internal Phase 18 structure gated by explicit local configuration.",
             "No outbound provider network calls are enabled.",
             "No provider credentials are configured or exposed.",
             "Provider onboarding gate blocks activation until a real provider audit is completed.",
