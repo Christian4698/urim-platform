@@ -2,7 +2,7 @@
 
 FastAPI backend for the URIM Kairos engine.
 
-This package currently covers Phase 20 API-Football local smoke runbook work:
+This package currently covers Phase 21 API-Football local-only HTTP smoke harness work:
 
 - SQLAlchemy metadata for the PostgreSQL foundation schema.
 - Alembic migrations for local and future controlled environments.
@@ -33,12 +33,14 @@ This package currently covers Phase 20 API-Football local smoke runbook work:
   and is never called by FastAPI.
 - API-Football local smoke runbook. It documents future local-only smoke execution safety checks and does not
   execute provider calls.
+- API-Football local-only HTTP smoke harness shape. It is script-only, disabled by default, requires an explicitly
+  injected request callable, and is never called by FastAPI.
 
 It does not activate API-Football by default, train ML models, execute bets, create real predictions, create production sports results, or seed production data. The Bet Center remains virtual/internal only.
 
-The Phase 20 CSP remains intentionally strict for an API surface:
+The Phase 21 CSP remains intentionally strict for an API surface:
 `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`.
-It may restrict Swagger UI or ReDoc interactive rendering; an auth/docs portal is out of scope for Phase 20.
+It may restrict Swagger UI or ReDoc interactive rendering; an auth/docs portal is out of scope for Phase 21.
 
 `official_result_envelope` remains a sandbox-only placeholder used to test future wiring shape. Real Official Result Verifier behavior and Post-Match Learning activation remain out of scope.
 
@@ -63,6 +65,10 @@ public-safe summary with DB writes, prediction creation and betting disabled.
 
 The API-Football local smoke runbook is documentation-only. It records the pre-run and post-run safety checklist
 for a future operator and does not add a route, key, provider URL, DB write, prediction, bookmaker or betting path.
+
+The API-Football local-only HTTP smoke harness is script-only. It adapts an explicitly injected request callable to
+the manual smoke runner and returns only a public-safe summary. It does not add a concrete HTTP client, route, key,
+provider URL, DB write, prediction, bookmaker or betting path.
 
 ## Validation
 

@@ -697,6 +697,7 @@ def build_provider_readiness_response() -> ProviderReadinessResponse:
             "API-Football read-only adapter is present only as a disabled Phase 16 structure.",
             "API-Football test transport contracts are internal TEST_ONLY structures with no public runtime.",
             "API-Football smoke client is an internal Phase 18 structure gated by explicit local configuration.",
+            "API-Football manual smoke runner and local HTTP smoke harness stay local-only and are never public endpoints.",
             "No outbound provider network calls are enabled.",
             "No provider credentials are configured or exposed.",
             "Provider onboarding gate blocks activation until a real provider audit is completed.",

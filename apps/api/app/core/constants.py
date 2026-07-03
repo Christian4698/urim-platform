@@ -1,4 +1,4 @@
-API_PHASE = "phase-20-api-football-local-smoke-runbook"
+API_PHASE = "phase-21-api-football-local-only-http-smoke-harness"
 DATABASE_CONFIGURED_NOT_CHECKED = "configured_not_checked"
 DATABASE_NOT_CONFIGURED = "not_configured"
 DISABLED_STATUS = "disabled"
