@@ -94,7 +94,7 @@ def test_provider_readiness_exposes_final_gate_without_provider_secrets_or_urls(
     body = response.text.lower()
     gate = payload["activation_readiness_final_gate"]
 
-    assert payload["metadata"]["phase"] == "phase-19-api-football-manual-smoke-runner"
+    assert payload["metadata"]["phase"] == "phase-20-api-football-local-smoke-runbook"
     assert gate["can_activate_provider"] is False
     assert gate["providers_enabled"] is False
     assert gate["api_football_connected"] is False

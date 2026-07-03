@@ -216,3 +216,16 @@ valeur locale sensible.
 
 Aucun appel reseau n'est automatique, aucune donnee API-Football n'est stockee en base, et aucune ingestion,
 prediction, ML, bookmaker, cote, mise ou action betting n'est creee.
+
+## Phase 20 API-Football Local Smoke Execution Guide & Safety Checklist
+La Phase 20 ajoute uniquement une documentation operateur et une checklist de securite pour une future execution
+locale controlee du smoke test API-Football.
+
+Cette phase n'ajoute aucun endpoint public, aucun runner appele par FastAPI, aucune activation provider, aucune
+cle API, aucune URL provider publique et aucun appel API-Football reel. Elle documente les controles avant et
+apres execution : `git status` clean, branche dediee, environnement local non tracke, cle hors Git et hors prompt,
+environnement non-production, mode smoke explicite, read-only confirme, no DB write, no prediction et no betting.
+
+La sortie partageable doit rester public-safe : statut, flags de securite et hash optionnel seulement. Aucun
+payload brut provider, credential, cle, URL provider, vraie donnee sportive, ingestion DB, prediction, ML,
+bookmaker, mise ou action betting ne doit etre cree, stocke ou committe.
