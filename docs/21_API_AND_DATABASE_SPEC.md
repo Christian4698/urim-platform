@@ -229,3 +229,20 @@ environnement non-production, mode smoke explicite, read-only confirme, no DB wr
 La sortie partageable doit rester public-safe : statut, flags de securite et hash optionnel seulement. Aucun
 payload brut provider, credential, cle, URL provider, vraie donnee sportive, ingestion DB, prediction, ML,
 bookmaker, mise ou action betting ne doit etre cree, stocke ou committe.
+
+## Phase 21 API-Football Local-Only HTTP Smoke Harness
+La Phase 21 ajoute uniquement un harnais local-only capable de relier le runner manuel Phase 19 a un
+`request_callable` explicitement injecte depuis du code local.
+
+Le harnais n'ajoute aucun endpoint public et n'est pas importe par FastAPI. Il ne construit aucun client HTTP
+concret, ne contient aucune URL provider reelle, ne charge aucune cle publique et ne lance aucun appel reseau par
+defaut ou en tests unitaires. Le chemin CLI par defaut retourne un resultat disabled public-safe.
+
+Le resultat partageable expose seulement `status`, `executed`, `provider=api-football`,
+`mode=local_http_smoke_only`, `db_writes=false`, `prediction_created=false`, `betting_created=false` et un
+`payload_hash` optionnel. Toute sortie contenant payload brut provider, credential, cle, URL provider, nom de
+variable locale ou valeur locale sensible est refusee.
+
+Aucune donnee API-Football n'est stockee en base, et aucune ingestion, prediction, ML, bookmaker, cote, mise ou
+action betting n'est creee. La readiness publique reste read-only et ne contient pas de statut d'execution du
+harnais.
