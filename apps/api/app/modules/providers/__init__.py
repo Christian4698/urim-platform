@@ -1,1 +1,1 @@
-"""Provider readiness module. Phase 22 keeps API-Football first real smoke protocol documentation-only."""
+"""Provider readiness module. Phase 23 keeps API-Football local preflight script-only."""

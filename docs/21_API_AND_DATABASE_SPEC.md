@@ -259,3 +259,19 @@ Le futur lancement reste terminal-only et ne doit jamais passer par FastAPI. Auc
 en base, aucune ingestion canonique n'est creee, aucune prediction n'est creee, et aucun bookmaker, betting, cote,
 stake ou placement reel n'est ajoute. Le rapport partageable doit rester public-safe : statut, confirmations de
 scope et hash optionnel seulement.
+
+## Phase 23 API-Football Local Secret & Environment Preflight
+La Phase 23 ajoute uniquement un preflight local-only pour verifier si l'environnement local de l'operateur est
+pret pour un futur smoke test API-Football manuel.
+
+Le preflight reste script-only et n'est pas importe par FastAPI. Il n'ajoute aucun endpoint public, ne lance aucun
+appel API-Football, ne construit aucun client reseau, ne charge aucune donnee provider publique, n'ecrit rien en
+base et ne cree aucune prediction, ingestion, ML, bookmaker, cote, stake ou action betting.
+
+Le resultat partageable expose seulement des booleens et des codes generiques : statut, readiness pour tentative
+manuelle, presence locale de materiel sensible, presence locale de reference provider, confirmations read-only/no
+DB/no prediction/no betting, absence de route publique, absence de materiel provider brut detecte, recommandation
+de `git status` clean et flags `db_writes=false`, `prediction_created=false`, `betting_created=false`.
+
+Aucune valeur sensible, reference fournisseur brute, nom local sensible, payload provider brut, vraie cle, vraie URL
+provider ou sortie reseau ne doit etre serialisee, loggee, documentee ou exposee par une reponse publique.
