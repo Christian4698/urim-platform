@@ -15,7 +15,7 @@ ACTIVE_PLAN_PATH = (
     REPO_ROOT
     / "docs"
     / "exec-plans"
-    / "active"
+    / "completed"
     / "022-phase-22-api-football-first-real-local-smoke-protocol.md"
 )
 PUBLIC_PHASE_22_DOCS = (
