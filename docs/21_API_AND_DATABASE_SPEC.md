@@ -246,3 +246,16 @@ variable locale ou valeur locale sensible est refusee.
 Aucune donnee API-Football n'est stockee en base, et aucune ingestion, prediction, ML, bookmaker, cote, mise ou
 action betting n'est creee. La readiness publique reste read-only et ne contient pas de statut d'execution du
 harnais.
+
+## Phase 22 API-Football First Real Local Smoke Attempt Protocol
+La Phase 22 ajoute uniquement le protocole final pour un futur premier smoke test API-Football reel et local.
+
+Cette phase ne lance aucun appel API-Football, n'ajoute aucune cle, ne committe aucune reference fournisseur
+reelle, ne stocke aucun payload provider et n'ajoute aucun endpoint public. Le protocole impose que le materiel
+sensible reste uniquement dans le terminal local de l'operateur ou dans un fichier local non tracke, jamais dans
+ChatGPT, Codex, Claude, Git, les docs, les logs ou `.env.example`.
+
+Le futur lancement reste terminal-only et ne doit jamais passer par FastAPI. Aucune donnee provider n'est ecrite
+en base, aucune ingestion canonique n'est creee, aucune prediction n'est creee, et aucun bookmaker, betting, cote,
+stake ou placement reel n'est ajoute. Le rapport partageable doit rester public-safe : statut, confirmations de
+scope et hash optionnel seulement.
