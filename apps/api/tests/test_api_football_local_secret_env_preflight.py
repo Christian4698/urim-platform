@@ -26,16 +26,23 @@ client = TestClient(app)
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DOC_PATH = REPO_ROOT / "docs" / "42_API_FOOTBALL_LOCAL_SECRET_ENV_PREFLIGHT.md"
-ACTIVE_PLAN_PATH = (
-    REPO_ROOT
-    / "docs"
-    / "exec-plans"
-    / "active"
-    / "023-phase-23-api-football-local-secret-env-preflight.md"
+PHASE_23_PLAN_PATHS = (
+    REPO_ROOT / "docs" / "exec-plans" / "completed" / "023-phase-23-api-football-local-secret-env-preflight.md",
+    REPO_ROOT / "docs" / "exec-plans" / "active" / "023-phase-23-api-football-local-secret-env-preflight.md",
 )
+
+
+def phase_23_plan_path() -> Path:
+    for plan_path in PHASE_23_PLAN_PATHS:
+        if plan_path.exists():
+            return plan_path
+    candidates = ", ".join(str(plan_path) for plan_path in PHASE_23_PLAN_PATHS)
+    raise AssertionError(f"Phase 23 exec plan missing from completed/active: {candidates}")
+
+
 PUBLIC_PHASE_23_DOCS = (
     DOC_PATH,
-    ACTIVE_PLAN_PATH,
+    phase_23_plan_path(),
     REPO_ROOT / "docs" / "21_API_AND_DATABASE_SPEC.md",
     REPO_ROOT / "docs" / "index.md",
     REPO_ROOT / "apps" / "api" / "README.md",
