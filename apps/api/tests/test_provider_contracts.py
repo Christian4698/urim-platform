@@ -222,7 +222,7 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
         assert response.headers[header_name] == header_value
 
     payload = response.json()
-    assert payload["metadata"]["phase"] == "phase-21-api-football-local-only-http-smoke-harness"
+    assert payload["metadata"]["phase"] == "phase-22-api-football-first-real-local-smoke-protocol"
     assert payload["providers_enabled"] is False
     assert payload["api_football_connected"] is False
     assert payload["network_calls_enabled"] is False

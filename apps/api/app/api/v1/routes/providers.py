@@ -16,7 +16,7 @@ def list_providers() -> SkeletonCollectionResponse:
     return empty_collection(
         "providers",
         [
-            "Provider connectors are disabled in Phase 21.",
+            "Provider connectors are disabled in Phase 22.",
             "Provider onboarding gate blocks real provider activation.",
             "API-Football is not connected.",
             "API-Football read-only adapter is disabled by default.",
@@ -25,6 +25,7 @@ def list_providers() -> SkeletonCollectionResponse:
             "API-Football manual smoke runner is local-only and is not exposed through FastAPI.",
             "API-Football local smoke runbook is documentation-only and does not execute provider calls.",
             "API-Football local HTTP smoke harness is script-only and is not exposed through FastAPI.",
+            "API-Football first real local smoke protocol is documentation-only and is not an endpoint.",
             "Provider secret safety is prepared without exposing future env names or values.",
             "Provider preflight review is blocked until future audit approval.",
             "Real provider adapter shell is blocked and has no URL, credential or HTTP client.",

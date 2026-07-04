@@ -1,1 +1,1 @@
-"""Provider readiness module. Phase 21 keeps API-Football HTTP smoke harness execution local-only."""
+"""Provider readiness module. Phase 22 keeps API-Football first real smoke protocol documentation-only."""
