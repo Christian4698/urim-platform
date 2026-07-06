@@ -43,6 +43,11 @@ d'execution. Il ne doit jamais afficher la cle, afficher la reference provider b
 modifier `.env.example`, creer une route publique, ecrire en DB, creer une prediction, ou toucher a une logique
 bookmaker, stake ou betting.
 
+## Auth directe locale
+Pour l'appel HTTP reel local-only, le script utilise uniquement le header public `x-apisports-key` avec la valeur
+locale fournie par l'operateur. Aucun autre header d'authentification ou materiel sensible ne doit etre affiche,
+logge, documente ou partage.
+
 ## Resultat public-safe
 Le resultat partageable contient uniquement :
 

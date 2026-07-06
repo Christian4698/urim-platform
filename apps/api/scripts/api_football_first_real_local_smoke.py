@@ -5,6 +5,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -34,6 +35,7 @@ FIRST_REAL_LOCAL_SMOKE_MODE = "first_real_local_smoke_only"
 FIRST_REAL_LOCAL_SMOKE_NOT_READY_STATUS = "not_ready_for_first_real_local_smoke"
 FIRST_REAL_LOCAL_SMOKE_COMPLETED_STATUS = "completed_first_real_local_smoke"
 FIRST_REAL_LOCAL_SMOKE_REFUSED_UNSAFE_OUTPUT_STATUS = "refused_unsafe_first_real_local_smoke_output"
+FIRST_REAL_LOCAL_SMOKE_PROVIDER_HTTP_ERROR_STATUS = "provider_http_error"
 
 FIRST_REAL_LOCAL_SMOKE_FORBIDDEN_OUTPUT_FRAGMENTS = (
     "api_key",
@@ -65,6 +67,7 @@ class ApiFootballFirstRealLocalSmokeResult:
     mode: str = FIRST_REAL_LOCAL_SMOKE_MODE
     payload_hash: str | None = None
     payload_top_level_keys: tuple[str, ...] = ()
+    http_status: int | None = None
     db_writes: bool = False
     prediction_created: bool = False
     betting_created: bool = False
@@ -73,7 +76,12 @@ class ApiFootballFirstRealLocalSmokeResult:
     def public_safe_summary(self) -> dict[str, Any]:
         summary = asdict(self)
         summary["payload_top_level_keys"] = list(self.payload_top_level_keys)
-        summary["blocking_reasons"] = list(self.blocking_reasons)
+        if self.http_status is None:
+            summary.pop("http_status")
+        if self.blocking_reasons:
+            summary["blocking_reasons"] = list(self.blocking_reasons)
+        else:
+            summary.pop("blocking_reasons")
         return summary
 
 
@@ -123,11 +131,20 @@ def run_api_football_first_real_local_smoke(
 
     effective_callable = request_callable or _standard_library_json_get_request_callable
     recording_callable = _TopLevelKeyRecordingCallable(effective_callable)
-    harness_result = run_local_api_football_http_smoke_harness(
-        request_callable=recording_callable,
-        environ=environment,
-        query=query,
-    )
+    try:
+        harness_result = run_local_api_football_http_smoke_harness(
+            request_callable=recording_callable,
+            environ=environment,
+            query=query,
+        )
+    except HTTPError as exc:
+        return _validated_result(
+            ApiFootballFirstRealLocalSmokeResult(
+                status=FIRST_REAL_LOCAL_SMOKE_PROVIDER_HTTP_ERROR_STATUS,
+                http_status=exc.code,
+            ),
+            environ=environment,
+        )
 
     if harness_result.status == LOCAL_HTTP_SMOKE_COMPLETED_STATUS and harness_result.executed:
         result = ApiFootballFirstRealLocalSmokeResult(
@@ -183,14 +200,9 @@ def _standard_library_json_get_request_callable(
         separator = "&" if "?" in target else "?"
         target = f"{target}{separator}{urlencode({str(key): str(value) for key, value in query.items()})}"
 
-    request = Request(
-        target,
-        headers={
-            "Accept": "application/json",
-            "Authorization": auth_material,
-        },
-        method="GET",
-    )
+    request = Request(target, method="GET")
+    request.headers["Accept"] = "application/json"
+    request.headers["x-apisports-key"] = auth_material
     with urlopen(request, timeout=10) as response:
         payload_bytes = response.read()
     payload = json.loads(payload_bytes.decode("utf-8"))
