@@ -6,6 +6,7 @@ import sys
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError
 
 import pytest
 from fastapi.testclient import TestClient
@@ -453,6 +454,100 @@ def test_first_real_local_smoke_injected_callable_path_does_not_use_urlopen(monk
     assert result.executed is True
 
 
+def test_first_real_local_smoke_standard_request_uses_direct_api_sports_header(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    class FakeResponse:
+        def __enter__(self) -> "FakeResponse":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def read(self) -> bytes:
+            return b'{"status": "DEMO_NON_PROD"}'
+
+    def fake_urlopen(request: object, timeout: int) -> FakeResponse:
+        captured["request"] = request
+        captured["timeout"] = timeout
+        return FakeResponse()
+
+    monkeypatch.setattr(first_real_smoke, "urlopen", fake_urlopen)
+
+    payload = first_real_smoke._standard_library_json_get_request_callable(
+        "https://example.invalid/status",
+        FAKE_EXECUTION_AUTH,
+        query={"scope": "phase24_header_check"},
+    )
+
+    request = captured["request"]
+    headers = dict(request.header_items())
+    header_names = set(headers)
+    lowered_header_names = {header_name.lower() for header_name in header_names}
+    lowered_header_values = {str(header_value).lower() for header_value in headers.values()}
+
+    assert payload == {"status": "DEMO_NON_PROD"}
+    assert captured["timeout"] == 10
+    assert request.get_method() == "GET"
+    assert request.full_url == "https://example.invalid/status?scope=phase24_header_check"
+    assert headers["Accept"] == "application/json"
+    assert headers["x-apisports-key"] == FAKE_EXECUTION_AUTH
+    assert "x-apisports-key" in header_names
+
+    assert "authorization" not in lowered_header_names
+    assert "bearer" not in lowered_header_names
+    assert all(not value.startswith("bearer ") for value in lowered_header_values)
+    assert "x-rapidapi-key" not in lowered_header_names
+    assert "x-api-key" not in lowered_header_names
+    assert "api-key" not in lowered_header_names
+    assert "apikey" not in lowered_header_names
+    assert "api_key" not in lowered_header_names
+
+
+def test_first_real_local_smoke_http_error_returns_public_safe_summary() -> None:
+    def raise_http_error(
+        base_url: str,
+        auth_material: str,
+        query: Mapping[str, Any] | None = None,
+    ) -> Mapping[str, Any]:
+        _ = (base_url, auth_material, query)
+        raise HTTPError(
+            url="https://example.invalid/status",
+            code=403,
+            msg="Forbidden",
+            hdrs={},
+            fp=None,
+        )
+
+    result = run_api_football_first_real_local_smoke(
+        environ=fake_execution_environ(),
+        request_callable=raise_http_error,
+        repo_checks=SAFE_REPO_CHECKS,
+    )
+
+    summary = result.public_safe_summary()
+
+    assert summary == {
+        "status": "provider_http_error",
+        "executed": False,
+        "provider": FIRST_REAL_LOCAL_SMOKE_PROVIDER,
+        "mode": FIRST_REAL_LOCAL_SMOKE_MODE,
+        "payload_hash": None,
+        "payload_top_level_keys": [],
+        "http_status": 403,
+        "db_writes": False,
+        "prediction_created": False,
+        "betting_created": False,
+    }
+    assert result.http_status == 403
+    assert_summary_has_no_execution_leaks(summary)
+    serialized = json.dumps(summary, sort_keys=True).lower()
+    assert "traceback" not in serialized
+    assert "forbidden" not in serialized
+
+
 def test_first_real_local_smoke_source_has_no_third_party_http_client_dependency() -> None:
     source = Path("scripts/api_football_first_real_local_smoke.py").read_text(encoding="utf-8").lower()
 
@@ -514,6 +609,7 @@ def test_first_real_local_smoke_docs_are_public_safe() -> None:
     assert "43_api_football_first_real_local_smoke_execution.md" in public_docs
     assert "phase-24-api-football-first-real-local-smoke-execution" in public_docs
     assert "first_real_local_smoke_only" in public_docs
+    assert "x-apisports-key" in public_docs
 
     forbidden_fragments = (
         "http://",
@@ -522,8 +618,13 @@ def test_first_real_local_smoke_docs_are_public_safe() -> None:
         "api-sports",
         "rapidapi",
         "x-rapidapi",
+        "x-rapidapi-key",
+        "x-api-key",
+        "authorization:",
+        "bearer ",
         "api_key=",
         "apikey",
+        "api-key",
         "smoke_payload",
         FAKE_EXECUTION_AUTH.lower(),
         FAKE_EXECUTION_REFERENCE.lower(),
