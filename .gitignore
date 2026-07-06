@@ -33,6 +33,3 @@ Thumbs.db
 # Docker / local data
 *.local
 docker-data/
-
-# External reference material (not part of the app)
-_references/
