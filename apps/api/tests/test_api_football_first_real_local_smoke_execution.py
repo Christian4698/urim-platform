@@ -33,6 +33,7 @@ client = TestClient(app)
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DOC_PATH = REPO_ROOT / "docs" / "43_API_FOOTBALL_FIRST_REAL_LOCAL_SMOKE_EXECUTION.md"
+RUNNER_PATH = REPO_ROOT / "apps" / "api" / "scripts" / "run_first_real_local_smoke.ps1"
 PHASE_24_PLAN_PATHS = (
     REPO_ROOT / "docs" / "exec-plans" / "active" / "024-phase-24-api-football-first-real-local-smoke-execution.md",
     REPO_ROOT
@@ -54,6 +55,17 @@ SAFE_REPO_CHECKS = {
 }
 FAKE_EXECUTION_AUTH = "DEMO_NON_PROD_FAKE_PHASE24_AUTH_MATERIAL"
 FAKE_EXECUTION_REFERENCE = "DEMO_NON_PROD_FAKE_PHASE24_PROVIDER_REFERENCE"
+RUNNER_ENV_NAMES = (
+    "APP_ENV",
+    "URIM_API_FOOTBALL_SMOKE_ENABLED",
+    "URIM_API_FOOTBALL_SMOKE_AUTH",
+    "URIM_API_FOOTBALL_SMOKE_BASE_URL",
+    "URIM_API_FOOTBALL_SMOKE_READ_ONLY",
+    "URIM_API_FOOTBALL_SMOKE_NON_PROD",
+    "URIM_LOCAL_PREFLIGHT_NO_DB_WRITE_CONFIRMED",
+    "URIM_LOCAL_PREFLIGHT_NO_PREDICTION_CONFIRMED",
+    "URIM_LOCAL_PREFLIGHT_NO_BETTING_CONFIRMED",
+)
 
 
 class RecordingRequestCallable:
@@ -193,6 +205,81 @@ def test_first_real_local_smoke_script_runs_directly_without_sensitive_env() -> 
     assert summary["prediction_created"] is False
     assert summary["betting_created"] is False
     assert_summary_has_no_execution_leaks(summary)
+
+
+def test_first_real_local_smoke_powershell_runner_exists() -> None:
+    assert RUNNER_PATH.exists()
+    assert RUNNER_PATH.is_file()
+
+
+def test_first_real_local_smoke_powershell_runner_has_no_embedded_provider_material() -> None:
+    source = RUNNER_PATH.read_text(encoding="utf-8").lower()
+
+    assert "https://" in source
+    forbidden_fragments = (
+        "http://",
+        "api-football.com",
+        "api-sports",
+        "rapidapi",
+        "x-rapidapi-key",
+        "bearer ",
+        "api_key=",
+        "apikey",
+        "api-key",
+        "secret=",
+        "token=",
+        FAKE_EXECUTION_AUTH.lower(),
+        FAKE_EXECUTION_REFERENCE.lower(),
+    )
+    for fragment in forbidden_fragments:
+        assert fragment not in source
+
+
+def test_first_real_local_smoke_powershell_runner_restores_environment() -> None:
+    source = RUNNER_PATH.read_text(encoding="utf-8")
+    source_lower = source.lower()
+
+    assert "try {" in source_lower
+    assert "finally {" in source_lower
+    assert "$previousvalues" in source_lower
+    assert 'get-item -literalpath "env:$envname"' in source_lower
+    assert 'set-item -literalpath "env:$envname"' in source_lower
+    assert 'remove-item -literalpath "env:$envname"' in source_lower
+    for env_name in RUNNER_ENV_NAMES:
+        assert f'"{env_name}"' in source
+
+
+def test_first_real_local_smoke_powershell_runner_does_not_write_env_files() -> None:
+    source = RUNNER_PATH.read_text(encoding="utf-8").lower()
+
+    forbidden_fragments = (
+        ".env",
+        ".env.example",
+        "set-content",
+        "add-content",
+        "out-file",
+        "export-clixml",
+        "new-item",
+        "start-transcript",
+    )
+    for fragment in forbidden_fragments:
+        assert fragment not in source
+
+
+def test_first_real_local_smoke_powershell_runner_does_not_touch_frontend_db_or_alembic() -> None:
+    source = RUNNER_PATH.read_text(encoding="utf-8").lower()
+
+    forbidden_fragments = (
+        "apps/web",
+        "apps\\web",
+        "alembic",
+        "app/db",
+        "app\\db",
+        "models.py",
+        "sqlalchemy",
+    )
+    for fragment in forbidden_fragments:
+        assert fragment not in source
 
 
 @pytest.mark.parametrize(

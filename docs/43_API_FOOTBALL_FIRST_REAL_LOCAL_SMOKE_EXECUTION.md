@@ -29,6 +29,20 @@ et ne lancent aucun appel provider reel.
 - `git status` est clean.
 - Le gate final provider Phase 15 reste bloque/safe.
 
+## Runner PowerShell local
+Un runner PowerShell local peut etre utilise pour eviter de ressaisir manuellement tous les drapeaux du premier
+smoke reel :
+
+```powershell
+.\scripts\run_first_real_local_smoke.ps1
+```
+
+Le runner demande les valeurs operateur via prompts masques, refuse toute reference provider qui n'utilise pas un
+schema chiffre, lance uniquement le script terminal local, puis restaure l'environnement du processus en fin
+d'execution. Il ne doit jamais afficher la cle, afficher la reference provider brute, ecrire un fichier `.env`,
+modifier `.env.example`, creer une route publique, ecrire en DB, creer une prediction, ou toucher a une logique
+bookmaker, stake ou betting.
+
 ## Resultat public-safe
 Le resultat partageable contient uniquement :
 
