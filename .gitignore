@@ -33,3 +33,6 @@ Thumbs.db
 # Docker / local data
 *.local
 docker-data/
+
+# Local external API references - never commit
+_references/
