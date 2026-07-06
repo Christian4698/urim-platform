@@ -52,3 +52,8 @@
 - `40_API_FOOTBALL_LOCAL_ONLY_HTTP_SMOKE_HARNESS.md`
 - `41_API_FOOTBALL_FIRST_REAL_LOCAL_SMOKE_PROTOCOL.md`
 - `42_API_FOOTBALL_LOCAL_SECRET_ENV_PREFLIGHT.md`
+- `43_API_FOOTBALL_FIRST_REAL_LOCAL_SMOKE_EXECUTION.md`
+
+## Annexes (hors séquence de phases)
+- `api-catalog.md` — catalogue de recherche d'APIs publiques (référence `public-apis/public-apis`), en attente de validation humaine avant toute intégration réelle.
+- `codex-api-integration-instructions.md` — consignes pour Codex sur l'usage du catalogue.

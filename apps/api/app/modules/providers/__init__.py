@@ -1,1 +1,1 @@
-"""Provider readiness module. Phase 23 keeps API-Football local preflight script-only."""
+"""Provider readiness module. Phase 24 keeps API-Football first real local smoke script-only."""

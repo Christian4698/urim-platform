@@ -187,7 +187,7 @@ def test_sandbox_status_endpoint_is_read_only_safe_and_sanitized() -> None:
 
     payload = response.json()
     body = response.text.lower()
-    assert payload["metadata"]["phase"] == "phase-23-api-football-local-secret-env-preflight"
+    assert payload["metadata"]["phase"] == "phase-24-api-football-first-real-local-smoke-execution"
     assert payload["sandbox_mode"] == SANDBOX_MODE
     assert payload["provider_enabled"] is False
     assert payload["api_football_connected"] is False

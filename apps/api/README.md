@@ -2,7 +2,7 @@
 
 FastAPI backend for the URIM Kairos engine.
 
-This package currently covers Phase 23 API-Football local secret and environment preflight work:
+This package currently covers Phase 24 API-Football first real local smoke execution work:
 
 - SQLAlchemy metadata for the PostgreSQL foundation schema.
 - Alembic migrations for local and future controlled environments.
@@ -39,12 +39,14 @@ This package currently covers Phase 23 API-Football local secret and environment
   operator, and does not execute provider calls or expose a route.
 - API-Football local secret and environment preflight. It is script-only, public-safe, terminal-only and never
   imported by FastAPI.
+- API-Football first real local smoke execution. It is script-only, public-safe, terminal-only, gated by the local
+  preflight and provider activation gate, and never imported by FastAPI.
 
 It does not activate API-Football by default, train ML models, execute bets, create real predictions, create production sports results, or seed production data. The Bet Center remains virtual/internal only.
 
-The Phase 23 CSP remains intentionally strict for an API surface:
+The Phase 24 CSP remains intentionally strict for an API surface:
 `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`.
-It may restrict Swagger UI or ReDoc interactive rendering; an auth/docs portal is out of scope for Phase 23.
+It may restrict Swagger UI or ReDoc interactive rendering; an auth/docs portal is out of scope for Phase 24.
 
 `official_result_envelope` remains a sandbox-only placeholder used to test future wiring shape. Real Official Result Verifier behavior and Post-Match Learning activation remain out of scope.
 
@@ -81,6 +83,10 @@ DB write, prediction, bookmaker or betting path.
 The API-Football local secret and environment preflight is script-only. It checks local readiness booleans for a
 future manual smoke attempt and returns only a public-safe summary. It does not add a route, provider call, key,
 provider URL, DB write, prediction, bookmaker or betting path.
+
+The API-Football first real local smoke execution script is terminal-only. It refuses execution unless the local
+preflight is ready, `git status` is clean and the provider activation gate remains blocked. It returns only a
+public-safe summary and does not add a route, DB write, prediction, bookmaker or betting path.
 
 ## Validation
 
