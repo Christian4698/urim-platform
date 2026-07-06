@@ -1,5 +1,8 @@
 import json
+import os
 import socket
+import subprocess
+import sys
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -161,6 +164,35 @@ def test_first_real_local_smoke_refuses_by_default_without_calling_callable() ->
     assert "non_production_confirmation_missing" in result.blocking_reasons
     assert request_callable.calls == []
     assert_summary_has_no_execution_leaks(result.public_safe_summary())
+
+
+def test_first_real_local_smoke_script_runs_directly_without_sensitive_env() -> None:
+    env = os.environ.copy()
+    for env_name in (*API_FOOTBALL_SMOKE_ENV_NAMES, *LOCAL_SECRET_ENV_PREFLIGHT_CONFIRMATION_ENV_NAMES):
+        env.pop(env_name, None)
+    env["APP_ENV"] = "development"
+
+    completed = subprocess.run(
+        [sys.executable, "scripts/api_football_first_real_local_smoke.py"],
+        cwd=REPO_ROOT / "apps" / "api",
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+        timeout=10,
+    )
+
+    assert completed.returncode == 0
+    assert "ModuleNotFoundError" not in completed.stderr
+
+    summary = json.loads(completed.stdout)
+    assert summary["status"] == FIRST_REAL_LOCAL_SMOKE_NOT_READY_STATUS
+    assert summary["executed"] is False
+    assert "smoke_mode_not_explicitly_enabled" in summary["blocking_reasons"]
+    assert summary["db_writes"] is False
+    assert summary["prediction_created"] is False
+    assert summary["betting_created"] is False
+    assert_summary_has_no_execution_leaks(summary)
 
 
 @pytest.mark.parametrize(
