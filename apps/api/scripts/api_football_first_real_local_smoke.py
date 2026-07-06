@@ -1,23 +1,29 @@
 import json
 import os
+import sys
 from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from app.modules.providers.activation_readiness_final_gate import build_provider_activation_readiness_final_gate
-from app.modules.providers.api_football_smoke_client import (
+_API_ROOT = Path(__file__).resolve().parents[1]
+if str(_API_ROOT) not in sys.path:
+    sys.path.insert(0, str(_API_ROOT))
+
+from app.modules.providers.activation_readiness_final_gate import build_provider_activation_readiness_final_gate  # noqa: E402
+from app.modules.providers.api_football_smoke_client import (  # noqa: E402
     API_FOOTBALL_SMOKE_ENV_NAMES,
     ApiFootballSmokeDisabledError,
     load_api_football_smoke_config,
 )
-from scripts.api_football_local_preflight import (
+from scripts.api_football_local_preflight import (  # noqa: E402
     LOCAL_SECRET_ENV_PREFLIGHT_CONFIRMATION_ENV_NAMES,
     LocalApiFootballPreflightRepoChecks,
     run_local_api_football_secret_env_preflight,
 )
-from scripts.api_football_local_smoke_harness import (
+from scripts.api_football_local_smoke_harness import (  # noqa: E402
     LOCAL_HTTP_SMOKE_COMPLETED_STATUS,
     LOCAL_HTTP_SMOKE_REFUSED_UNSAFE_OUTPUT_STATUS,
     run_local_api_football_http_smoke_harness,
