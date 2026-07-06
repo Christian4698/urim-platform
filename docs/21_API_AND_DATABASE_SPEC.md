@@ -275,3 +275,21 @@ de `git status` clean et flags `db_writes=false`, `prediction_created=false`, `b
 
 Aucune valeur sensible, reference fournisseur brute, nom local sensible, payload provider brut, vraie cle, vraie URL
 provider ou sortie reseau ne doit etre serialisee, loggee, documentee ou exposee par une reponse publique.
+
+## Phase 24 API-Football First Real Local Smoke Execution
+La Phase 24 ajoute uniquement un script local-only pour une future premiere tentative de smoke API-Football reel
+depuis le terminal.
+
+Le script reutilise le preflight Phase 23 et le harnais local Phase 21. Il reste absent de FastAPI et n'ajoute aucun
+endpoint public, schema de reponse HTTP, table, migration, modele DB, frontend, scheduler, queue, ingestion,
+prediction, ML, bookmaker, cote, stake ou action betting.
+
+L'execution est bloquee tant que le preflight local n'est pas ready, que l'environnement n'est pas non-production,
+que le mode smoke/read-only/no DB/no prediction/no betting n'est pas confirme localement, que le materiel local et la
+reference provider locale ne sont pas presents, que `git status` n'est pas clean, ou que le gate final provider Phase
+15 ne reste pas bloque/safe.
+
+Le resultat partageable expose seulement statut, execution, `provider=api-football`,
+`mode=first_real_local_smoke_only`, hash optionnel, top-level keys optionnelles et flags `db_writes=false`,
+`prediction_created=false`, `betting_created=false`. Il ne doit jamais exposer cle, credential, reference provider
+brute, nom local sensible, payload brut provider, vraie donnee sportive ou sortie reseau non redigee.

@@ -1,4 +1,4 @@
-API_PHASE = "phase-23-api-football-local-secret-env-preflight"
+API_PHASE = "phase-24-api-football-first-real-local-smoke-execution"
 DATABASE_CONFIGURED_NOT_CHECKED = "configured_not_checked"
 DATABASE_NOT_CONFIGURED = "not_configured"
 DISABLED_STATUS = "disabled"
