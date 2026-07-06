@@ -1,9 +1,27 @@
-# integrations/ (structure préparée, non branchée)
+# integrations/ (mock-only scaffold)
 
-Scaffolding en attente — aucune API tierce n'est câblée ici.
+No third-party API is wired here. This folder prepares URIM typed contracts and
+demo providers only.
 
-- `providers/` : futurs wrappers typés côté client, pointant uniquement vers nos propres endpoints backend (`apps/api`). Jamais d'appel direct à une API tierce depuis ce dossier (clé API interdite côté frontend, voir `AGENTS.md`).
-- `mocks/` : implémentations mock/demo à activer par défaut.
-- `types/` : types TypeScript reflétant les contrats de données, pas les réponses brutes des fournisseurs.
+- `types/`: canonical TypeScript contracts with provenance, not raw provider JSON.
+- `mocks/`: plausible mock/demo providers. Every response is flagged as mock data.
+- `providers/`: registry/factory that exposes the mock providers and rejects LIVE
+  or real-provider activation.
+- `config/`: frontend-safe runtime gates. No secret is read from this folder.
 
-Toute intégration réelle de fournisseur tiers (API-Football, odds, etc.) reste gérée côté backend dans `apps/api/app/modules/providers/`, conformément à `docs/05_PROVIDER_CONNECTOR_CONTRACT.md`. Voir `docs/api-catalog.md` et `docs/codex-api-integration-instructions.md` avant toute activation.
+Current guarantees:
+
+- DEMO/MOCK is the default and only active mode.
+- LIVE is forcibly OFF.
+- No API key is referenced in frontend code.
+- No frontend call is made to a third-party provider.
+- URIM mocks cover football fixtures, team statistics, odds/value, weather, and
+  match news/events.
+- URIM exchange-rate mocks cover display-only CDF/USD conversion.
+- API-Football is not duplicated here; future changes to the existing real
+  adapter stay in `apps/api/app/modules/providers/`.
+
+Future real integrations must be implemented as backend adapters first, under
+the existing provider pattern in `apps/api/app/modules/providers/`, and must pass
+the onboarding gates in `docs/28_PROVIDER_ONBOARDING_CHECKLIST.md` and related
+readiness documents before this frontend registry points to any backend proxy.
