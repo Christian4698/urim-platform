@@ -213,6 +213,41 @@ raw_payload_refs = sa.Table(
     sa.UniqueConstraint("raw_hash", name="uq_raw_payload_refs_raw_hash"),
 )
 
+api_football_fixture_staging = sa.Table(
+    "api_football_fixture_staging",
+    metadata,
+    uuid_pk(),
+    sa.Column("provider", sa.String(length=80), nullable=False),
+    sa.Column("provider_fixture_id", sa.BigInteger(), nullable=False),
+    sa.Column("provider_league_id", sa.BigInteger(), nullable=True),
+    sa.Column("provider_season", sa.Integer(), nullable=True),
+    sa.Column("fixture_date", sa.DateTime(timezone=True), nullable=True),
+    sa.Column("fixture_timezone", sa.String(length=80), nullable=True),
+    sa.Column("fixture_status_short", sa.String(length=40), nullable=True),
+    sa.Column("fixture_status_long", sa.String(length=120), nullable=True),
+    sa.Column("home_team_provider_id", sa.BigInteger(), nullable=True),
+    sa.Column("home_team_name", sa.String(length=240), nullable=True),
+    sa.Column("away_team_provider_id", sa.BigInteger(), nullable=True),
+    sa.Column("away_team_name", sa.String(length=240), nullable=True),
+    sa.Column("goals_home", sa.Integer(), nullable=True),
+    sa.Column("goals_away", sa.Integer(), nullable=True),
+    sa.Column("score_halftime_home", sa.Integer(), nullable=True),
+    sa.Column("score_halftime_away", sa.Integer(), nullable=True),
+    sa.Column("score_fulltime_home", sa.Integer(), nullable=True),
+    sa.Column("score_fulltime_away", sa.Integer(), nullable=True),
+    sa.Column("payload_hash", sa.String(length=128), nullable=False),
+    jsonb_col("payload_top_level_keys", default="'[]'::jsonb"),
+    sa.Column("fetched_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("source_mode", sa.String(length=80), nullable=False),
+    created_at(),
+    updated_at(),
+    sa.UniqueConstraint(
+        "provider",
+        "provider_fixture_id",
+        name="uq_api_football_fixture_staging_provider_fixture",
+    ),
+)
+
 provider_observations = sa.Table(
     "provider_observations",
     metadata,
@@ -400,6 +435,23 @@ sa.Index(
     raw_payload_refs.c.provider_event_id,
 )
 sa.Index("ix_raw_payload_refs_fetched_at", raw_payload_refs.c.fetched_at)
+sa.Index(
+    "ix_api_football_fixture_staging_provider_fixture_id",
+    api_football_fixture_staging.c.provider_fixture_id,
+)
+sa.Index(
+    "ix_api_football_fixture_staging_fixture_date",
+    api_football_fixture_staging.c.fixture_date,
+)
+sa.Index(
+    "ix_api_football_fixture_staging_league_season",
+    api_football_fixture_staging.c.provider_league_id,
+    api_football_fixture_staging.c.provider_season,
+)
+sa.Index(
+    "ix_api_football_fixture_staging_status_short",
+    api_football_fixture_staging.c.fixture_status_short,
+)
 sa.Index(
     "ix_entity_mappings_provider_entity",
     entity_mappings.c.provider_id,
