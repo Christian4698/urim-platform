@@ -78,6 +78,18 @@ _FORBIDDEN_OUTPUT_FRAGMENTS: Final = (
     _literal("x", "-rapid", "api"),
     _literal("raw", "_payload"),
     _literal("smoke", "_payload"),
+    _literal('"', "fixtures", '":'),
+    _literal("provider", "_fixture_id"),
+    _literal("home", "_team_provider_id"),
+    _literal("away", "_team_provider_id"),
+    _literal("home", "_team_name"),
+    _literal("away", "_team_name"),
+    _literal("goals", "_home"),
+    _literal("goals", "_away"),
+    _literal("score", "_halftime_home"),
+    _literal("score", "_halftime_away"),
+    _literal("score", "_fulltime_home"),
+    _literal("score", "_fulltime_away"),
 )
 
 FixtureRequestCallable = Callable[[str, str, Mapping[str, str]], Mapping[str, Any]]
@@ -96,7 +108,6 @@ class ApiFootballFixtureFirstRealLocalSmokeResult:
     mode: str = FIXTURE_FIRST_REAL_LOCAL_SMOKE_MODE
     request_query: Mapping[str, str] | None = None
     normalized_count: int | None = None
-    fixtures: tuple[Mapping[str, Any], ...] = ()
     payload_hash: str | None = None
     payload_top_level_keys: tuple[str, ...] = ()
     http_status: int | None = None
@@ -113,10 +124,6 @@ class ApiFootballFixtureFirstRealLocalSmokeResult:
             summary["request_query"] = dict(self.request_query)
         if self.normalized_count is None:
             summary.pop("normalized_count")
-        if not self.fixtures:
-            summary.pop("fixtures")
-        else:
-            summary["fixtures"] = [dict(fixture) for fixture in self.fixtures]
         if self.payload_hash is None:
             summary.pop("payload_hash")
         if self.payload_top_level_keys:
@@ -199,7 +206,6 @@ def run_api_football_fixture_first_real_local_smoke(
         executed=True,
         request_query=approved_query,
         normalized_count=int(normalized_response["normalized_count"]),
-        fixtures=tuple(normalized_response["fixtures"]),
         payload_hash=str(normalized_response["payload_hash"]),
         payload_top_level_keys=tuple(normalized_response["payload_top_level_keys"]),
     )
