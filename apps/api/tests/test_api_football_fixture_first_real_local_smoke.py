@@ -112,6 +112,18 @@ def assert_summary_has_no_fixture_smoke_leaks(summary: dict[str, object]) -> Non
         "token",
         _literal("raw", "_payload"),
         _literal("smoke", "_payload"),
+        _literal('"', "fixtures", '":'),
+        "provider_fixture_id",
+        "home_team_name",
+        "away_team_name",
+        "goals_home",
+        "goals_away",
+        "score_halftime_home",
+        "score_halftime_away",
+        "score_fulltime_home",
+        "score_fulltime_away",
+        "Home FC",
+        "Away FC",
         "ignored_provider_field",
         "Ignored Stadium",
         "Ignored League",
@@ -176,28 +188,7 @@ def test_fixture_first_real_local_smoke_with_fake_transport_executes() -> None:
         "response",
         "results",
     ]
-    assert summary["fixtures"] == [
-        {
-            "provider": "api-football",
-            "provider_fixture_id": 101,
-            "provider_league_id": 39,
-            "provider_season": 2026,
-            "fixture_date": "2026-07-07T18:00:00+00:00",
-            "fixture_timezone": "UTC",
-            "fixture_status_short": "NS",
-            "fixture_status_long": "Not Started",
-            "home_team_provider_id": 33,
-            "home_team_name": "Home FC",
-            "away_team_provider_id": 34,
-            "away_team_name": "Away FC",
-            "goals_home": 1,
-            "goals_away": 2,
-            "score_halftime_home": 0,
-            "score_halftime_away": 1,
-            "score_fulltime_home": 1,
-            "score_fulltime_away": 2,
-        }
-    ]
+    assert "fixtures" not in summary
     assert summary["db_writes"] is False
     assert summary["prediction_created"] is False
     assert summary["betting_created"] is False
@@ -413,6 +404,7 @@ def test_fixture_first_real_local_smoke_doc_exists_and_documents_manual_scope() 
     assert "## No prediction" in doc_text
     assert "## No betting/odds" in doc_text
     assert "no automated tests may call the real provider" in doc_text_lower
+    assert "- `fixtures`" not in doc_text
 
 
 def test_fixture_first_real_local_smoke_index_references_phase_31_doc() -> None:

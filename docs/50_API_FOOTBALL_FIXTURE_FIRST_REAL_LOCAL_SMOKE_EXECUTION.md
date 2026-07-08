@@ -61,14 +61,14 @@ On success, the script returns only:
 - `status`
 - `request_query`
 - `normalized_count`
-- `fixtures`
 - `payload_hash`
 - `payload_top_level_keys`
 - `db_writes`
 - `prediction_created`
 - `betting_created`
 
-The script never returns the provider URL, local auth value, raw provider content or the full environment.
+The script never returns the provider URL, local auth value, raw provider content, full fixture list or the full
+environment.
 
 ## HTTP errors
 Provider HTTP errors are converted to public-safe JSON with a status and HTTP code only. The response body, stack trace,
