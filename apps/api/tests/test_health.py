@@ -1,5 +1,7 @@
+import pytest
 from fastapi.testclient import TestClient
 
+import app.main as main_module
 from app.core.security import SECURITY_HEADERS, phase_fourteen_security_assertions
 from app.main import app
 
@@ -35,18 +37,38 @@ def test_version_endpoint_exposes_phase_fourteen_safety_overrides() -> None:
     assert payload["real_betting_enabled"] is False
 
 
-def test_readiness_endpoint_has_no_required_real_dependencies() -> None:
+def test_readiness_endpoint_reports_unavailable_database_and_preserves_other_dependencies(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(main_module, "get_database_status", lambda: "unavailable")
+
+    response = client.get("/readiness")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["ready"] is False
+    assert payload["phase"] == "phase-24-api-football-first-real-local-smoke-execution"
+    assert payload["dependencies"]["database"] == "unavailable"
+    assert payload["dependencies"]["redis"] == "not_required"
+    assert payload["dependencies"]["sports_providers"] == "disabled"
+    assert payload["dependencies"]["bookmakers"] == "disabled"
+    assert payload["dependencies"]["ml_models"] == "disabled"
+    assert payload["dependencies"]["live"] == "disabled"
+    assert payload["dependencies"]["real_betting"] == "disabled"
+    assert payload["dependencies"]["prediction_creation"] == "disabled"
+
+
+def test_readiness_endpoint_is_ready_when_database_probe_succeeds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(main_module, "get_database_status", lambda: "ok")
+
     response = client.get("/readiness")
 
     assert response.status_code == 200
     payload = response.json()
     assert payload["ready"] is True
-    assert payload["phase"] == "phase-24-api-football-first-real-local-smoke-execution"
-    assert payload["dependencies"]["redis"] == "not_required"
-    assert payload["dependencies"]["sports_providers"] == "disabled"
-    assert payload["dependencies"]["bookmakers"] == "disabled"
-    assert payload["dependencies"]["ml_models"] == "disabled"
-    assert payload["dependencies"]["prediction_creation"] == "disabled"
+    assert payload["dependencies"]["database"] == "ok"
 
 
 def test_phase_fourteen_security_assertions() -> None:

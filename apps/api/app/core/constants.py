@@ -1,6 +1,6 @@
 API_PHASE = "phase-24-api-football-first-real-local-smoke-execution"
-DATABASE_CONFIGURED_NOT_CHECKED = "configured_not_checked"
-DATABASE_NOT_CONFIGURED = "not_configured"
+DATABASE_OK = "ok"
+DATABASE_UNAVAILABLE = "unavailable"
 DISABLED_STATUS = "disabled"
 NOT_REQUIRED_STATUS = "not_required"
 READ_ONLY_SKELETON = "read_only_skeleton"

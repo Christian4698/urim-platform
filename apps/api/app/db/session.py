@@ -1,12 +1,16 @@
 from collections.abc import Generator
 from threading import RLock
 
-from sqlalchemy import create_engine
-from sqlalchemy.engine import Engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
-from app.core.constants import DATABASE_CONFIGURED_NOT_CHECKED, DATABASE_NOT_CONFIGURED
+from app.core.constants import DATABASE_OK, DATABASE_UNAVAILABLE
+
+DATABASE_TIMEOUT_SECONDS = 3
+DATABASE_STATEMENT_TIMEOUT_MILLISECONDS = DATABASE_TIMEOUT_SECONDS * 1_000
+DATABASE_PROBE = text("SELECT 1")
 
 _engine_lock = RLock()
 _engine: Engine | None = None
@@ -20,8 +24,20 @@ def is_database_configured() -> bool:
 
 def get_database_status() -> str:
     if not is_database_configured():
-        return DATABASE_NOT_CONFIGURED
-    return DATABASE_CONFIGURED_NOT_CHECKED
+        return DATABASE_UNAVAILABLE
+
+    try:
+        with get_engine().connect() as connection:
+            if connection.dialect.name == "postgresql":
+                connection.exec_driver_sql(
+                    f"SET LOCAL statement_timeout = {DATABASE_STATEMENT_TIMEOUT_MILLISECONDS}"
+                )
+            probe_result = connection.execute(DATABASE_PROBE).scalar_one()
+    except Exception:
+        # Readiness is a public boundary: never propagate or log connection details.
+        return DATABASE_UNAVAILABLE
+
+    return DATABASE_OK if probe_result == 1 else DATABASE_UNAVAILABLE
 
 
 def get_engine() -> Engine:
@@ -45,7 +61,15 @@ def _get_engine_and_session_factory() -> tuple[Engine, sessionmaker[Session]]:
         if _engine is None or _engine_url != database_url:
             if _engine is not None:
                 _engine.dispose()
-            _engine = create_engine(database_url, pool_pre_ping=True)
+            if make_url(database_url).get_backend_name() == "postgresql":
+                _engine = create_engine(
+                    database_url,
+                    pool_pre_ping=True,
+                    pool_timeout=DATABASE_TIMEOUT_SECONDS,
+                    connect_args={"connect_timeout": DATABASE_TIMEOUT_SECONDS},
+                )
+            else:
+                _engine = create_engine(database_url, pool_pre_ping=True)
             _engine_url = database_url
             _session_factory = sessionmaker(_engine, autoflush=False, expire_on_commit=False)
         elif _session_factory is None:

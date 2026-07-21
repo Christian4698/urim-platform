@@ -9,6 +9,8 @@ This package currently covers Phase 24 API-Football first real local smoke execu
 - Versioned FastAPI routes under `/api/v1`.
 - API-first security headers, including a restrictive Content-Security-Policy.
 - Thread-safe SQLAlchemy 2.0-style engine/session-factory reuse keyed by `DATABASE_URL`.
+- Database-aware `/readiness` probe using `SELECT 1`, bounded PostgreSQL connection/pool/statement timeouts,
+  and public-safe `ok` / `unavailable` statuses without connection-detail logging.
 - Safety overrides that keep live prediction, production mocks, provider connectors, API-Football, bookmakers, prediction creation, and real betting disabled.
 - Read-only provider readiness contracts under `/api/v1/providers/readiness`.
 - Provider QA helpers for contract-only golden payload checks and payload redaction.

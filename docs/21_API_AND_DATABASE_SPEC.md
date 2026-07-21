@@ -25,6 +25,8 @@ La CSP reste stricte et API-first : `default-src 'none'; frame-ancestors 'none';
 
 `/version`, `/readiness` et `/api/v1/system/capabilities` restent coherents : live, real betting, providers, API-Football, bookmakers, ML, prediction creation, production mocks et production seeds sont desactives.
 
+`GET /readiness` execute une sonde PostgreSQL minimale `SELECT 1` lorsque `DATABASE_URL` est configure. La connexion et l'attente du pool sont bornees a trois secondes, et PostgreSQL recoit un `statement_timeout` local de trois secondes pour la sonde. `dependencies.database` vaut uniquement `ok` ou `unavailable`; `ready` est vrai uniquement pour `ok`. Les erreurs restent absorbees a cette frontiere publique et aucun URL, mot de passe, hote complet ou detail d'exception n'est retourne ou journalise.
+
 ## Post-Match Learning
 Le futur Post-Match Learning ne peut apprendre que depuis des resultats officiels verifies dans `post_match_outcomes`.
 

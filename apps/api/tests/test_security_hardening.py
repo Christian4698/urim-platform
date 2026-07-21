@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 
 from app.core.config import settings
 from app.core.security import SECURITY_HEADERS
+from app.db.session import reset_database_engine
 from app.main import app
 
 client = TestClient(app)
@@ -119,3 +120,27 @@ def test_version_and_capabilities_ignore_dangerous_settings(
     assert capabilities["production_mocks_enabled"] is False
     assert capabilities["production_seed_enabled"] is False
     assert capabilities["bet_center_mode"] == "virtual_internal"
+
+
+def test_readiness_database_failure_exposes_no_connection_details(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    secret = "DO_NOT_EXPOSE_READINESS_PASSWORD"
+    host = "private-db.internal.example"
+    monkeypatch.setattr(
+        settings,
+        "database_url",
+        f"unsupported://readiness-user:{secret}@{host}:5432/urim",
+    )
+    reset_database_engine()
+
+    try:
+        response = client.get("/readiness")
+    finally:
+        reset_database_engine()
+
+    assert response.status_code == 200
+    assert response.json()["ready"] is False
+    assert response.json()["dependencies"]["database"] == "unavailable"
+    assert secret not in response.text
+    assert host not in response.text

@@ -4,6 +4,7 @@ from app.api.v1.router import include_api_v1
 from app.core.config import settings
 from app.core.constants import (
     API_PHASE,
+    DATABASE_OK,
     DISABLED_STATUS,
     NOT_REQUIRED_STATUS,
     PHASE_LIVE_ENABLED,
@@ -56,11 +57,12 @@ def version() -> VersionResponse:
 
 @app.get("/readiness", response_model=ReadinessResponse, tags=["system"])
 def readiness() -> ReadinessResponse:
+    database_status = get_database_status()
     return ReadinessResponse(
-        ready=True,
+        ready=database_status == DATABASE_OK,
         phase=API_PHASE,
         dependencies={
-            "database": get_database_status(),
+            "database": database_status,
             "redis": NOT_REQUIRED_STATUS,
             "sports_providers": DISABLED_STATUS,
             "bookmakers": DISABLED_STATUS,
