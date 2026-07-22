@@ -27,6 +27,8 @@ htmlcov/
 .codex/
 .turbo/
 .cache/
+.playwright-cli/
+output/playwright/
 .DS_Store
 Thumbs.db
 

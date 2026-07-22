@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: urim-web
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeployTrigger: commit
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm web:build
+    startCommand: pnpm --filter @urim/web start
+    healthCheckPath: /
+    domains:
+      - urim.pro
+    renderSubdomainPolicy: enabled
+    buildFilter:
+      paths:
+        - apps/web/**
+        - packages/config/**
+        - packages/contracts/**
+        - packages/ui/**
+        - package.json
+        - pnpm-lock.yaml
+        - pnpm-workspace.yaml
+        - render.yaml
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 22.22.0
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      - key: NEXT_PUBLIC_API_URL
+        value: https://urim-api-jrbk.onrender.com
+      - key: NEXT_PUBLIC_SITE_URL
+        value: https://urim.pro

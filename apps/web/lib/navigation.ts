@@ -1,9 +1,13 @@
+export type NavigationIcon = "home" | "dashboard" | "system" | "modules" | "settings";
+
 export const navigationItems = [
-  { href: "/", label: "Accueil / Dashboard" },
-  { href: "/kairos-analysis", label: "Kairos Analysis" },
-  { href: "/bet-center", label: "Bet Center" },
-  { href: "/tickets", label: "Tickets" },
-  { href: "/performance", label: "Performance" },
-  { href: "/post-match-learning", label: "Post-Match Learning" },
-  { href: "/parametres", label: "Paramètres" }
-] as const;
+  { href: "/", label: "Accueil", icon: "home" },
+  { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+  { href: "/disponibilite", label: "Disponibilité", icon: "system" },
+  { href: "/modules", label: "Modules", icon: "modules" },
+  { href: "/parametres", label: "Paramètres", icon: "settings" }
+] as const satisfies ReadonlyArray<{
+  href: string;
+  label: string;
+  icon: NavigationIcon;
+}>;

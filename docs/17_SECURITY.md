@@ -23,3 +23,5 @@ Lockfiles, scans, images minimales, SBOM et mises a jour controlees.
 
 ## Frontend
 Aucune cle fournisseur, aucun appel B2B direct, CSP et HTML nettoye.
+
+La connexion frontend publique est limitee a `GET /health` et `GET /readiness`. Seule `NEXT_PUBLIC_API_URL` peut etre exposee. L'API autorise par defaut l'origine locale exacte `http://localhost:3000`; les origines de production doivent etre ajoutees explicitement avec `CORS_ORIGINS`, sans wildcard et sans credentials CORS.

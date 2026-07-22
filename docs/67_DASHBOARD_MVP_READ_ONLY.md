@@ -107,6 +107,12 @@ This phase creates the dashboard payload backend only. The existing frontend was
 read-only API surface for this new payload is not part of Phase 48. A later phase can expose a UI only after route,
 auth, monitoring, and logging boundaries are explicitly defined.
 
+## Public System Availability Increment
+The frontend now consumes only the existing public-safe `GET /health` and `GET /readiness` system endpoints through a
+typed client. It does not consume the Phase 48 provider dashboard payload, call a sports provider, create a prediction,
+enable ML, connect a bookmaker, or execute betting. Loading, timeout, invalid-response, network-error, API-online, and
+database-availability states are explicit. Only the public backend origin is exposed to the browser.
+
 ## Phase 49 Boundary
 Phase 49 will add monitoring, quotas and safe logs before any broader dashboard exposure. It must preserve read-only
 behavior, avoid provider calls from UI code, and keep all secret, betting, probability, and prediction boundaries intact.

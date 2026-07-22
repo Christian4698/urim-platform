@@ -1,50 +1,65 @@
-# URIM — Kairos Sports Intelligence
+# URIM — Sports Intelligence Platform
 
-URIM est l'application produit. Kairos est le moteur technique. Ce dépôt construit un système d'intelligence sportive probabiliste, traçable, sécurisé et explicable, sans jamais promettre un résultat garanti.
+URIM est l’application produit et Kairos son moteur technique. Ce dépôt construit
+une plateforme sportive probabiliste, traçable, sécurisée et explicable. La
+version Programme A est une plateforme publique de consultation : elle ne crée
+aucune prédiction, ne connecte aucun bookmaker et n’exécute aucun pari.
 
-## Phase 1 — squelette applicatif
+## Périmètre Programme A
 
-Cette phase crée uniquement la base monorepo :
-- `apps/web` : dashboard Next.js + React + TypeScript.
-- `apps/api` : API FastAPI limitée aux endpoints santé.
-- `packages/contracts` : schémas JSON et types partagés.
-- `packages/config` : configuration partagée URIM/Kairos.
-- `packages/ui` : composants UI de base.
-- `infra/docker` : Postgres et Redis locaux placeholder.
+- `apps/web` : interface Next.js responsive (Accueil, Dashboard,
+  Disponibilité, Modules et Paramètres) ;
+- `apps/api` : API FastAPI publique en lecture seule pour `/health` et
+  `/readiness` ;
+- PostgreSQL/Supabase : interrogé exclusivement par le backend ;
+- `render.yaml` : Blueprint du frontend Render et du domaine `urim.pro` ;
+- `packages/contracts`, `packages/config` et `packages/ui` : contrats et
+  composants partagés.
 
-Aucune API sportive réelle, aucune base métier, aucun bookmaker, aucune mise réelle et aucun modèle prédictif réel ne sont connectés en Phase 1.
+API Football, les bookmakers, le live, les paris réels, le moteur de prédiction
+et l’authentification restent explicitement désactivés.
 
 ## Démarrage local
 
-Prérequis recommandés : Node.js LTS, `pnpm`, Python 3.12+, `uv`, Docker Compose.
+Prérequis : Node.js 22.22, `pnpm` et Python 3.12+.
 
 ```bash
-pnpm install
+corepack enable
+pnpm install --frozen-lockfile
 pnpm web:dev
 ```
 
+Dans un second terminal :
+
 ```bash
 cd apps/api
-uv run uvicorn app.main:app --reload
+python -m uvicorn app.main:app --reload
 ```
 
-```bash
-docker compose -f infra/docker/docker-compose.yml up -d
-```
+Copier uniquement les fichiers `.env.example` vers des fichiers `.env` locaux.
+Ne jamais placer `DATABASE_URL` dans `apps/web` ni dans une variable
+`NEXT_PUBLIC_*`.
 
-## Vérifications utiles
+## Vérification
 
 ```bash
 pnpm contracts:validate
 pnpm web:lint
+pnpm web:typecheck
+pnpm web:test
 pnpm web:build
+pnpm api:lint
 pnpm api:test
+pnpm audit --prod
 ```
 
-Si l'environnement ne peut pas installer les dépendances, conserver les fichiers de configuration et exécuter ces commandes manuellement dès que `pnpm` et `uv` sont disponibles.
+La procédure de déploiement, les variables autorisées et la configuration DNS
+sont détaillées dans `docs/71_PROGRAM_A_PLATFORM.md`.
 
 ## Principe central
 
-> Aucune donnée de production ne doit être inventée, extrapolée comme si elle était observée, ou remplacée silencieusement par un mock.
+> Aucune donnée de production ne doit être inventée, extrapolée comme si elle
+> était observée, ou remplacée silencieusement par un mock.
 
-Les données simulées sont autorisées uniquement dans les tests, fixtures locales et environnements explicitement marqués `DEMO` ou `PLACEHOLDER`.
+Les données simulées sont réservées aux tests, fixtures locales et
+environnements explicitement marqués `DEMO` ou `PLACEHOLDER`.

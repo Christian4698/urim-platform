@@ -1,162 +1,135 @@
-import { appConfig } from "@urim/config";
+import type { Metadata } from "next";
 import {
+  ActionLink,
   DataPanel,
+  FeatureCard,
   MetricRow,
   PageHeader,
-  StatCard,
-  StatusBadge,
-  SystemTable
+  StatusBadge
 } from "../components/dashboard-ui";
 
-const readinessRows = [
-  {
-    label: "Provider Layer",
-    status: "Disabled",
-    detail: "No provider feed is connected in this frontend phase.",
-    tone: "warning" as const
-  },
-  {
-    label: "Kairos Signal",
-    status: "Read-only",
-    detail: "Signal surfaces are UI-only and produce no real prediction.",
-    tone: "cyan" as const
-  },
-  {
-    label: "Bet Center",
-    status: "Virtual/internal",
-    detail: "No bookmaker, no real betting, no stake execution.",
-    tone: "danger" as const
-  },
-  {
-    label: "Audit Mode",
-    status: "Visible",
-    detail: "Risk and limitation labels stay explicit in the interface.",
-    tone: "info" as const
-  }
-];
+export const metadata: Metadata = {
+  title: "Accueil",
+  description:
+    "Découvrez URIM, la plateforme d’intelligence sportive probabiliste, traçable et responsable.",
+  alternates: { canonical: "/" }
+};
 
-const moduleRows = [
-  {
-    label: "Kairos Analysis",
-    status: "Read-only skeleton",
-    detail: "No real prediction",
-    tone: "cyan" as const
-  },
-  {
-    label: "Tickets",
-    status: "Internal shell",
-    detail: "No automated action",
-    tone: "info" as const
-  },
-  {
-    label: "Performance",
-    status: "Evaluation shell",
-    detail: "No production sports data",
-    tone: "warning" as const
-  },
-  {
-    label: "Post-Match Learning",
-    status: "Learning shell",
-    detail: "No real result ingestion",
-    tone: "neutral" as const
-  }
-];
-
-export default function DashboardPage() {
+export default function HomePage() {
   return (
     <>
-      <PageHeader
-        eyebrow="URIM Command Surface"
-        title="Dashboard URIM"
-        description="A premium read-only skeleton for the Kairos engine, designed to show system posture without connecting sports data, providers, bookmakers, ML, or real betting."
-      >
-        <StatusBadge tone="cyan">Kairos Signal</StatusBadge>
-        <StatusBadge tone="warning">Provider disabled</StatusBadge>
-        <StatusBadge tone="danger">No real betting</StatusBadge>
-      </PageHeader>
+      <section className="hero-section">
+        <PageHeader
+          description="URIM réunit une interface sobre, une API contrôlée et une fondation de données auditables. Cette version publique expose uniquement l’état de la plateforme — sans fournisseur sportif, prédiction, live, bookmaker ni pari réel."
+          eyebrow="Sports Intelligence Platform"
+          title="Transformer l’incertitude en décisions explicables."
+        >
+          <ActionLink href="/dashboard">Ouvrir le dashboard</ActionLink>
+          <ActionLink href="/modules" variant="secondary">
+            Voir les modules
+          </ActionLink>
+        </PageHeader>
 
-      <section className="stat-grid" aria-label="URIM system posture">
-        <StatCard
-          label="Kairos Signal"
-          value="Read-only"
-          status="No real prediction"
-          tone="cyan"
-          description="The intelligence surface is prepared for future phases without calculating live or pre-match outputs."
-          meta={`Engine ${appConfig.engineName}`}
-        />
-        <StatCard
-          label="Provider Layer"
-          value="Disabled"
-          status="No feed"
-          tone="warning"
-          description="No external connector, no provider payload, no production sports data."
-          meta="Frontend shell only"
-        />
-        <StatCard
-          label="Bet Center"
-          value="Virtual only"
-          status="Internal"
-          tone="danger"
-          description="Virtual/internal boundary with no bookmaker integration, no real stake, no financial execution."
-          meta="Safety boundary"
-        />
-        <StatCard
-          label="Audit Mode"
-          value="Visible"
-          status="Read-only"
-          tone="info"
-          description="Risk labels and product limitations remain explicit across the dashboard."
-          meta={`${appConfig.defaultLocale} · ${appConfig.defaultCurrency}`}
-        />
+        <div className="hero-visual" aria-label="Principes URIM">
+          <div className="hero-orbit hero-orbit-one" />
+          <div className="hero-orbit hero-orbit-two" />
+          <div className="hero-core">
+            <span>KAIROS</span>
+            <strong>Contrôle</strong>
+            <small>Lecture seule</small>
+          </div>
+          <span className="hero-node hero-node-top">Traçable</span>
+          <span className="hero-node hero-node-right">Prudent</span>
+          <span className="hero-node hero-node-bottom">Explicable</span>
+        </div>
       </section>
 
-      <section className="dashboard-layout" aria-label="URIM dashboard panels">
-        <DataPanel
-          title="System readiness"
-          description="Static interface state for Phase Design 2. These rows are not live provider data."
-          className="panel-wide"
-        >
-          <SystemTable caption="URIM system readiness" rows={readinessRows} />
-        </DataPanel>
+      <section className="trust-strip" aria-label="Garanties de la version publique">
+        <div>
+          <strong>5</strong>
+          <span>espaces utilisables</span>
+        </div>
+        <div>
+          <strong>0</strong>
+          <span>secret côté navigateur</span>
+        </div>
+        <div>
+          <strong>2</strong>
+          <span>endpoints publics contrôlés</span>
+        </div>
+        <div>
+          <strong>NO_BET</strong>
+          <span>plutôt qu’une fausse certitude</span>
+        </div>
+      </section>
 
+      <section className="section-block" aria-labelledby="foundation-title">
+        <div className="section-heading">
+          <span className="eyebrow">Fondation produit</span>
+          <h2 id="foundation-title">Une plateforme conçue pour mériter la confiance.</h2>
+          <p>Chaque couche rend ses limites visibles avant d’ajouter de nouvelles capacités.</p>
+        </div>
+        <div className="feature-grid">
+          <FeatureCard
+            description="Le dashboard distingue clairement état réel, indisponibilité et fonctionnalités désactivées."
+            icon="dashboard"
+            title="Vue opérationnelle"
+          >
+            <StatusBadge tone="success">Disponible</StatusBadge>
+          </FeatureCard>
+          <FeatureCard
+            description="Le navigateur interroge uniquement la santé FastAPI et la readiness PostgreSQL."
+            icon="system"
+            title="Disponibilité vérifiable"
+          >
+            <StatusBadge tone="cyan">Temps réel système</StatusBadge>
+          </FeatureCard>
+          <FeatureCard
+            description="Les capacités sensibles restent bloquées tant que leurs conditions de sécurité ne sont pas remplies."
+            icon="shield"
+            title="Sécurité par défaut"
+          >
+            <StatusBadge tone="warning">Gates actifs</StatusBadge>
+          </FeatureCard>
+        </div>
+      </section>
+
+      <section className="dashboard-layout home-panels" aria-label="Périmètre actuel">
         <DataPanel
-          title="Risk gates"
-          description="Product guardrails remain visible before any future intelligence layer can be enabled."
+          description="Fonctions disponibles dans le Programme A."
+          title="Ce que vous pouvez utiliser"
         >
           <div className="metric-stack">
             <MetricRow
-              label="Real prediction"
-              value="Blocked"
-              tone="danger"
-              detail="Kairos does not publish predictions in this phase."
-            />
-            <MetricRow
-              label="Provider feed"
-              value="Disabled"
-              tone="warning"
-              detail="No external sports feed is connected."
-            />
-            <MetricRow
-              label="Bet execution"
-              value="None"
-              tone="danger"
-              detail="Bet Center remains virtual/internal only."
-            />
-            <MetricRow
-              label="Frontend secrets"
-              value="None"
+              detail="Navigation claire sur ordinateur, tablette et mobile."
+              label="Interface"
               tone="success"
-              detail="No provider credentials belong in the web app."
+              value="Disponible"
+            />
+            <MetricRow
+              detail="État public de l’API et de sa dépendance PostgreSQL."
+              label="Disponibilité système"
+              tone="success"
+              value="Vérifiable"
+            />
+            <MetricRow
+              detail="Inventaire transparent des fonctions actives et bloquées."
+              label="Registre des modules"
+              tone="success"
+              value="Disponible"
             />
           </div>
         </DataPanel>
 
         <DataPanel
-          title="Module states"
-          description="Navigation targets stay available while their future capabilities are clearly disabled."
-          className="panel-wide"
+          description="Ces barrières ne sont pas contournables depuis l’interface."
+          title="Limites volontaires"
         >
-          <SystemTable caption="URIM module states" rows={moduleRows} />
+          <div className="metric-stack">
+            <MetricRow label="API Football & bookmakers" tone="warning" value="Désactivés" />
+            <MetricRow label="Live & moteur de prédiction" tone="warning" value="Désactivés" />
+            <MetricRow label="Pari réel & authentification" tone="danger" value="Absents" />
+          </div>
         </DataPanel>
       </section>
     </>

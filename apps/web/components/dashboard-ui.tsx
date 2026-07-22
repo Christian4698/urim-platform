@@ -1,4 +1,6 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
+import { Icon, type IconName } from "./icon";
 
 export type Tone = "neutral" | "success" | "warning" | "danger" | "info" | "cyan";
 
@@ -33,14 +35,31 @@ export function PageHeader({
   children?: ReactNode;
 }) {
   return (
-    <header className="page-header premium-page-header">
-      <StatusBadge tone="cyan">{eyebrow}</StatusBadge>
+    <header className="page-header">
+      <span className="eyebrow">{eyebrow}</span>
       <div className="page-header-copy">
         <h1>{title}</h1>
         <p>{description}</p>
       </div>
       {children && <div className="page-header-actions">{children}</div>}
     </header>
+  );
+}
+
+export function ActionLink({
+  href,
+  children,
+  variant = "primary"
+}: {
+  href: string;
+  children: ReactNode;
+  variant?: "primary" | "secondary";
+}) {
+  return (
+    <Link className={`action-link action-link-${variant}`} href={href}>
+      <span>{children}</span>
+      <Icon height={17} name="arrow" width={17} />
+    </Link>
   );
 }
 
@@ -68,6 +87,31 @@ export function StatCard({
       <strong>{value}</strong>
       <p>{description}</p>
       {meta && <span className="stat-card-meta">{meta}</span>}
+    </article>
+  );
+}
+
+export function FeatureCard({
+  icon,
+  title,
+  description,
+  children
+}: {
+  icon: IconName;
+  title: string;
+  description: string;
+  children?: ReactNode;
+}) {
+  return (
+    <article className="feature-card">
+      <div className="feature-icon">
+        <Icon height={22} name={icon} width={22} />
+      </div>
+      <div>
+        <h2>{title}</h2>
+        <p>{description}</p>
+      </div>
+      {children && <div className="feature-card-footer">{children}</div>}
     </article>
   );
 }
@@ -135,33 +179,25 @@ export function SystemTable({
 }) {
   return (
     <div className="system-table-wrap">
-      <table className="system-table" role="table">
+      <table className="system-table">
         <caption>{caption}</caption>
-        <thead role="rowgroup">
-          <tr role="row">
-            <th role="columnheader" scope="col">
-              Layer
-            </th>
-            <th role="columnheader" scope="col">
-              Status
-            </th>
-            <th role="columnheader" scope="col">
-              Scope
-            </th>
+        <thead>
+          <tr>
+            <th scope="col">Composant</th>
+            <th scope="col">État</th>
+            <th scope="col">Périmètre</th>
           </tr>
         </thead>
-        <tbody role="rowgroup">
+        <tbody>
           {rows.map((row) => (
-            <tr key={row.label} role="row">
-              <th data-label="Layer" role="rowheader" scope="row">
+            <tr key={row.label}>
+              <th data-label="Composant" scope="row">
                 {row.label}
               </th>
-              <td data-label="Status" role="cell">
+              <td data-label="État">
                 <StatusBadge tone={row.tone ?? "neutral"}>{row.status}</StatusBadge>
               </td>
-              <td data-label="Scope" role="cell">
-                {row.detail}
-              </td>
+              <td data-label="Périmètre">{row.detail}</td>
             </tr>
           ))}
         </tbody>
@@ -180,9 +216,9 @@ export function EmptyState({
   children?: ReactNode;
 }) {
   return (
-    <section className="premium-empty-state">
+    <section className="empty-state-panel">
       <div className="empty-state-mark" aria-hidden="true">
-        UR
+        <ImageMark />
       </div>
       <div>
         <h2>{title}</h2>
@@ -191,4 +227,8 @@ export function EmptyState({
       {children && <div className="empty-state-actions">{children}</div>}
     </section>
   );
+}
+
+function ImageMark() {
+  return <span>UR</span>;
 }

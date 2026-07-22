@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "urim-api"
 version = "0.1.0"
-description = "URIM Phase 24 API-Football first real local smoke execution for the Kairos engine."
+description = "URIM public read-only system API for platform availability."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

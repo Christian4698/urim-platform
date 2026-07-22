@@ -1,6 +1,8 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.constants import PHASE_LIVE_ENABLED, PHASE_REAL_BETTING_ENABLED
+from app.core.cors import normalize_cors_origins
 
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
@@ -8,6 +10,19 @@ SECURITY_HEADERS = {
     "Referrer-Policy": "no-referrer",
     "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
 }
+
+
+def add_cors(app: FastAPI, allowed_origins: tuple[str, ...]) -> None:
+    exact_origins = normalize_cors_origins(allowed_origins)
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(exact_origins),
+        allow_credentials=False,
+        allow_methods=["GET"],
+        allow_headers=["Accept", "Content-Type"],
+        max_age=600,
+    )
 
 
 def add_security_headers(app: FastAPI) -> None:

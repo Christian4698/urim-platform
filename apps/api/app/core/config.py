@@ -1,5 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core.cors import normalize_cors_origins
+
 
 class Settings(BaseSettings):
     app_env: str = "development"
@@ -15,8 +17,16 @@ class Settings(BaseSettings):
     enable_real_betting: bool = False
     allow_test_fixtures: bool = False
     allow_production_mocks: bool = False
+    cors_origins: str = (
+        "http://localhost:3000,https://urim.pro,"
+        "https://www.urim.pro,https://urim-web.onrender.com"
+    )
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+
+    @property
+    def cors_origin_list(self) -> tuple[str, ...]:
+        return normalize_cors_origins(self.cors_origins)
 
 
 settings = Settings()

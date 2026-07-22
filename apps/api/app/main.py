@@ -10,14 +10,14 @@ from app.core.constants import (
     PHASE_LIVE_ENABLED,
     PHASE_REAL_BETTING_ENABLED,
 )
-from app.core.security import add_security_headers
+from app.core.security import add_cors, add_security_headers
 from app.db.session import get_database_status
 from app.schemas.health import HealthResponse, ReadinessResponse, VersionResponse
 
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="URIM Phase 24 API-Football first real local smoke execution for the Kairos engine.",
+    description="URIM public read-only system API for platform availability.",
     openapi_tags=[
         {"name": "system", "description": "Health, readiness and capabilities."},
         {"name": "fixtures", "description": "Read-only fixture skeletons for future phases."},
@@ -28,6 +28,7 @@ app = FastAPI(
     ],
 )
 
+add_cors(app, settings.cors_origin_list)
 add_security_headers(app)
 include_api_v1(app)
 
