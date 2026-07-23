@@ -18,7 +18,7 @@ fournisseur sportif, bookmaker, live, pari réel, prédiction ou authentificatio
 - Blueprint Render monorepo, variables publiques et préparation DNS `urim.pro`.
 - Documentation d’exploitation et de sécurité Programme A.
 
-## Validation réalisée le 22 juillet 2026
+## Validation réalisée les 22 et 23 juillet 2026
 
 - ESLint : réussi, zéro avertissement.
 - TypeScript : réussi.
@@ -37,24 +37,32 @@ fournisseur sportif, bookmaker, live, pari réel, prédiction ou authentificatio
 
 ## État de déploiement
 
-Le code et `render.yaml` sont prêts. Le backend Render existant atteint Supabase
-et retourne `database=ok`; les six capacités sensibles restent `disabled`.
+Le Blueprint `render.yaml` est validé et synchronisé dans le workspace Render
+`urim-platform`. Le service `urim-web` est `live` en région `frankfurt` sur le
+commit `3e013930ec5645e9ebd0ea3a9c1789f7954f7fdd`.
 
-L’activation du nouveau service `urim-web` et le basculement DNS demeurent des
-actions de compte : aucun Render CLI, jeton Render ou session Dashboard
-utilisable n’est disponible dans cet environnement. `urim.pro` pointe encore
-vers Hostinger et doit être basculé seulement après création et vérification du
-service Render.
+- `https://urim-web.onrender.com` répond en HTTPS.
+- `https://urim.pro` répond `200` avec un certificat valide.
+- `https://www.urim.pro` possède un certificat valide et redirige vers l’apex.
+- Cloudflare DNS et Google DNS résolvent l’apex vers `216.24.57.1`, sans AAAA,
+  et `www` vers `urim-web.onrender.com`.
+- Render marque `urim.pro` et `www.urim.pro` comme `verified`.
+- Le Dashboard public confirme Frontend → FastAPI → Supabase `Opérationnel`.
+- `/health` retourne `status=ok`.
+- `/readiness` retourne `ready=true` et `database=ok`.
+- API Football, live, bookmakers, prédiction, authentification et paris réels
+  restent désactivés.
 
 ## Critère de clôture
 
-Déplacer ce plan dans `completed/` après :
+Les cinq critères de clôture sont satisfaits : service Render `live`, CORS
+validé, DNS propagé, TLS actif sur les deux domaines et smoke test public
+navigateur → FastAPI → Supabase réussi sur desktop, mobile et mode offline.
 
-1. création/application du Blueprint `urim-web` dans le compte Render ;
-2. déploiement vert du commit Programme A ;
-3. vérification CORS depuis le frontend Render ;
-4. bascule DNS et émission TLS pour `urim.pro` ;
-5. smoke test public navigateur → FastAPI → Supabase.
+## Plan State
+
+Programme A terminé à 100 %. Le plan actif est clôturé et déplacé dans
+`completed/`.
 
 ## Risques suivis
 

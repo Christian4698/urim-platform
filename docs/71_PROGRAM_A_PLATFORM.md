@@ -67,6 +67,21 @@ Après application du Blueprint :
 5. vérifier le domaine dans Render et attendre le certificat TLS;
 6. conserver `https://urim.pro`, `https://www.urim.pro` et le sous-domaine Render dans `CORS_ORIGINS` du backend pendant la transition.
 
+## Statut de production
+
+Mise en production finalisée le 23 juillet 2026 :
+
+- service Render `urim-web` en statut `live`;
+- Blueprint validé et synchronisé;
+- apex `urim.pro` résolu vers `216.24.57.1`, sans enregistrement AAAA;
+- `www.urim.pro` résolu vers `urim-web.onrender.com`;
+- domaines `urim.pro` et `www.urim.pro` vérifiés dans Render;
+- HTTPS valide sur les deux domaines et redirection `www` vers l’apex;
+- CORS validé depuis les trois origines publiques autorisées;
+- smoke test navigateur → FastAPI → Supabase réussi;
+- `/health` retourne `status=ok` et `/readiness` retourne `ready=true`,
+  `database=ok`, avec toutes les capacités sensibles désactivées.
+
 ## Limites et risques
 
 - Aucun déploiement ne doit charger ou modifier un secret depuis le dépôt.
