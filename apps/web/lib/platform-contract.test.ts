@@ -14,6 +14,7 @@ test("ships every required Programme A route and runtime state", () => {
   const requiredFiles = [
     "apps/web/app/page.tsx",
     "apps/web/app/dashboard/page.tsx",
+    "apps/web/app/donnees-sportives/page.tsx",
     "apps/web/app/disponibilite/page.tsx",
     "apps/web/app/modules/page.tsx",
     "apps/web/app/parametres/page.tsx",
@@ -57,4 +58,20 @@ test("sensitive runtime capabilities remain disabled in committed configuration"
   assert.match(environment, /ENABLE_REAL_BETTING=false/);
   assert.match(environment, /ALLOW_PRODUCTION_MOCKS=false/);
   assert.doesNotMatch(environment, /ENABLE_LIVE=true|ENABLE_REAL_BETTING=true/);
+});
+
+test("sports data UI is read-only and contains no provider secret surface", () => {
+  const source = [
+    read("apps/web/components/sports-data-overview.tsx"),
+    read("apps/web/app/donnees-sportives/page.tsx"),
+    read("apps/web/lib/api-client.ts"),
+    read("apps/web/.env.example")
+  ].join("\n");
+
+  assert.match(source, /Lecture seule|read-only/);
+  assert.match(source, /Prédiction désactivée|prediction_creation_enabled/);
+  assert.doesNotMatch(
+    source,
+    /API_FOOTBALL_KEY|x-apisports-key|v3\.football\.api-sports\.io/
+  );
 });

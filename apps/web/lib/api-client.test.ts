@@ -32,6 +32,24 @@ const readinessPayload: ReadinessResponse = {
   }
 };
 
+const sportsProviderPayload = {
+  provider: "api-football",
+  status: "ready",
+  enabled: true,
+  configured: true,
+  connected: true,
+  last_success_at: "2026-07-23T10:00:00Z",
+  quota_remaining_daily: 99,
+  quota_remaining_minute: 9,
+  priority_competition_count: 3,
+  season: 2026,
+  max_requests_per_sync: 10,
+  prediction_creation_enabled: false,
+  live_automatic_enabled: false,
+  bookmakers_enabled: false,
+  betting_enabled: false
+} as const;
+
 function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
     headers: { "Content-Type": "application/json" },
@@ -222,4 +240,109 @@ test("rejects unbounded request timeouts", () => {
     () => createApiClient({ baseUrl: BASE_URL, timeoutMs: 30_001 }),
     (error: unknown) => error instanceof ApiClientError && error.code === "configuration"
   );
+});
+
+test("fetches the complete read-only sports data snapshot", async () => {
+  const requestedPaths: string[] = [];
+  const fetchImpl: FetchLike = async (input) => {
+    const url = new URL(input.toString());
+    requestedPaths.push(`${url.pathname}${url.search}`);
+    if (url.pathname.endsWith("/provider")) {
+      return jsonResponse(sportsProviderPayload);
+    }
+    if (url.pathname.endsWith("/competitions")) {
+      return jsonResponse({
+        items: [
+          {
+            provider_competition_id: 39,
+            name: "Competition Test",
+            kind: "League",
+            country_name: "Test Country",
+            current_season: 2026,
+            fetched_at: "2026-07-23T10:00:00Z",
+            freshness_status: "fresh"
+          }
+        ],
+        count: 1,
+        read_only: true
+      });
+    }
+    if (url.pathname.endsWith("/matches/today")) {
+      return jsonResponse({ items: [], count: 0, read_only: true });
+    }
+    if (url.pathname.endsWith("/matches/upcoming")) {
+      return jsonResponse({
+        items: [
+          {
+            provider_match_id: 10,
+            kickoff_at: "2026-07-24T10:00:00Z",
+            status_short: "NS",
+            status_long: "Not Started",
+            home_team_name: "Home Test",
+            away_team_name: "Away Test",
+            goals_home: null,
+            goals_away: null,
+            freshness_status: "fresh"
+          }
+        ],
+        count: 1,
+        read_only: true
+      });
+    }
+    if (url.pathname.endsWith("/sync/status")) {
+      return jsonResponse({
+        provider: "api-football",
+        latest: null,
+        recent_errors: [],
+        read_only: true
+      });
+    }
+    return jsonResponse({
+      as_of: "2026-07-23T10:00:00Z",
+      threshold_minutes: 180,
+      resources: [
+        {
+          resource: "matches",
+          latest_fetched_at: null,
+          age_minutes: null,
+          status: "missing",
+          row_count: 0
+        }
+      ],
+      read_only: true
+    });
+  };
+
+  const snapshot = await createApiClient({
+    baseUrl: BASE_URL,
+    fetchImpl
+  }).getSportsData();
+
+  assert.equal(snapshot.provider.status, "ready");
+  assert.equal(snapshot.competitions.length, 1);
+  assert.equal(snapshot.upcoming[0]?.provider_match_id, 10);
+  assert.deepEqual(requestedPaths.sort(), [
+    "/api/v1/sports/competitions",
+    "/api/v1/sports/freshness",
+    "/api/v1/sports/matches/today",
+    "/api/v1/sports/matches/upcoming?days=7",
+    "/api/v1/sports/provider",
+    "/api/v1/sports/sync/status"
+  ]);
+});
+
+test("rejects sports status that activates predictions or betting", async () => {
+  const fetchImpl: FetchLike = async () =>
+    jsonResponse({
+      ...sportsProviderPayload,
+      prediction_creation_enabled: true,
+      betting_enabled: true
+    });
+  const client = createApiClient({ baseUrl: BASE_URL, fetchImpl });
+
+  await assert.rejects(client.getSportsData(), (error: unknown) => {
+    assert.ok(error instanceof ApiClientError);
+    assert.equal(error.code, "invalid_response");
+    return true;
+  });
 });

@@ -1,29 +1,44 @@
 # URIM — Sports Intelligence Platform
 
-URIM est l’application produit et Kairos son moteur technique. Ce dépôt construit
-une plateforme sportive probabiliste, traçable, sécurisée et explicable. La
-version Programme A est une plateforme publique de consultation : elle ne crée
-aucune prédiction, ne connecte aucun bookmaker et n’exécute aucun pari.
+URIM est l'application produit et KAIROS son futur moteur technique. Le dépôt
+construit une plateforme sportive probabiliste, traçable, sécurisée et
+explicable. Aucun résultat, score ou bénéfice n'est jamais garanti.
 
-## Périmètre Programme A
+## État du produit
 
-- `apps/web` : interface Next.js responsive (Accueil, Dashboard,
-  Disponibilité, Modules et Paramètres) ;
-- `apps/api` : API FastAPI publique en lecture seule pour `/health` et
-  `/readiness` ;
-- PostgreSQL/Supabase : interrogé exclusivement par le backend ;
-- `render.yaml` : Blueprint du frontend Render et du domaine `urim.pro` ;
-- `packages/contracts`, `packages/config` et `packages/ui` : contrats et
-  composants partagés.
+- Programme A : plateforme publique Next.js + FastAPI, terminé et figé par le
+  tag `v1.0.0-programme-a`.
+- Programme B1 : fondation API-Football backend-only, stockage PostgreSQL
+  append-only, API read-only et écran `/donnees-sportives`.
+- Prédictions, probabilités officielles, KAIROS, bookmakers, live automatique,
+  authentification et paris réels : désactivés.
 
-API Football, les bookmakers, le live, les paris réels, le moteur de prédiction
-et l’authentification restent explicitement désactivés.
+Le fournisseur sportif est opt-in. Sans `API_FOOTBALL_KEY` backend et
+`API_FOOTBALL_ENABLED=true`, aucun appel externe n'est possible. La clé ne doit
+jamais être exposée au frontend, aux logs ou à Git.
+
+## Architecture
+
+```text
+API-Football
+    ↓ client backend borné
+Normalisation + provenance
+    ↓
+PostgreSQL / Supabase
+    ↓
+FastAPI read-only
+    ↓
+Next.js
+```
+
+Voir [Programme B1](docs/72_PROGRAM_B1_REAL_SPORTS_DATA.md) pour le schéma, les
+commandes de synchronisation, les variables et le runbook Render.
 
 ## Démarrage local
 
-Prérequis : Node.js 22.22, `pnpm` et Python 3.12+.
+Prérequis : Node.js 22.22, pnpm 9 et Python 3.12+.
 
-```bash
+```powershell
 corepack enable
 pnpm install --frozen-lockfile
 pnpm web:dev
@@ -31,35 +46,29 @@ pnpm web:dev
 
 Dans un second terminal :
 
-```bash
+```powershell
 cd apps/api
+python -m pip install -e ".[dev]"
 python -m uvicorn app.main:app --reload
 ```
 
-Copier uniquement les fichiers `.env.example` vers des fichiers `.env` locaux.
-Ne jamais placer `DATABASE_URL` dans `apps/web` ni dans une variable
+Copier uniquement `.env.example` vers un fichier local non suivi. Ne jamais
+placer `DATABASE_URL` ni `API_FOOTBALL_KEY` dans `apps/web` ou une variable
 `NEXT_PUBLIC_*`.
 
 ## Vérification
 
-```bash
+```powershell
 pnpm contracts:validate
+pnpm api:lint
+pnpm api:test
 pnpm web:lint
 pnpm web:typecheck
 pnpm web:test
 pnpm web:build
-pnpm api:lint
-pnpm api:test
 pnpm audit --prod
+git diff --check
 ```
 
-La procédure de déploiement, les variables autorisées et la configuration DNS
-sont détaillées dans `docs/71_PROGRAM_A_PLATFORM.md`.
-
-## Principe central
-
-> Aucune donnée de production ne doit être inventée, extrapolée comme si elle
-> était observée, ou remplacée silencieusement par un mock.
-
-Les données simulées sont réservées aux tests, fixtures locales et
-environnements explicitement marqués `DEMO` ou `PLACEHOLDER`.
+Principe central : aucune fixture, donnée simulée ou valeur par défaut ne doit
+être présentée comme une observation sportive réelle.

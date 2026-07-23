@@ -85,7 +85,15 @@ def _model_source_slice() -> str:
         encoding="utf-8"
     )
     start = source.index("api_football_fixture_staging = sa.Table(")
-    end = source.index("\n\nprovider_observations = sa.Table(", start)
+    candidate_markers = (
+        "\n\nsports_sync_runs = sa.Table(",
+        "\n\nprovider_observations = sa.Table(",
+    )
+    end = min(
+        source.index(marker, start)
+        for marker in candidate_markers
+        if marker in source[start:]
+    )
     return source[start:end].lower()
 
 

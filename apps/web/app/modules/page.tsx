@@ -27,6 +27,12 @@ const platformModules = [
     tone: "success" as const
   },
   {
+    label: "Données sportives",
+    status: "Disponible",
+    detail: "Compétitions, matchs, synchronisations et fraîcheur en lecture seule.",
+    tone: "success" as const
+  },
+  {
     label: "Paramètres",
     status: "Disponible",
     detail: "Configuration publique et limites du produit.",
@@ -37,9 +43,9 @@ const platformModules = [
 const lockedModules = [
   {
     label: "API Football",
-    status: "Désactivée",
-    detail: "Aucun appel fournisseur ni consommation de quota.",
-    tone: "warning" as const
+    status: "Contrôlée",
+    detail: "Backend uniquement, désactivé sans clé ou flag explicite.",
+    tone: "info" as const
   },
   {
     label: "Moteur de prédiction",
@@ -75,8 +81,8 @@ export default function ModulesPage() {
         eyebrow="Registre produit"
         title="Modules"
       >
-        <StatusBadge tone="success">3 modules plateforme</StatusBadge>
-        <StatusBadge tone="warning">5 capacités verrouillées</StatusBadge>
+        <StatusBadge tone="success">4 modules plateforme</StatusBadge>
+        <StatusBadge tone="warning">4 capacités verrouillées</StatusBadge>
       </PageHeader>
 
       <section className="dashboard-layout modules-layout" aria-label="Registre des modules">
@@ -87,7 +93,7 @@ export default function ModulesPage() {
           <SystemTable caption="Modules plateforme actifs" rows={platformModules} />
         </DataPanel>
         <DataPanel
-          description="Gates de sécurité conservés par le Programme A."
+          description="Gates de sécurité conservés pendant le Programme B1."
           title="Capacités sensibles"
         >
           <SystemTable caption="Modules sensibles désactivés" rows={lockedModules} />
@@ -95,8 +101,8 @@ export default function ModulesPage() {
       </section>
 
       <EmptyState
-        description="Les modules d’intelligence sportive restent sans données réelles tant qu’un programme ultérieur n’autorise pas explicitement leurs sources, contrôles et tests."
-        title="Aucune intelligence sportive active"
+        description="Les données sportives réelles restent distinctes de toute analyse prédictive. Kairos ne consomme aucun de ces enregistrements pendant B1."
+        title="Aucune prédiction active"
       >
         <StatusBadge tone="warning">INSUFFICIENT_DATA</StatusBadge>
         <StatusBadge tone="danger">Aucun pari réel</StatusBadge>

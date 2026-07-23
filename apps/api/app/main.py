@@ -24,6 +24,10 @@ app = FastAPI(
         {"name": "predictions", "description": "Read-only prediction ledger skeletons."},
         {"name": "tickets", "description": "Virtual/internal Bet Center ticket skeletons."},
         {"name": "providers", "description": "Disabled provider connector skeletons."},
+        {
+            "name": "sports-data",
+            "description": "Programme B1 sports data exposed read-only.",
+        },
         {"name": "post-match", "description": "Verified outcome skeletons for future learning."},
     ],
 )
@@ -65,7 +69,11 @@ def readiness() -> ReadinessResponse:
         dependencies={
             "database": database_status,
             "redis": NOT_REQUIRED_STATUS,
-            "sports_providers": DISABLED_STATUS,
+            "sports_providers": (
+                "ready"
+                if settings.api_football_runtime_enabled
+                else DISABLED_STATUS
+            ),
             "bookmakers": DISABLED_STATUS,
             "ml_models": DISABLED_STATUS,
             "live": DISABLED_STATUS,

@@ -11,6 +11,7 @@ requires-python = ">=3.12"
 dependencies = [
   "alembic>=1.14.0",
   "fastapi>=0.115.6",
+  "httpx>=0.28.1",
   "pydantic>=2.10.4",
   "pydantic-settings>=2.7.1",
   "psycopg[binary]>=3.2.3",
@@ -18,9 +19,11 @@ dependencies = [
   "uvicorn[standard]>=0.34.0"
 ]
 
+[project.scripts]
+urim-sports-sync = "app.cli.sports_sync:main"
+
 [project.optional-dependencies]
 dev = [
-  "httpx>=0.28.1",
   "pytest>=8.3.4",
   "ruff>=0.8.4"
 ]

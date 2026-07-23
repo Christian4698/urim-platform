@@ -17,7 +17,7 @@ def test_health_endpoint() -> None:
         "status": "ok",
         "app_name": "URIM",
         "engine_name": "Kairos",
-        "phase": "phase-24-api-football-first-real-local-smoke-execution",
+        "phase": "programme-b1-real-sports-data-foundation",
     }
 
     for header_name, header_value in SECURITY_HEADERS.items():
@@ -47,7 +47,7 @@ def test_readiness_endpoint_reports_unavailable_database_and_preserves_other_dep
     assert response.status_code == 200
     payload = response.json()
     assert payload["ready"] is False
-    assert payload["phase"] == "phase-24-api-football-first-real-local-smoke-execution"
+    assert payload["phase"] == "programme-b1-real-sports-data-foundation"
     assert payload["dependencies"]["database"] == "unavailable"
     assert payload["dependencies"]["redis"] == "not_required"
     assert payload["dependencies"]["sports_providers"] == "disabled"

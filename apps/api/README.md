@@ -1,110 +1,43 @@
 # URIM API
 
-FastAPI backend for the URIM Kairos engine.
+Backend FastAPI du Programme B1.
 
-This package currently covers Phase 24 API-Football first real local smoke execution work:
+## Capacités actives
 
-- SQLAlchemy metadata for the PostgreSQL foundation schema.
-- Alembic migrations for local and future controlled environments.
-- Versioned FastAPI routes under `/api/v1`.
-- API-first security headers, including a restrictive Content-Security-Policy.
-- Thread-safe SQLAlchemy 2.0-style engine/session-factory reuse keyed by `DATABASE_URL`.
-- Database-aware `/readiness` probe using `SELECT 1`, bounded PostgreSQL connection/pool/statement timeouts,
-  and public-safe `ok` / `unavailable` statuses without connection-detail logging.
-- Safety overrides that keep live prediction, production mocks, provider connectors, API-Football, bookmakers, prediction creation, and real betting disabled.
-- Read-only provider readiness contracts under `/api/v1/providers/readiness`.
-- Provider QA helpers for contract-only golden payload checks and payload redaction.
-- Read-only sandbox provider status under `/api/v1/providers/sandbox/status`.
-- Readiness-only onboarding, quota/rate-limit, and reconciliation requirements for future providers.
-- Provider onboarding gate that blocks real provider activation until a future independent audit.
-- Provider secret-safety summaries that expose only public-safe categories, counts and disabled booleans.
-- Provider preflight safety review that keeps controlled real-provider preparation blocked.
-- Real provider adapter shell status that documents a future API-Football provider shape while keeping network,
-  credentials, HTTP client, provider URL, DB ingestion and prediction creation disabled.
-- Provider activation readiness final gate that keeps provider activation blocked until license, terms, quotas,
-  rate limits, latency, egress, secret management, redaction, monitoring, alerting, reconciliation, rollback,
-  anonymized real golden payloads and security audit evidence are approved.
-- API-Football read-only adapter status and blocked adapter methods for fixtures, results, team statistics,
-  standings, lineups and events. The adapter is disabled by default and cannot call the network.
-- API-Football test-only transport contracts for fixtures, results, team statistics, standings, lineups and
-  events. These contracts use in-memory `TEST_ONLY` / `DEMO_NON_PROD` placeholders and have no public runtime.
-- API-Football env-gated smoke client shape. It is internal, disabled by default, requires explicit local
-  non-production opt-in and an injected transport, and never exposes local smoke configuration in public API
-  responses.
-- API-Football manual smoke runner shape. It is local-only, disabled by default, requires an injected transport,
-  and is never called by FastAPI.
-- API-Football local smoke runbook. It documents future local-only smoke execution safety checks and does not
-  execute provider calls.
-- API-Football local-only HTTP smoke harness shape. It is script-only, disabled by default, requires an explicitly
-  injected request callable, and is never called by FastAPI.
-- API-Football first real local smoke attempt protocol. It is documentation-only, terminal-only for a future
-  operator, and does not execute provider calls or expose a route.
-- API-Football local secret and environment preflight. It is script-only, public-safe, terminal-only and never
-  imported by FastAPI.
-- API-Football first real local smoke execution. It is script-only, public-safe, terminal-only, gated by the local
-  preflight and provider activation gate, and never imported by FastAPI.
+- sondes publiques `/health` et `/readiness`;
+- PostgreSQL via SQLAlchemy 2 et Alembic;
+- client API-Football backend-only avec timeout, retry borné, rate limiting,
+  budget par run, quotas et validation de réponse;
+- normalisation traçable des compétitions, saisons, équipes, matchs,
+  classements, statistiques, événements, compositions et blessures;
+- stockage append-only et idempotent;
+- journal des synchronisations et erreurs neutralisées;
+- routes read-only sous `/api/v1/sports`;
+- commandes manuelles `urim-sports-sync`.
 
-It does not activate API-Football by default, train ML models, execute bets, create real predictions, create production sports results, or seed production data. The Bet Center remains virtual/internal only.
+Le client est désactivé par défaut et sans clé. Les prédictions, probabilités,
+bookmakers, live automatique, authentification et paris réels restent
+désactivés.
 
-The Phase 24 CSP remains intentionally strict for an API surface:
-`default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`.
-It may restrict Swagger UI or ReDoc interactive rendering; an auth/docs portal is out of scope for Phase 24.
+## Installation et validation
 
-`official_result_envelope` remains a sandbox-only placeholder used to test future wiring shape. Real Official Result Verifier behavior and Post-Match Learning activation remain out of scope.
-
-Future provider secret environment variable names are documented only in local configuration examples with empty values. Public API responses expose readiness categories and counts, never secret names or values.
-
-The real provider shell is not a connector. It exposes only disabled metadata and raises a controlled
-`ProviderNetworkDisabledError` before any future data-producing path could perform network I/O.
-
-The API-Football read-only adapter is also not connected. It exposes only disabled status metadata and raises
-`ApiFootballProviderDisabledError` before fixtures, results, statistics, standings, lineups or events could
-perform network I/O.
-
-The API-Football test transport is internal and test-only. It does not import provider HTTP clients, open
-sockets, expose an endpoint, load credentials, ingest data, create predictions, connect bookmakers or execute
-betting.
-
-The API-Football smoke client is also internal. It refuses execution unless all local smoke conditions are met
-and a transport is explicitly injected; public readiness remains false-by-default and redacted.
-
-The API-Football manual smoke runner is not an API endpoint. It can be invoked only as local code and returns a
-public-safe summary with DB writes, prediction creation and betting disabled.
-
-The API-Football local smoke runbook is documentation-only. It records the pre-run and post-run safety checklist
-for a future operator and does not add a route, key, provider URL, DB write, prediction, bookmaker or betting path.
-
-The API-Football local-only HTTP smoke harness is script-only. It adapts an explicitly injected request callable to
-the manual smoke runner and returns only a public-safe summary. It does not add a concrete HTTP client, route, key,
-provider URL, DB write, prediction, bookmaker or betting path.
-
-The API-Football first real local smoke protocol is documentation-only. It records the final local operator
-checklists for a future first real smoke attempt and does not add a concrete command, route, key, provider URL,
-DB write, prediction, bookmaker or betting path.
-
-The API-Football local secret and environment preflight is script-only. It checks local readiness booleans for a
-future manual smoke attempt and returns only a public-safe summary. It does not add a route, provider call, key,
-provider URL, DB write, prediction, bookmaker or betting path.
-
-The API-Football first real local smoke execution script is terminal-only. It refuses execution unless the local
-preflight is ready, `git status` is clean and the provider activation gate remains blocked. It returns only a
-public-safe summary and does not add a route, DB write, prediction, bookmaker or betting path.
-
-## Validation
-
-From `apps/api`:
-
-```bash
-pip install -e ".[dev]"
+```powershell
+python -m pip install -e ".[dev]"
 ruff check .
 pytest
 ```
 
-With local PostgreSQL available:
+Avec une base PostgreSQL jetable :
 
-```bash
-$env:DATABASE_URL="postgresql+psycopg://urim:urim_local_only@localhost:5432/urim_local"
+```powershell
+$env:DATABASE_URL="<URL PostgreSQL de test>"
+alembic upgrade head
+alembic current
 alembic check
+
+$env:B1_TEST_DATABASE_URL=$env:DATABASE_URL
+pytest tests/test_program_b1_postgres_integration.py
 ```
 
-Future Post-Match Learning may learn only from verified `post_match_outcomes`, never from `tickets.user_declared_result` or `tickets.user_declared_profit_loss`.
+La configuration complète, le schéma, les routes et le runbook Render sont dans
+`docs/72_PROGRAM_B1_REAL_SPORTS_DATA.md`.

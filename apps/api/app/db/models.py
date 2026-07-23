@@ -248,6 +248,350 @@ api_football_fixture_staging = sa.Table(
     ),
 )
 
+
+sports_sync_runs = sa.Table(
+    "sports_sync_runs",
+    metadata,
+    uuid_pk(),
+    sa.Column(
+        "provider_id",
+        postgresql.UUID(as_uuid=True),
+        sa.ForeignKey("providers.id"),
+        nullable=False,
+    ),
+    sa.Column("provider", sa.String(length=80), nullable=False),
+    sa.Column("sync_type", sa.String(length=80), nullable=False),
+    sa.Column("status", sa.String(length=32), nullable=False),
+    jsonb_col("scope"),
+    sa.Column("started_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
+    sa.Column("request_count", sa.Integer(), nullable=False, server_default="0"),
+    sa.Column("records_received", sa.Integer(), nullable=False, server_default="0"),
+    sa.Column("records_inserted", sa.Integer(), nullable=False, server_default="0"),
+    sa.Column("records_duplicate", sa.Integer(), nullable=False, server_default="0"),
+    sa.Column("records_rejected", sa.Integer(), nullable=False, server_default="0"),
+    sa.Column("quota_limit_daily", sa.Integer(), nullable=True),
+    sa.Column("quota_remaining_daily", sa.Integer(), nullable=True),
+    sa.Column("quota_limit_minute", sa.Integer(), nullable=True),
+    sa.Column("quota_remaining_minute", sa.Integer(), nullable=True),
+    jsonb_col("checkpoint"),
+    sa.Column("public_error_code", sa.String(length=80), nullable=True),
+    created_at(),
+    updated_at(),
+    sa.CheckConstraint(
+        "status IN ('RUNNING', 'SUCCEEDED', 'PARTIAL', 'FAILED')",
+        name=conv("ck_sports_sync_runs_status"),
+    ),
+    sa.CheckConstraint(
+        "request_count >= 0 AND records_received >= 0 AND records_inserted >= 0 "
+        "AND records_duplicate >= 0 AND records_rejected >= 0",
+        name=conv("ck_sports_sync_runs_counters_non_negative"),
+    ),
+)
+
+sports_sync_errors = sa.Table(
+    "sports_sync_errors",
+    metadata,
+    uuid_pk(),
+    sa.Column(
+        "sync_run_id",
+        postgresql.UUID(as_uuid=True),
+        sa.ForeignKey("sports_sync_runs.id"),
+        nullable=False,
+    ),
+    sa.Column("provider", sa.String(length=80), nullable=False),
+    sa.Column("endpoint", sa.String(length=80), nullable=False),
+    sa.Column("error_code", sa.String(length=80), nullable=False),
+    sa.Column("public_message", sa.String(length=240), nullable=False),
+    sa.Column("retryable", sa.Boolean(), nullable=False, server_default=sa.text("false")),
+    sa.Column("attempt", sa.Integer(), nullable=False, server_default="1"),
+    sa.Column("occurred_at", sa.DateTime(timezone=True), nullable=False),
+    jsonb_col("context"),
+    created_at(),
+    sa.CheckConstraint("attempt >= 1", name=conv("ck_sports_sync_errors_attempt_positive")),
+)
+
+
+def sports_observation_columns(table_name: str) -> list[sa.SchemaItem]:
+    return [
+        sa.Column(
+            "provider_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("providers.id"),
+            nullable=False,
+        ),
+        sa.Column(
+            "sync_run_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("sports_sync_runs.id"),
+            nullable=False,
+        ),
+        sa.Column("provider", sa.String(length=80), nullable=False),
+        sa.Column("provider_event_id", sa.String(length=240), nullable=False),
+        sa.Column("observed_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("available_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("fetched_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("source_version", sa.String(length=80), nullable=False),
+        jsonb_col("quality_flags", default="'[]'::jsonb"),
+        sa.Column("raw_hash", sa.String(length=64), nullable=False),
+        sa.Column(
+            "freshness_status",
+            sa.String(length=32),
+            nullable=False,
+            server_default="fresh",
+        ),
+        created_at(),
+        sa.CheckConstraint(
+            "observed_at <= available_at AND available_at <= fetched_at",
+            name=conv(f"ck_{table_name}_temporal_order"),
+        ),
+        sa.CheckConstraint(
+            "freshness_status IN ('fresh', 'stale', 'unknown')",
+            name=conv(f"ck_{table_name}_freshness_status"),
+        ),
+    ]
+
+
+api_football_competitions = sa.Table(
+    "api_football_competitions",
+    metadata,
+    uuid_pk(),
+    *sports_observation_columns("api_football_competitions"),
+    sa.Column("provider_competition_id", sa.BigInteger(), nullable=False),
+    sa.Column("name", sa.String(length=240), nullable=False),
+    sa.Column("kind", sa.String(length=80), nullable=True),
+    sa.Column("country_name", sa.String(length=160), nullable=True),
+    sa.Column("country_code", sa.String(length=8), nullable=True),
+    sa.Column("current_season", sa.Integer(), nullable=True),
+    jsonb_col("coverage"),
+    sa.UniqueConstraint(
+        "provider",
+        "provider_event_id",
+        "raw_hash",
+        name="uq_api_football_competitions_observation",
+    ),
+)
+
+api_football_seasons = sa.Table(
+    "api_football_seasons",
+    metadata,
+    uuid_pk(),
+    *sports_observation_columns("api_football_seasons"),
+    sa.Column("provider_competition_id", sa.BigInteger(), nullable=False),
+    sa.Column("year", sa.Integer(), nullable=False),
+    sa.Column("starts_on", sa.Date(), nullable=True),
+    sa.Column("ends_on", sa.Date(), nullable=True),
+    sa.Column("is_current", sa.Boolean(), nullable=False, server_default=sa.text("false")),
+    jsonb_col("coverage"),
+    sa.CheckConstraint(
+        "year BETWEEN 1900 AND 2100",
+        name=conv("ck_api_football_seasons_year"),
+    ),
+    sa.CheckConstraint(
+        "ends_on IS NULL OR starts_on IS NULL OR ends_on >= starts_on",
+        name=conv("ck_api_football_seasons_date_order"),
+    ),
+    sa.UniqueConstraint(
+        "provider",
+        "provider_event_id",
+        "raw_hash",
+        name="uq_api_football_seasons_observation",
+    ),
+)
+
+api_football_teams = sa.Table(
+    "api_football_teams",
+    metadata,
+    uuid_pk(),
+    *sports_observation_columns("api_football_teams"),
+    sa.Column("provider_team_id", sa.BigInteger(), nullable=False),
+    sa.Column("name", sa.String(length=240), nullable=False),
+    sa.Column("code", sa.String(length=20), nullable=True),
+    sa.Column("country", sa.String(length=160), nullable=True),
+    sa.Column("founded", sa.Integer(), nullable=True),
+    sa.Column("is_national", sa.Boolean(), nullable=True),
+    sa.Column("venue_provider_id", sa.BigInteger(), nullable=True),
+    sa.Column("venue_name", sa.String(length=240), nullable=True),
+    sa.Column("venue_city", sa.String(length=160), nullable=True),
+    sa.Column("venue_capacity", sa.Integer(), nullable=True),
+    sa.UniqueConstraint(
+        "provider",
+        "provider_event_id",
+        "raw_hash",
+        name="uq_api_football_teams_observation",
+    ),
+)
+
+api_football_matches = sa.Table(
+    "api_football_matches",
+    metadata,
+    uuid_pk(),
+    *sports_observation_columns("api_football_matches"),
+    sa.Column("provider_match_id", sa.BigInteger(), nullable=False),
+    sa.Column("provider_competition_id", sa.BigInteger(), nullable=False),
+    sa.Column("season", sa.Integer(), nullable=False),
+    sa.Column("kickoff_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("timezone", sa.String(length=80), nullable=False),
+    sa.Column("status_short", sa.String(length=40), nullable=False),
+    sa.Column("status_long", sa.String(length=120), nullable=False),
+    sa.Column("elapsed", sa.Integer(), nullable=True),
+    sa.Column("round", sa.String(length=160), nullable=True),
+    sa.Column("venue_name", sa.String(length=240), nullable=True),
+    sa.Column("venue_city", sa.String(length=160), nullable=True),
+    sa.Column("home_team_provider_id", sa.BigInteger(), nullable=False),
+    sa.Column("home_team_name", sa.String(length=240), nullable=False),
+    sa.Column("away_team_provider_id", sa.BigInteger(), nullable=False),
+    sa.Column("away_team_name", sa.String(length=240), nullable=False),
+    sa.Column("goals_home", sa.Integer(), nullable=True),
+    sa.Column("goals_away", sa.Integer(), nullable=True),
+    sa.Column("score_halftime_home", sa.Integer(), nullable=True),
+    sa.Column("score_halftime_away", sa.Integer(), nullable=True),
+    sa.Column("score_fulltime_home", sa.Integer(), nullable=True),
+    sa.Column("score_fulltime_away", sa.Integer(), nullable=True),
+    sa.CheckConstraint(
+        "season BETWEEN 1900 AND 2100",
+        name=conv("ck_api_football_matches_season"),
+    ),
+    sa.CheckConstraint(
+        "home_team_provider_id <> away_team_provider_id",
+        name=conv("ck_api_football_matches_distinct_teams"),
+    ),
+    sa.UniqueConstraint(
+        "provider",
+        "provider_event_id",
+        "raw_hash",
+        name="uq_api_football_matches_observation",
+    ),
+)
+
+api_football_standings = sa.Table(
+    "api_football_standings",
+    metadata,
+    uuid_pk(),
+    *sports_observation_columns("api_football_standings"),
+    sa.Column("provider_competition_id", sa.BigInteger(), nullable=False),
+    sa.Column("season", sa.Integer(), nullable=False),
+    sa.Column("provider_team_id", sa.BigInteger(), nullable=False),
+    sa.Column("team_name", sa.String(length=240), nullable=False),
+    sa.Column("group_name", sa.String(length=160), nullable=True),
+    sa.Column("rank", sa.Integer(), nullable=False),
+    sa.Column("points", sa.Integer(), nullable=True),
+    sa.Column("goals_diff", sa.Integer(), nullable=True),
+    sa.Column("form", sa.String(length=80), nullable=True),
+    sa.Column("description", sa.String(length=240), nullable=True),
+    sa.Column("played", sa.Integer(), nullable=True),
+    sa.Column("wins", sa.Integer(), nullable=True),
+    sa.Column("draws", sa.Integer(), nullable=True),
+    sa.Column("losses", sa.Integer(), nullable=True),
+    sa.Column("goals_for", sa.Integer(), nullable=True),
+    sa.Column("goals_against", sa.Integer(), nullable=True),
+    sa.CheckConstraint("rank >= 1", name=conv("ck_api_football_standings_rank_positive")),
+    sa.UniqueConstraint(
+        "provider",
+        "provider_event_id",
+        "raw_hash",
+        name="uq_api_football_standings_observation",
+    ),
+)
+
+api_football_match_statistics = sa.Table(
+    "api_football_match_statistics",
+    metadata,
+    uuid_pk(),
+    *sports_observation_columns("api_football_match_statistics"),
+    sa.Column("provider_match_id", sa.BigInteger(), nullable=False),
+    sa.Column("provider_team_id", sa.BigInteger(), nullable=False),
+    sa.Column("statistic_type", sa.String(length=160), nullable=False),
+    sa.Column(
+        "statistic_value",
+        postgresql.JSONB(astext_type=sa.Text()),
+        nullable=True,
+    ),
+    sa.UniqueConstraint(
+        "provider",
+        "provider_event_id",
+        "raw_hash",
+        name="uq_api_football_match_statistics_observation",
+    ),
+)
+
+api_football_match_events = sa.Table(
+    "api_football_match_events",
+    metadata,
+    uuid_pk(),
+    *sports_observation_columns("api_football_match_events"),
+    sa.Column("provider_match_id", sa.BigInteger(), nullable=False),
+    sa.Column("event_key", sa.String(length=64), nullable=False),
+    sa.Column("elapsed", sa.Integer(), nullable=True),
+    sa.Column("extra", sa.Integer(), nullable=True),
+    sa.Column("provider_team_id", sa.BigInteger(), nullable=True),
+    sa.Column("team_name", sa.String(length=240), nullable=True),
+    sa.Column("provider_player_id", sa.BigInteger(), nullable=True),
+    sa.Column("player_name", sa.String(length=240), nullable=True),
+    sa.Column("provider_assist_id", sa.BigInteger(), nullable=True),
+    sa.Column("assist_name", sa.String(length=240), nullable=True),
+    sa.Column("event_type", sa.String(length=80), nullable=False),
+    sa.Column("detail", sa.String(length=160), nullable=True),
+    sa.Column("comments", sa.String(length=500), nullable=True),
+    sa.UniqueConstraint(
+        "provider",
+        "provider_event_id",
+        "raw_hash",
+        name="uq_api_football_match_events_observation",
+    ),
+)
+
+api_football_injuries = sa.Table(
+    "api_football_injuries",
+    metadata,
+    uuid_pk(),
+    *sports_observation_columns("api_football_injuries"),
+    sa.Column("provider_match_id", sa.BigInteger(), nullable=True),
+    sa.Column("provider_competition_id", sa.BigInteger(), nullable=True),
+    sa.Column("season", sa.Integer(), nullable=True),
+    sa.Column("provider_team_id", sa.BigInteger(), nullable=False),
+    sa.Column("team_name", sa.String(length=240), nullable=False),
+    sa.Column("provider_player_id", sa.BigInteger(), nullable=False),
+    sa.Column("player_name", sa.String(length=240), nullable=False),
+    sa.Column("injury_type", sa.String(length=120), nullable=True),
+    sa.Column("reason", sa.String(length=240), nullable=True),
+    sa.UniqueConstraint(
+        "provider",
+        "provider_event_id",
+        "raw_hash",
+        name="uq_api_football_injuries_observation",
+    ),
+)
+
+api_football_lineups = sa.Table(
+    "api_football_lineups",
+    metadata,
+    uuid_pk(),
+    *sports_observation_columns("api_football_lineups"),
+    sa.Column("provider_match_id", sa.BigInteger(), nullable=False),
+    sa.Column("provider_team_id", sa.BigInteger(), nullable=False),
+    sa.Column("team_name", sa.String(length=240), nullable=False),
+    sa.Column("formation", sa.String(length=40), nullable=True),
+    sa.Column("provider_coach_id", sa.BigInteger(), nullable=True),
+    sa.Column("coach_name", sa.String(length=240), nullable=True),
+    sa.Column("provider_player_id", sa.BigInteger(), nullable=True),
+    sa.Column("player_name", sa.String(length=240), nullable=True),
+    sa.Column("number", sa.Integer(), nullable=True),
+    sa.Column("position", sa.String(length=20), nullable=True),
+    sa.Column("grid", sa.String(length=20), nullable=True),
+    sa.Column("role", sa.String(length=20), nullable=False),
+    sa.CheckConstraint(
+        "role IN ('start_xi', 'substitute')",
+        name=conv("ck_api_football_lineups_role"),
+    ),
+    sa.UniqueConstraint(
+        "provider",
+        "provider_event_id",
+        "raw_hash",
+        name="uq_api_football_lineups_observation",
+    ),
+)
+
 provider_observations = sa.Table(
     "provider_observations",
     metadata,
@@ -451,6 +795,47 @@ sa.Index(
 sa.Index(
     "ix_api_football_fixture_staging_status_short",
     api_football_fixture_staging.c.fixture_status_short,
+)
+sa.Index("ix_sports_sync_runs_provider_started", sports_sync_runs.c.provider, sports_sync_runs.c.started_at)
+sa.Index("ix_sports_sync_runs_status", sports_sync_runs.c.status)
+sa.Index("ix_sports_sync_errors_run", sports_sync_errors.c.sync_run_id)
+sa.Index(
+    "ix_api_football_competitions_provider_id",
+    api_football_competitions.c.provider_competition_id,
+)
+sa.Index(
+    "ix_api_football_seasons_competition_year",
+    api_football_seasons.c.provider_competition_id,
+    api_football_seasons.c.year,
+)
+sa.Index("ix_api_football_teams_provider_id", api_football_teams.c.provider_team_id)
+sa.Index("ix_api_football_matches_provider_id", api_football_matches.c.provider_match_id)
+sa.Index("ix_api_football_matches_kickoff", api_football_matches.c.kickoff_at)
+sa.Index(
+    "ix_api_football_matches_competition_season",
+    api_football_matches.c.provider_competition_id,
+    api_football_matches.c.season,
+)
+sa.Index(
+    "ix_api_football_standings_scope",
+    api_football_standings.c.provider_competition_id,
+    api_football_standings.c.season,
+)
+sa.Index(
+    "ix_api_football_match_statistics_match",
+    api_football_match_statistics.c.provider_match_id,
+)
+sa.Index(
+    "ix_api_football_match_events_match",
+    api_football_match_events.c.provider_match_id,
+)
+sa.Index(
+    "ix_api_football_injuries_match",
+    api_football_injuries.c.provider_match_id,
+)
+sa.Index(
+    "ix_api_football_lineups_match",
+    api_football_lineups.c.provider_match_id,
 )
 sa.Index(
     "ix_entity_mappings_provider_entity",

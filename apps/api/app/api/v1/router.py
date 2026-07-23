@@ -1,6 +1,14 @@
 from fastapi import FastAPI
 
-from app.api.v1.routes import fixtures, post_match, predictions, providers, system, tickets
+from app.api.v1.routes import (
+    fixtures,
+    post_match,
+    predictions,
+    providers,
+    sports,
+    system,
+    tickets,
+)
 
 API_V1_ROUTERS = (
     system.router,
@@ -8,6 +16,7 @@ API_V1_ROUTERS = (
     predictions.router,
     tickets.router,
     providers.router,
+    sports.router,
     post_match.router,
 )
 

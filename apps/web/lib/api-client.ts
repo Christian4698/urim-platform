@@ -2,7 +2,6 @@ const DEFAULT_TIMEOUT_MS = 5_000;
 const MAX_TIMEOUT_MS = 30_000;
 
 const REQUIRED_DISABLED_DEPENDENCIES = [
-  "sports_providers",
   "bookmakers",
   "ml_models",
   "live",
@@ -48,7 +47,7 @@ export type ReadinessResponse = {
   dependencies: Record<string, string> & {
     database: "ok" | "unavailable";
     redis: "not_required";
-    sports_providers: "disabled";
+    sports_providers: "disabled" | "ready";
     bookmakers: "disabled";
     ml_models: "disabled";
     live: "disabled";
@@ -70,10 +69,95 @@ export type ApiClientOptions = {
   fetchImpl?: FetchLike;
 };
 
+export type SportsProviderStatus = {
+  provider: "api-football";
+  status:
+    | "ready"
+    | "disabled_by_configuration"
+    | "disabled_missing_credential"
+    | "degraded";
+  enabled: boolean;
+  configured: boolean;
+  connected: boolean;
+  last_success_at: string | null;
+  quota_remaining_daily: number | null;
+  quota_remaining_minute: number | null;
+  priority_competition_count: number;
+  season: number | null;
+  max_requests_per_sync: number;
+  prediction_creation_enabled: false;
+  live_automatic_enabled: false;
+  bookmakers_enabled: false;
+  betting_enabled: false;
+};
+
+export type SportsCompetition = {
+  provider_competition_id: number;
+  name: string;
+  kind: string | null;
+  country_name: string | null;
+  current_season: number | null;
+  fetched_at: string;
+  freshness_status: string;
+};
+
+export type SportsMatch = {
+  provider_match_id: number;
+  kickoff_at: string;
+  status_short: string;
+  status_long: string;
+  home_team_name: string;
+  away_team_name: string;
+  goals_home: number | null;
+  goals_away: number | null;
+  freshness_status: string;
+};
+
+export type SportsSyncStatus = {
+  provider: "api-football";
+  latest: {
+    run_id: string;
+    sync_type: string;
+    status: string;
+    completed_at: string | null;
+    request_count: number;
+    records_inserted: number;
+    records_duplicate: number;
+    records_rejected: number;
+    quota_remaining_daily: number | null;
+    public_error_code: string | null;
+  } | null;
+  recent_errors: string[];
+  read_only: true;
+};
+
+export type SportsFreshness = {
+  as_of: string;
+  threshold_minutes: number;
+  resources: Array<{
+    resource: string;
+    latest_fetched_at: string | null;
+    age_minutes: number | null;
+    status: "fresh" | "stale" | "missing";
+    row_count: number;
+  }>;
+  read_only: true;
+};
+
+export type SportsDataSnapshot = {
+  provider: SportsProviderStatus;
+  competitions: SportsCompetition[];
+  today: SportsMatch[];
+  upcoming: SportsMatch[];
+  sync: SportsSyncStatus;
+  freshness: SportsFreshness;
+};
+
 export type UrimApiClient = {
   getHealth: () => Promise<HealthResponse>;
   getReadiness: () => Promise<ReadinessResponse>;
   getSystemAvailability: () => Promise<SystemAvailability>;
+  getSportsData: () => Promise<SportsDataSnapshot>;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -114,8 +198,120 @@ function isReadinessResponse(value: unknown): value is ReadinessResponse {
     return false;
   }
 
+  if (
+    dependencies.sports_providers !== "disabled" &&
+    dependencies.sports_providers !== "ready"
+  ) {
+    return false;
+  }
+
   return REQUIRED_DISABLED_DEPENDENCIES.every(
     (dependency) => dependencies[dependency] === "disabled"
+  );
+}
+
+function isSportsProviderStatus(value: unknown): value is SportsProviderStatus {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const allowedStatuses = [
+    "ready",
+    "disabled_by_configuration",
+    "disabled_missing_credential",
+    "degraded"
+  ];
+  return (
+    value.provider === "api-football" &&
+    typeof value.status === "string" &&
+    allowedStatuses.includes(value.status) &&
+    typeof value.enabled === "boolean" &&
+    typeof value.configured === "boolean" &&
+    typeof value.connected === "boolean" &&
+    typeof value.priority_competition_count === "number" &&
+    typeof value.max_requests_per_sync === "number" &&
+    value.prediction_creation_enabled === false &&
+    value.live_automatic_enabled === false &&
+    value.bookmakers_enabled === false &&
+    value.betting_enabled === false
+  );
+}
+
+function isSportsCompetition(value: unknown): value is SportsCompetition {
+  return (
+    isRecord(value) &&
+    typeof value.provider_competition_id === "number" &&
+    typeof value.name === "string" &&
+    typeof value.fetched_at === "string" &&
+    typeof value.freshness_status === "string"
+  );
+}
+
+function isSportsMatch(value: unknown): value is SportsMatch {
+  return (
+    isRecord(value) &&
+    typeof value.provider_match_id === "number" &&
+    typeof value.kickoff_at === "string" &&
+    typeof value.status_short === "string" &&
+    typeof value.status_long === "string" &&
+    typeof value.home_team_name === "string" &&
+    typeof value.away_team_name === "string" &&
+    typeof value.freshness_status === "string"
+  );
+}
+
+function isCollectionOf<T>(
+  value: unknown,
+  validator: (item: unknown) => item is T
+): value is { items: T[]; count: number; read_only: true } {
+  return (
+    isRecord(value) &&
+    Array.isArray(value.items) &&
+    value.items.every(validator) &&
+    typeof value.count === "number" &&
+    value.count === value.items.length &&
+    value.read_only === true
+  );
+}
+
+function isSportsSyncStatus(value: unknown): value is SportsSyncStatus {
+  if (
+    !isRecord(value) ||
+    value.provider !== "api-football" ||
+    !Array.isArray(value.recent_errors) ||
+    !value.recent_errors.every((error) => typeof error === "string") ||
+    value.read_only !== true
+  ) {
+    return false;
+  }
+  if (value.latest === null) {
+    return true;
+  }
+  return (
+    isRecord(value.latest) &&
+    typeof value.latest.run_id === "string" &&
+    typeof value.latest.sync_type === "string" &&
+    typeof value.latest.status === "string" &&
+    typeof value.latest.request_count === "number" &&
+    typeof value.latest.records_inserted === "number" &&
+    typeof value.latest.records_duplicate === "number" &&
+    typeof value.latest.records_rejected === "number"
+  );
+}
+
+function isSportsFreshness(value: unknown): value is SportsFreshness {
+  return (
+    isRecord(value) &&
+    typeof value.as_of === "string" &&
+    typeof value.threshold_minutes === "number" &&
+    Array.isArray(value.resources) &&
+    value.resources.every(
+      (resource) =>
+        isRecord(resource) &&
+        typeof resource.resource === "string" &&
+        typeof resource.row_count === "number" &&
+        ["fresh", "stale", "missing"].includes(String(resource.status))
+    ) &&
+    value.read_only === true
   );
 }
 
@@ -222,6 +418,64 @@ export function createApiClient(options: ApiClientOptions = {}): UrimApiClient {
   return {
     getHealth,
     getReadiness,
+    async getSportsData() {
+      const [provider, competitions, today, upcoming, sync, freshness] =
+        await Promise.all([
+          requestJson(
+            baseUrl,
+            "api/v1/sports/provider",
+            isSportsProviderStatus,
+            fetchImpl,
+            timeoutMs
+          ),
+          requestJson(
+            baseUrl,
+            "api/v1/sports/competitions",
+            (value): value is { items: SportsCompetition[]; count: number; read_only: true } =>
+              isCollectionOf(value, isSportsCompetition),
+            fetchImpl,
+            timeoutMs
+          ),
+          requestJson(
+            baseUrl,
+            "api/v1/sports/matches/today",
+            (value): value is { items: SportsMatch[]; count: number; read_only: true } =>
+              isCollectionOf(value, isSportsMatch),
+            fetchImpl,
+            timeoutMs
+          ),
+          requestJson(
+            baseUrl,
+            "api/v1/sports/matches/upcoming?days=7",
+            (value): value is { items: SportsMatch[]; count: number; read_only: true } =>
+              isCollectionOf(value, isSportsMatch),
+            fetchImpl,
+            timeoutMs
+          ),
+          requestJson(
+            baseUrl,
+            "api/v1/sports/sync/status",
+            isSportsSyncStatus,
+            fetchImpl,
+            timeoutMs
+          ),
+          requestJson(
+            baseUrl,
+            "api/v1/sports/freshness",
+            isSportsFreshness,
+            fetchImpl,
+            timeoutMs
+          )
+        ]);
+      return {
+        provider,
+        competitions: competitions.items,
+        today: today.items,
+        upcoming: upcoming.items,
+        sync,
+        freshness
+      };
+    },
     async getSystemAvailability() {
       const [health, readiness] = await Promise.all([getHealth(), getReadiness()]);
       if (health.phase !== readiness.phase) {
