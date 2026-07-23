@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.schema import SchemaItem
 from sqlalchemy.sql.naming import conv
 
 metadata = sa.MetaData(
@@ -312,7 +313,7 @@ sports_sync_errors = sa.Table(
 )
 
 
-def sports_observation_columns(table_name: str) -> list[sa.SchemaItem]:
+def sports_observation_columns(table_name: str) -> list[SchemaItem]:
     return [
         sa.Column(
             "provider_id",

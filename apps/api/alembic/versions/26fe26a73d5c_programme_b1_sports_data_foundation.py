@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.schema import SchemaItem
 
 revision: str = "26fe26a73d5c"
 down_revision: str | Sequence[str] | None = "202607080035"
@@ -85,7 +86,7 @@ def jsonb(
     )
 
 
-def observation_columns(table_name: str) -> list[sa.SchemaItem]:
+def observation_columns(table_name: str) -> list[SchemaItem]:
     return [
         sa.Column(
             "provider_id",
