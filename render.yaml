@@ -6,7 +6,7 @@ services:
     region: frankfurt
     branch: main
     autoDeployTrigger: commit
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm web:build
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm web:build
     startCommand: pnpm --filter @urim/web start
     healthCheckPath: /
     domains:

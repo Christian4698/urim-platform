@@ -43,6 +43,7 @@ test("Render Blueprint deploys the Next.js web service without secrets", () => {
 
   assert.match(blueprint, /name: urim-web/);
   assert.match(blueprint, /runtime: node/);
+  assert.match(blueprint, /pnpm install --frozen-lockfile --prod=false/);
   assert.match(blueprint, /pnpm web:build/);
   assert.match(blueprint, /NEXT_PUBLIC_API_URL/);
   assert.match(blueprint, /- urim\.pro/);
