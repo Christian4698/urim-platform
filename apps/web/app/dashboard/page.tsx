@@ -30,15 +30,17 @@ const moduleRows = [
   },
   {
     label: "Sources sportives",
-    status: "Désactivées",
-    detail: "Aucun fournisseur externe n’est appelé.",
-    tone: "warning" as const
+    status: "Disponibles",
+    detail:
+      "Observations locales consommées en lecture seule; aucun appel fournisseur pendant l’analyse.",
+    tone: "success" as const
   },
   {
-    label: "Intelligence prédictive",
-    status: "Désactivée",
-    detail: "Aucune probabilité ni prédiction officielle n’est produite.",
-    tone: "warning" as const
+    label: "Kairos Daily Suggestions",
+    status: "Bêta analytique",
+    detail:
+      "Suggestions non calibrées uniquement si les données sont suffisantes et fraîches; NO_BET reste prioritaire.",
+    tone: "info" as const
   }
 ];
 
@@ -52,17 +54,17 @@ export default function DashboardPage() {
       >
         <StatusBadge tone="cyan">Lecture système</StatusBadge>
         <StatusBadge tone="success">Contrats validés</StatusBadge>
-        <StatusBadge tone="warning">Modules sensibles inactifs</StatusBadge>
+        <StatusBadge tone="warning">Pari et live bloqués</StatusBadge>
       </PageHeader>
 
       <section className="stat-grid" aria-label="Indicateurs de périmètre">
         <StatCard
           description="Endpoints publics consommés par le navigateur."
           label="Surface API frontend"
-          meta="GET /health · GET /readiness"
-          status="Minimale"
+          meta="Système · données sportives · Kairos"
+          status="Lecture GET"
           tone="cyan"
-          value="2 routes"
+          value="API URIM"
         />
         <StatCard
           description="Aucune donnée confidentielle n’est embarquée dans le bundle."
@@ -81,12 +83,12 @@ export default function DashboardPage() {
           value="Désactivées"
         />
         <StatCard
-          description="La version publique ne crée aucune décision sportive."
-          label="Décision produit"
-          meta="Pas de conseil forcé"
+          description="NO_BET ou INSUFFICIENT_DATA bloque toute suggestion non sûre."
+          label="Garde-fou Kairos"
+          meta="Aucune exécution de pari"
           status="Prudent"
-          tone="neutral"
-          value="INSUFFICIENT_DATA"
+          tone="warning"
+          value="NO_BET"
         />
       </section>
 

@@ -13,7 +13,8 @@ def capabilities() -> CapabilitiesResponse:
         capabilities=disabled_capabilities(),
         safeguards=[
             "Bet Center is virtual/internal only.",
-            "Providers, bookmakers, ML, live and real betting are disabled.",
+            "Kairos Core is read-only, pre-match, uncalibrated and non-betting.",
+            "Bookmakers, ML, live and real betting are disabled.",
             "Post-Match Learning may use only verified post_match_outcomes in a future phase.",
         ],
     )

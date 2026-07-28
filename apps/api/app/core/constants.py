@@ -1,4 +1,4 @@
-API_PHASE = "programme-b1-real-sports-data-foundation"
+API_PHASE = "programme-b2-1-kairos-core"
 DATABASE_OK = "ok"
 DATABASE_UNAVAILABLE = "unavailable"
 DISABLED_STATUS = "disabled"

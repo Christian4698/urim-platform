@@ -87,7 +87,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Icon height={18} name="shield" width={18} />
             <strong>Périmètre sécurisé</strong>
           </div>
-          <p>Données sportives en lecture seule. Aucun pari réel, live automatique ou prédiction active.</p>
+          <p>Données et analyses en lecture seule. Aucun pari réel, bookmaker ou live automatique.</p>
           <StatusBadge tone="success">Secrets hors frontend</StatusBadge>
         </div>
       </aside>
@@ -114,7 +114,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span aria-hidden="true" className="status-dot" />
               Plateforme publique
             </span>
-            <StatusBadge tone="neutral">v1.1 B1</StatusBadge>
+            <StatusBadge tone="neutral">B2.2 Kairos</StatusBadge>
           </div>
         </header>
 

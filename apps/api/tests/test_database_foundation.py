@@ -9,6 +9,7 @@ from alembic.config import Config
 from sqlalchemy import create_engine
 
 from app.db.models import metadata
+from app.db.isolation import validate_isolated_test_database
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 ALEMBIC_INI = REPO_ROOT / "apps" / "api" / "alembic.ini"
@@ -185,10 +186,24 @@ def test_phase_two_disables_real_betting_by_schema_design() -> None:
 
 
 def database_url_or_skip() -> str:
-    database_url = os.environ.get("DATABASE_URL")
-    if not database_url:
-        pytest.skip("DATABASE_URL is required for PostgreSQL migration invariant tests.")
-    return database_url
+    test_database_url = os.environ.get("B1_TEST_DATABASE_URL")
+    result = validate_isolated_test_database(
+        test_database_url,
+        database_url=os.environ.get("DATABASE_URL"),
+        app_env=os.environ.get("APP_ENV"),
+    )
+    if result.reason == "B1_TEST_DATABASE_URL_MISSING":
+        pytest.skip(
+            "B1_TEST_DATABASE_URL is required for PostgreSQL migration "
+            "invariant tests."
+        )
+    if not result.safe:
+        pytest.fail(
+            "PostgreSQL test execution refused by isolation gate: "
+            f"{result.reason}"
+        )
+    assert test_database_url is not None
+    return test_database_url
 
 
 def test_postgresql_prediction_trigger_blocks_future_snapshot() -> None:

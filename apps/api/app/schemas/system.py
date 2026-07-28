@@ -13,6 +13,7 @@ class CapabilityStatus(BaseModel):
     real_betting_enabled: bool
     bet_center_mode: str
     prediction_creation_enabled: bool
+    kairos_core_analysis_enabled: bool
     production_mocks_enabled: bool
     production_seed_enabled: bool
     post_match_learning_source: str
@@ -38,6 +39,7 @@ def disabled_capabilities() -> CapabilityStatus:
         real_betting_enabled=PHASE_REAL_BETTING_ENABLED,
         bet_center_mode=VIRTUAL_INTERNAL,
         prediction_creation_enabled=False,
+        kairos_core_analysis_enabled=True,
         production_mocks_enabled=False,
         production_seed_enabled=False,
         post_match_learning_source="post_match_outcomes_only",

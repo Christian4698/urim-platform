@@ -245,7 +245,7 @@ export function SportsDataOverview() {
 
         <DataPanel
           className="panel-full"
-          description="Lecture sportive uniquement : aucune probabilité, sélection, cote ou recommandation."
+          description="Observations sportives locales en lecture seule. Kairos peut les analyser sans les modifier; les suggestions restent sur la page dédiée."
           title="Matchs observés"
         >
           <MatchList
@@ -264,7 +264,8 @@ export function SportsDataOverview() {
       <div className="sports-data-footer">
         <div>
           <StatusBadge tone="neutral">Lecture seule</StatusBadge>
-          <StatusBadge tone="warning">Prédiction désactivée</StatusBadge>
+          <StatusBadge tone="cyan">Kairos · bêta analytique</StatusBadge>
+          <StatusBadge tone="warning">NO_BET garde-fou</StatusBadge>
           <StatusBadge tone="danger">Aucun pari réel</StatusBadge>
         </div>
         <button

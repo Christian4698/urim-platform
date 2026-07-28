@@ -15,6 +15,7 @@ dependencies = [
   "pydantic>=2.10.4",
   "pydantic-settings>=2.7.1",
   "psycopg[binary]>=3.2.3",
+  "redis>=8.0.1,<9",
   "sqlalchemy>=2.0.36",
   "uvicorn[standard]>=0.34.0"
 ]
@@ -24,6 +25,7 @@ urim-sports-sync = "app.cli.sports_sync:main"
 
 [project.optional-dependencies]
 dev = [
+  "build>=1.2.2",
   "pytest>=8.3.4",
   "ruff>=0.8.4"
 ]
@@ -34,6 +36,9 @@ pythonpath = ["."]
 
 [tool.ruff]
 target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]

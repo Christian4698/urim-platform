@@ -18,7 +18,8 @@ export default function SportsDataPage() {
         title="Données sportives"
       >
         <StatusBadge tone="success">Pipeline traçable</StatusBadge>
-        <StatusBadge tone="warning">Kairos désactivé</StatusBadge>
+        <StatusBadge tone="cyan">Kairos B2.2 · bêta analytique</StatusBadge>
+        <StatusBadge tone="warning">NO_BET garde-fou</StatusBadge>
       </PageHeader>
       <SportsDataOverview />
     </>

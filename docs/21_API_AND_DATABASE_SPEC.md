@@ -297,3 +297,46 @@ Le resultat partageable expose seulement statut, execution, `provider=api-footba
 `mode=first_real_local_smoke_only`, hash optionnel, top-level keys optionnelles et flags `db_writes=false`,
 `prediction_created=false`, `betting_created=false`. Il ne doit jamais exposer cle, credential, reference provider
 brute, nom local sensible, payload brut provider, vraie donnee sportive ou sortie reseau non redigee.
+
+## Programme B2.1 Kairos Core
+
+B2.1 ajoute deux endpoints backend-only et read-only :
+`GET /api/v1/kairos/methodology` et
+`GET /api/v1/kairos/matches/{provider_match_id}/analysis`.
+
+L'analyse lit exclusivement les observations B1 déjà persistées et filtre
+`available_at`, `fetched_at` et `created_at` à `as_of`. Elle est strictement
+pré-match, exige aussi `kickoff_at < as_of` pour chaque match historique,
+valide les IDs, la provenance et les hashes, reste non persistée, non calibrée
+et retourne `NO_BET` ou
+`INSUFFICIENT_DATA`. Aucun endpoint mutateur, appel provider, bookmaker, cote,
+mise, pari réel ou automatisation live n'est ajouté. Aucune migration n'est
+requise.
+
+## Programme B2.2 Kairos Daily Suggestions
+
+B2.2 ajoute `GET /api/v1/kairos/suggestions/today`. La route fixe un unique
+`as_of`, sélectionne au maximum 16 matchs futurs de la journée
+`Africa/Kinshasa`, analyse les observations locales à cet instant et retourne
+au maximum 12 suggestions triées.
+
+Chaque élément contient le score Kairos, le niveau de confiance, le niveau de
+risque, une recommandation analytique unique, les raisons, l'indicateur
+`NO_BET`, les probabilités de marché et les hashes de snapshot/décision. Les
+flags read-only, no-provider-call, no-bookmaker, no-betting et no-live sont
+obligatoires. Les formules, barrières et limites sont détaillées dans
+`76_PROGRAM_B2_2_KAIROS_DAILY_SUGGESTIONS.md`. Aucune migration n'est requise.
+
+La réponse détaillée expose `safety_decision` comme garde-fou (`NO_BET` ou
+`INSUFFICIENT_DATA`) et `analytical_suggestion` comme suggestion analytique
+séparée. Pour compatibilité, `decision` reflète strictement
+`safety_decision` et `suggestion` reflète strictement
+`analytical_suggestion`. Les raisons portent `category=analytical|guardrail`
+et `critical`; un garde-fou critique est prioritaire et ne peut pas être
+tronqué par l'affichage des trois raisons analytiques.
+
+Les erreurs publiques restent allowlistées. Le code
+`kairos_rate_limit_unavailable` produit un `503` sans détail interne et permet
+au frontend d'expliquer que le contrôle de débit Redis est temporairement
+indisponible. Le frontend distingue également match absent, API indisponible,
+données insuffisantes et données périmées.

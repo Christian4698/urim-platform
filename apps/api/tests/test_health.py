@@ -17,7 +17,7 @@ def test_health_endpoint() -> None:
         "status": "ok",
         "app_name": "URIM",
         "engine_name": "Kairos",
-        "phase": "programme-b1-real-sports-data-foundation",
+        "phase": "programme-b2-1-kairos-core",
     }
 
     for header_name, header_value in SECURITY_HEADERS.items():
@@ -41,15 +41,20 @@ def test_readiness_endpoint_reports_unavailable_database_and_preserves_other_dep
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(main_module, "get_database_status", lambda: "unavailable")
+    monkeypatch.setattr(
+        main_module,
+        "get_redis_rate_limit_status",
+        lambda: "unavailable",
+    )
 
     response = client.get("/readiness")
 
     assert response.status_code == 200
     payload = response.json()
     assert payload["ready"] is False
-    assert payload["phase"] == "programme-b1-real-sports-data-foundation"
+    assert payload["phase"] == "programme-b2-1-kairos-core"
     assert payload["dependencies"]["database"] == "unavailable"
-    assert payload["dependencies"]["redis"] == "not_required"
+    assert payload["dependencies"]["redis"] == "unavailable"
     assert payload["dependencies"]["sports_providers"] == "disabled"
     assert payload["dependencies"]["bookmakers"] == "disabled"
     assert payload["dependencies"]["ml_models"] == "disabled"
@@ -62,6 +67,11 @@ def test_readiness_endpoint_is_ready_when_database_probe_succeeds(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(main_module, "get_database_status", lambda: "ok")
+    monkeypatch.setattr(
+        main_module,
+        "get_redis_rate_limit_status",
+        lambda: "ok",
+    )
 
     response = client.get("/readiness")
 
@@ -69,6 +79,23 @@ def test_readiness_endpoint_is_ready_when_database_probe_succeeds(
     payload = response.json()
     assert payload["ready"] is True
     assert payload["dependencies"]["database"] == "ok"
+    assert payload["dependencies"]["redis"] == "ok"
+
+
+def test_readiness_is_not_ready_when_distributed_rate_limit_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(main_module, "get_database_status", lambda: "ok")
+    monkeypatch.setattr(
+        main_module,
+        "get_redis_rate_limit_status",
+        lambda: "unavailable",
+    )
+
+    response = client.get("/readiness")
+
+    assert response.status_code == 200
+    assert response.json()["ready"] is False
 
 
 def test_phase_fourteen_security_assertions() -> None:

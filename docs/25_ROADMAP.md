@@ -3,7 +3,8 @@
 1. Gouvernance et contrats — terminé.
 2. Data foundation : connecteurs, canonique, provenance — B1 terminé;
    archivage brut conditionné par la licence.
-3. Recherche historique : dataset as-of, baselines, walk-forward.
+3. Recherche historique : baseline Kairos Core B2.1 `as_of` terminée;
+   calibration, dataset publié et walk-forward à venir.
 4. Prediction MVP : trois marchés, calibration, NO_BET, ledger.
 5. Web et messagerie — surface web Programme A terminée; messagerie à venir.
 6. Live : streaming, latence, corrections, suspension.

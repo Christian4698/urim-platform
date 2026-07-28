@@ -15,6 +15,8 @@ test("ships every required Programme A route and runtime state", () => {
     "apps/web/app/page.tsx",
     "apps/web/app/dashboard/page.tsx",
     "apps/web/app/donnees-sportives/page.tsx",
+    "apps/web/app/suggestions/page.tsx",
+    "apps/web/app/kairos-analysis/[providerMatchId]/page.tsx",
     "apps/web/app/disponibilite/page.tsx",
     "apps/web/app/modules/page.tsx",
     "apps/web/app/parametres/page.tsx",
@@ -26,6 +28,45 @@ test("ships every required Programme A route and runtime state", () => {
   for (const relativePath of requiredFiles) {
     assert.doesNotThrow(() => read(relativePath), `${relativePath} must exist`);
   }
+});
+
+test("Kairos B2.2 UI remains read-only and contains no bookmaker or secret integration", () => {
+  const source = [
+    read("apps/web/components/kairos-suggestions.tsx"),
+    read("apps/web/components/kairos-analysis-detail.tsx"),
+    read("apps/web/lib/api-client.ts")
+  ].join("\n");
+
+  assert.match(source, /Lecture seule|read_only/);
+  assert.match(source, /not_for_betting|Aucun bookmaker/);
+  assert.doesNotMatch(
+    source,
+    /API_FOOTBALL_KEY|x-apisports-key|v3\.football\.api-sports\.io|DATABASE_URL/
+  );
+});
+
+test("Kairos B2.2 product states and labels are truthful across the interface", () => {
+  const source = [
+    read("apps/web/app/page.tsx"),
+    read("apps/web/app/dashboard/page.tsx"),
+    read("apps/web/app/donnees-sportives/page.tsx"),
+    read("apps/web/app/modules/page.tsx"),
+    read("apps/web/components/sports-data-overview.tsx"),
+    read("apps/web/components/kairos-suggestions.tsx"),
+    read("apps/web/components/kairos-analysis-detail.tsx"),
+    read("apps/web/lib/kairos-presentation.ts")
+  ].join("\n");
+
+  assert.match(source, /Bêta analytique|bêta analytique/);
+  assert.match(source, /Garde-fou Kairos/);
+  assert.match(source, /Suggestion analytique/);
+  assert.match(source, /Données périmées/);
+  assert.match(source, /Données insuffisantes/);
+  assert.match(source, /Aucun pari réel|Aucun pari/);
+  assert.doesNotMatch(
+    source,
+    /Kairos désactivé|Intelligence prédictive[\s\S]{0,80}Désactivée|Kairos ne consomme aucun|Prédiction désactivée|Décision analytique/
+  );
 });
 
 test("frontend environment example exposes only approved public origins", () => {
@@ -69,7 +110,7 @@ test("sports data UI is read-only and contains no provider secret surface", () =
   ].join("\n");
 
   assert.match(source, /Lecture seule|read-only/);
-  assert.match(source, /Prédiction désactivée|prediction_creation_enabled/);
+  assert.match(source, /Kairos · bêta analytique|prediction_creation_enabled/);
   assert.doesNotMatch(
     source,
     /API_FOOTBALL_KEY|x-apisports-key|v3\.football\.api-sports\.io/

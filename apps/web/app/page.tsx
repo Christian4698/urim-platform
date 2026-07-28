@@ -20,7 +20,7 @@ export default function HomePage() {
     <>
       <section className="hero-section">
         <PageHeader
-          description="URIM réunit une interface sobre, une API contrôlée et une fondation de données auditables. Cette version publique expose uniquement l’état de la plateforme — sans fournisseur sportif, prédiction, live, bookmaker ni pari réel."
+          description="URIM réunit une interface sobre, une API contrôlée, des données sportives auditables et Kairos Daily Suggestions en bêta analytique — sans live, bookmaker ni pari réel."
           eyebrow="Sports Intelligence Platform"
           title="Transformer l’incertitude en décisions explicables."
         >
@@ -46,16 +46,16 @@ export default function HomePage() {
 
       <section className="trust-strip" aria-label="Garanties de la version publique">
         <div>
-          <strong>5</strong>
-          <span>espaces utilisables</span>
+          <strong>B2.2</strong>
+          <span>bêta analytique Kairos</span>
         </div>
         <div>
           <strong>0</strong>
           <span>secret côté navigateur</span>
         </div>
         <div>
-          <strong>2</strong>
-          <span>endpoints publics contrôlés</span>
+          <strong>GET</strong>
+          <span>API publique en lecture seule</span>
         </div>
         <div>
           <strong>NO_BET</strong>
@@ -78,7 +78,7 @@ export default function HomePage() {
             <StatusBadge tone="success">Disponible</StatusBadge>
           </FeatureCard>
           <FeatureCard
-            description="Le navigateur interroge uniquement la santé FastAPI et la readiness PostgreSQL."
+            description="Le navigateur interroge uniquement l’API URIM pour la santé, les données sportives et Kairos."
             icon="system"
             title="Disponibilité vérifiable"
           >
@@ -96,7 +96,7 @@ export default function HomePage() {
 
       <section className="dashboard-layout home-panels" aria-label="Périmètre actuel">
         <DataPanel
-          description="Fonctions disponibles dans le Programme A."
+          description="Fonctions disponibles dans le Programme B2.2."
           title="Ce que vous pouvez utiliser"
         >
           <div className="metric-stack">
@@ -118,6 +118,12 @@ export default function HomePage() {
               tone="success"
               value="Disponible"
             />
+            <MetricRow
+              detail="Suggestions analytiques en lecture seule avec garde-fou NO_BET."
+              label="Kairos Daily Suggestions"
+              tone="info"
+              value="Bêta analytique"
+            />
           </div>
         </DataPanel>
 
@@ -126,8 +132,12 @@ export default function HomePage() {
           title="Limites volontaires"
         >
           <div className="metric-stack">
-            <MetricRow label="API Football & bookmakers" tone="warning" value="Désactivés" />
-            <MetricRow label="Live & moteur de prédiction" tone="warning" value="Désactivés" />
+            <MetricRow
+              label="Bookmakers & appels fournisseur frontend"
+              tone="warning"
+              value="Bloqués"
+            />
+            <MetricRow label="Live & exécution automatique" tone="warning" value="Désactivés" />
             <MetricRow label="Pari réel & authentification" tone="danger" value="Absents" />
           </div>
         </DataPanel>

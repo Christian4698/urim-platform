@@ -5,21 +5,34 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
+from app.db.isolation import validate_isolated_test_database
 from app.db import models
 from app.modules.sports_data.normalization import NormalizationResult
 from app.modules.sports_data.repository import SportsRepository
 
-TEST_DATABASE_URL = os.environ.get("B1_TEST_DATABASE_URL")
-
-pytestmark = pytest.mark.skipif(
-    not TEST_DATABASE_URL,
-    reason="B1_TEST_DATABASE_URL is required for PostgreSQL integration tests.",
-)
+def database_url_or_skip() -> str:
+    test_database_url = os.environ.get("B1_TEST_DATABASE_URL")
+    result = validate_isolated_test_database(
+        test_database_url,
+        database_url=os.environ.get("DATABASE_URL"),
+        app_env=os.environ.get("APP_ENV"),
+    )
+    if result.reason == "B1_TEST_DATABASE_URL_MISSING":
+        pytest.skip(
+            "B1_TEST_DATABASE_URL is required for PostgreSQL integration "
+            "tests."
+        )
+    if not result.safe:
+        pytest.fail(
+            "PostgreSQL test execution refused by isolation gate: "
+            f"{result.reason}"
+        )
+    assert test_database_url is not None
+    return test_database_url
 
 
 def test_migrations_rls_append_only_and_idempotence_on_postgresql() -> None:
-    assert TEST_DATABASE_URL
-    engine = sa.create_engine(TEST_DATABASE_URL)
+    engine = sa.create_engine(database_url_or_skip())
     with engine.connect() as connection:
         transaction = connection.begin()
         try:

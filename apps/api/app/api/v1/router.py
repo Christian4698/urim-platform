@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from app.api.v1.routes import (
     fixtures,
+    kairos,
     post_match,
     predictions,
     providers,
@@ -17,6 +18,7 @@ API_V1_ROUTERS = (
     tickets.router,
     providers.router,
     sports.router,
+    kairos.router,
     post_match.router,
 )
 

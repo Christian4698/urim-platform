@@ -222,7 +222,7 @@ def test_provider_readiness_endpoint_is_read_only_and_contract_only() -> None:
         assert response.headers[header_name] == header_value
 
     payload = response.json()
-    assert payload["metadata"]["phase"] == "programme-b1-real-sports-data-foundation"
+    assert payload["metadata"]["phase"] == "programme-b2-1-kairos-core"
     assert payload["providers_enabled"] is False
     assert payload["api_football_connected"] is False
     assert payload["network_calls_enabled"] is False

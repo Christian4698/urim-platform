@@ -1,6 +1,6 @@
 # URIM — Sports Intelligence Platform
 
-URIM est l'application produit et KAIROS son futur moteur technique. Le dépôt
+URIM est l'application produit et KAIROS son moteur technique. Le dépôt
 construit une plateforme sportive probabiliste, traçable, sécurisée et
 explicable. Aucun résultat, score ou bénéfice n'est jamais garanti.
 
@@ -10,7 +10,11 @@ explicable. Aucun résultat, score ou bénéfice n'est jamais garanti.
   tag `v1.0.0-programme-a`.
 - Programme B1 : fondation API-Football backend-only, stockage PostgreSQL
   append-only, API read-only et écran `/donnees-sportives`.
-- Prédictions, probabilités officielles, KAIROS, bookmakers, live automatique,
+- Programme B2.1 : Kairos Core backend-only produit une baseline 1X2 pré-match
+  read-only, explicable, non persistée et non calibrée depuis les données B1.
+- Programme B2.2 : suggestions quotidiennes explicables, read-only, en bêta
+  analytique, avec séparation entre Garde-fou Kairos et Suggestion analytique.
+- Prédictions officielles publiées, bookmakers, live automatique,
   authentification et paris réels : désactivés.
 
 Le fournisseur sportif est opt-in. Sans `API_FOOTBALL_KEY` backend et
@@ -32,7 +36,11 @@ Next.js
 ```
 
 Voir [Programme B1](docs/72_PROGRAM_B1_REAL_SPORTS_DATA.md) pour le schéma, les
-commandes de synchronisation, les variables et le runbook Render.
+commandes de synchronisation, les variables et le runbook Render. Voir
+[Programme B2.1](docs/73_PROGRAM_B2_1_KAIROS_CORE.md) pour les features,
+contrats temporels, endpoints et limites de Kairos Core.
+Voir [Programme B2.2](docs/76_PROGRAM_B2_2_KAIROS_DAILY_SUGGESTIONS.md) pour le
+score conservateur, les suggestions du jour et leurs barrières NO_BET.
 
 ## Démarrage local
 
@@ -62,6 +70,7 @@ placer `DATABASE_URL` ni `API_FOOTBALL_KEY` dans `apps/web` ou une variable
 pnpm contracts:validate
 pnpm api:lint
 pnpm api:test
+pnpm api:build
 pnpm web:lint
 pnpm web:typecheck
 pnpm web:test
