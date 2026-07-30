@@ -46,6 +46,10 @@ peut pas confirmer l'exclusivité. Elle exécute dans cet ordre :
 4. `urim-kairos-journal resolve --date YYYY-MM-DD` ;
 5. `urim-kairos-journal report`.
 
+Depuis B2.4.2, `YYYY-MM-DD` désigne toujours une date métier
+`Africa/Kinshasa`. La découverte fournisseur, les bornes PostgreSQL et le
+snapshot utilisent exactement les deux mêmes minuits locaux.
+
 `daily-discovery` et `snapshot` sont critiques. Un échec arrête les étapes
 suivantes. Un échec de refresh, resolve ou report dégrade le run et reste
 visible dans son résumé ; il ne provoque aucune poursuite silencieuse.
@@ -62,12 +66,14 @@ Après chaque run :
 1. lire le résumé final et confirmer `status=completed` ou examiner toute
    dégradation ;
 2. comparer fixtures reçues et retenues ;
-3. contrôler les quotas quotidien et minute ;
-4. contrôler les snapshots créés, doublons et décisions `NO_BET` ou
+3. vérifier que le funnel `fixtures_received = retained + somme(rejected_*)`
+   est exact et lire chaque catégorie de rejet ;
+4. contrôler les quotas quotidien et minute ;
+5. contrôler les snapshots créés, doublons et décisions `NO_BET` ou
    `INSUFFICIENT_DATA` ;
-5. contrôler les résolutions créées ;
-6. ouvrir `GET /api/v1/kairos/opportunities/today` ;
-7. ouvrir `GET /api/v1/kairos/performance`.
+6. contrôler les résolutions créées ;
+7. ouvrir `GET /api/v1/kairos/opportunities/today` ou la route datée ;
+8. ouvrir `GET /api/v1/kairos/performance`.
 
 Les ressources publiques restent en lecture seule et ne réalisent aucun appel
 fournisseur.

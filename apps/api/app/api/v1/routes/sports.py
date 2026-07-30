@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, time, timedelta
-from zoneinfo import ZoneInfo
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.core.business_time import (
+    business_date_at,
+    utc_bounds_for_business_date,
+    utc_now,
+)
 from app.core.config import settings
 from app.db.session import get_session_factory
 from app.modules.sports_data.repository import (
@@ -90,7 +94,7 @@ def competitions(
 ) -> CompetitionCollection:
     with _session() as session:
         rows = SportsRepository(session).list_competitions(limit=limit)
-    now = datetime.now(UTC)
+    now = utc_now()
     items = [
         CompetitionRead.model_validate(
             apply_runtime_freshness(
@@ -106,17 +110,17 @@ def competitions(
 
 @router.get("/matches/today", response_model=MatchCollection)
 def matches_today() -> MatchCollection:
-    local_zone = ZoneInfo("Africa/Kinshasa")
-    local_now = datetime.now(local_zone)
-    starts_at = datetime.combine(local_now.date(), time.min, tzinfo=local_zone)
-    return _match_collection(starts_at.astimezone(UTC), (starts_at + timedelta(days=1)).astimezone(UTC))
+    starts_at, ends_at = utc_bounds_for_business_date(
+        business_date_at(utc_now())
+    )
+    return _match_collection(starts_at, ends_at)
 
 
 @router.get("/matches/upcoming", response_model=MatchCollection)
 def matches_upcoming(
     days: int = Query(default=7, ge=1, le=30),
 ) -> MatchCollection:
-    starts_at = datetime.now(UTC)
+    starts_at = utc_now()
     return _match_collection(starts_at, starts_at + timedelta(days=days))
 
 
@@ -136,7 +140,7 @@ def match_detail(provider_match_id: int) -> MatchDetailRead:
         events = repository.list_match_resource("match_events", provider_match_id)
         lineups = repository.list_match_resource("lineups", provider_match_id)
         injuries = repository.list_match_resource("injuries", provider_match_id)
-    now = datetime.now(UTC)
+    now = utc_now()
     threshold = settings.api_football_freshness_minutes
     return MatchDetailRead(
         match=MatchRead.model_validate(
@@ -225,7 +229,7 @@ def sync_status() -> SyncStatusRead:
 def freshness() -> FreshnessRead:
     with _session() as session:
         resources = SportsRepository(session).resource_freshness()
-    now = datetime.now(UTC)
+    now = utc_now()
     threshold = settings.api_football_freshness_minutes
     items: list[ResourceFreshness] = []
     for resource in resources:
@@ -267,7 +271,7 @@ def _match_collection(
             starts_at=starts_at,
             ends_at=ends_at,
         )
-    now = datetime.now(UTC)
+    now = utc_now()
     items = [
         MatchRead.model_validate(
             apply_runtime_freshness(

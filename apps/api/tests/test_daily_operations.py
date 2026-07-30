@@ -73,6 +73,24 @@ def _step(
     return OperationStep(name, critical, timeout, runner)
 
 
+def _retention_funnel(
+    fixtures_received: int,
+    retained: int,
+) -> dict[str, int]:
+    return {
+        "fixtures_received": fixtures_received,
+        "retained": retained,
+        "rejected_competition": 0,
+        "rejected_season": 0,
+        "rejected_status": 0,
+        "rejected_kickoff_window": 0,
+        "rejected_missing_teams": 0,
+        "rejected_insufficient_coverage": 0,
+        "rejected_duplicate": 0,
+        "rejected_other": fixtures_received - retained,
+    }
+
+
 def test_daily_operations_are_ordered_and_idempotently_repeatable() -> None:
     async def scenario() -> tuple[list[str], dict[str, Any], dict[str, Any]]:
         calls: list[str] = []
@@ -95,6 +113,7 @@ def test_daily_operations_are_ordered_and_idempotently_repeatable() -> None:
                         "status": "SUCCEEDED",
                         "fixtures_received": 5,
                         "fixtures_retained": 3,
+                        "retention_funnel": _retention_funnel(5, 3),
                     },
                 ),
             ),
@@ -107,6 +126,7 @@ def test_daily_operations_are_ordered_and_idempotently_repeatable() -> None:
                         "status": "SUCCEEDED",
                         "fixtures_received": 4,
                         "fixtures_retained": 3,
+                        "retention_funnel": _retention_funnel(4, 3),
                     },
                 ),
             ),
@@ -222,7 +242,12 @@ def test_distributed_lock_refuses_simultaneous_run() -> None:
             del target_date
             started.set()
             await finish.wait()
-            return {"status": "SUCCEEDED"}
+            return {
+                "status": "SUCCEEDED",
+                "fixtures_received": 0,
+                "fixtures_retained": 0,
+                "retention_funnel": _retention_funnel(0, 0),
+            }
 
         redis = _FakeRedis()
         steps = (
@@ -293,6 +318,36 @@ def test_provider_failure_is_critical_and_stops_following_steps() -> None:
     assert summary["status"] == "failed"
     assert summary["error_code"] == "provider_unavailable"
     assert summary["metrics"]["provider_error_count"] == 1
+
+
+def test_missing_retention_funnel_stops_a_critical_discovery() -> None:
+    async def invalid_discovery(target_date: date) -> dict[str, Any]:
+        del target_date
+        return {
+            "status": "SUCCEEDED",
+            "fixtures_received": 4,
+            "fixtures_retained": 3,
+        }
+
+    orchestrator = DailyOperationsOrchestrator(
+        guard=RedisDailyOperationsGuard(client=_FakeRedis()),
+        steps=(
+            _step(
+                "daily_discovery",
+                critical=True,
+                runner=invalid_discovery,
+            ),
+        ),
+        emit=lambda event: None,
+    )
+
+    summary = asyncio.run(orchestrator.run(date(2026, 7, 30)))
+
+    assert summary["status"] == "failed"
+    assert summary["error_code"] == "retention_funnel_invalid"
+    assert summary["steps"][0]["error_code"] == (
+        "retention_funnel_invalid"
+    )
 
 
 def test_postgresql_failure_stops_after_snapshot_without_secret_leak() -> None:
@@ -420,7 +475,9 @@ def test_status_output_ignores_untrusted_extra_fields() -> None:
         "completed_at": "2026-07-30T00:01:00+00:00",
         "error_code": None,
         "steps": [],
-        "metrics": {},
+        "metrics": {
+            "retention_funnel": _retention_funnel(0, 0),
+        },
         "DATABASE_URL": "postgresql://private-credential",
     }
     redis.values[STATUS_KEY] = json.dumps(summary)

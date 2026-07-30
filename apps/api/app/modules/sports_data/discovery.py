@@ -12,6 +12,53 @@ MAX_DISCOVERY_COMPETITIONS: Final = 5
 MINIMUM_RECENT_RESULTS_PER_TEAM: Final = 3
 RECENT_RESULTS_LOOKBACK_DAYS: Final = 60
 SCHEDULED_FIXTURE_STATUSES: Final = frozenset({"NS"})
+RETENTION_FUNNEL_FIELDS: Final = (
+    "fixtures_received",
+    "retained",
+    "rejected_competition",
+    "rejected_season",
+    "rejected_status",
+    "rejected_kickoff_window",
+    "rejected_missing_teams",
+    "rejected_insufficient_coverage",
+    "rejected_duplicate",
+    "rejected_other",
+)
+
+
+@dataclass(frozen=True)
+class RetentionFunnel:
+    fixtures_received: int
+    retained: int
+    rejected_competition: int
+    rejected_season: int
+    rejected_status: int
+    rejected_kickoff_window: int
+    rejected_missing_teams: int
+    rejected_insufficient_coverage: int
+    rejected_duplicate: int
+    rejected_other: int
+
+    def __post_init__(self) -> None:
+        values = tuple(getattr(self, field) for field in RETENTION_FUNNEL_FIELDS)
+        if any(
+            isinstance(value, bool) or not isinstance(value, int) or value < 0
+            for value in values
+        ):
+            raise ValueError("Retention funnel counts must be non-negative integers.")
+        rejected = sum(
+            getattr(self, field)
+            for field in RETENTION_FUNNEL_FIELDS
+            if field.startswith("rejected_")
+        )
+        if self.fixtures_received != self.retained + rejected:
+            raise ValueError("Retention funnel counts must reconcile exactly.")
+
+    def as_dict(self) -> dict[str, int]:
+        return {
+            field: getattr(self, field)
+            for field in RETENTION_FUNNEL_FIELDS
+        }
 
 
 @dataclass(frozen=True)
@@ -57,6 +104,7 @@ class DailyDiscoverySummary:
     fixtures_retained: int
     fixtures_ignored: int
     ignored_reasons: Mapping[str, int]
+    retention_funnel: RetentionFunnel
     competitions_selected: int
     competitions_added: int
     seasons_added: int
@@ -93,6 +141,8 @@ def build_discovery_plan(
     enrichment_request_budget: int,
     as_of: datetime,
     max_competitions: int = MAX_DISCOVERY_COMPETITIONS,
+    window_starts_at: datetime | None = None,
+    window_ends_at: datetime | None = None,
 ) -> DiscoveryPlan:
     if enrichment_request_budget < 0:
         raise ValueError("enrichment_request_budget must be non-negative.")
@@ -100,10 +150,35 @@ def build_discovery_plan(
         raise ValueError("max_competitions is outside the safe range.")
     if as_of.tzinfo is None or as_of.tzinfo.utcoffset(as_of) is None:
         raise ValueError("as_of must be timezone-aware.")
+    if (window_starts_at is None) != (window_ends_at is None):
+        raise ValueError("Both discovery window bounds are required together.")
+    if window_starts_at is not None and window_ends_at is not None:
+        if (
+            window_starts_at.tzinfo is None
+            or window_starts_at.tzinfo.utcoffset(window_starts_at) is None
+            or window_ends_at.tzinfo is None
+            or window_ends_at.tzinfo.utcoffset(window_ends_at) is None
+        ):
+            raise ValueError("Discovery window bounds must be timezone-aware.")
+        if window_starts_at >= window_ends_at:
+            raise ValueError("Discovery window bounds are invalid.")
 
     ignored: Counter[str] = Counter()
     if fixtures.rejected_count:
-        ignored["invalid_fixture"] += fixtures.rejected_count
+        explained_rejections = sum(
+            value
+            for value in fixtures.rejection_reasons.values()
+            if (
+                isinstance(value, int)
+                and not isinstance(value, bool)
+                and value > 0
+            )
+        )
+        ignored.update(fixtures.rejection_reasons)
+        if explained_rejections < fixtures.rejected_count:
+            ignored["invalid_fixture"] += (
+                fixtures.rejected_count - explained_rejections
+            )
 
     competition_index = {
         int(row["provider_competition_id"]): row
@@ -127,6 +202,13 @@ def build_discovery_plan(
         if not isinstance(kickoff_at, datetime) or kickoff_at <= as_of:
             ignored["fixture_not_future"] += 1
             continue
+        if (
+            window_starts_at is not None
+            and window_ends_at is not None
+            and not window_starts_at <= kickoff_at < window_ends_at
+        ):
+            ignored["fixture_outside_requested_window"] += 1
+            continue
         competition_id = row.get("provider_competition_id")
         season = row.get("season")
         if not isinstance(competition_id, int) or not isinstance(season, int):
@@ -134,8 +216,11 @@ def build_discovery_plan(
             continue
         competition = competition_index.get(competition_id)
         season_row = season_index.get((competition_id, season))
-        if competition is None or season_row is None:
+        if competition is None:
             ignored["competition_metadata_unavailable"] += 1
+            continue
+        if season_row is None:
+            ignored["season_metadata_unavailable"] += 1
             continue
         if str(competition.get("kind") or "").strip().lower() != "league":
             ignored["competition_type_unsupported"] += 1
@@ -214,6 +299,86 @@ def build_discovery_plan(
     return DiscoveryPlan(
         competitions=tuple(selected),
         ignored_reasons=dict(sorted(ignored.items())),
+    )
+
+
+def build_retention_funnel(
+    *,
+    fixtures_received: int,
+    retained: int,
+    ignored_reasons: Mapping[str, int],
+) -> RetentionFunnel:
+    if (
+        isinstance(fixtures_received, bool)
+        or not isinstance(fixtures_received, int)
+        or fixtures_received < 0
+        or isinstance(retained, bool)
+        or not isinstance(retained, int)
+        or retained < 0
+        or retained > fixtures_received
+    ):
+        raise ValueError("Retention funnel inputs are invalid.")
+
+    remaining = fixtures_received - retained
+
+    def allocate(*reason_codes: str) -> int:
+        nonlocal remaining
+        requested = sum(
+            value
+            for reason in reason_codes
+            if (
+                isinstance((value := ignored_reasons.get(reason)), int)
+                and not isinstance(value, bool)
+                and value > 0
+            )
+        )
+        accepted = min(requested, remaining)
+        remaining -= accepted
+        return accepted
+
+    rejected_competition = allocate(
+        "fixture_competition_invalid",
+        "competition_metadata_unavailable",
+        "competition_type_unsupported",
+        "competition_limit",
+        "request_budget_competition_limit",
+    )
+    rejected_season = allocate(
+        "fixture_season_invalid",
+        "season_metadata_unavailable",
+    )
+    rejected_status = allocate(
+        "fixture_status_invalid",
+        "fixture_status_not_scheduled",
+    )
+    rejected_kickoff_window = allocate(
+        "fixture_kickoff_invalid",
+        "fixture_not_future",
+        "fixture_outside_requested_window",
+    )
+    rejected_missing_teams = allocate(
+        "fixture_missing_teams",
+        "fixture_identity_invalid",
+        "team_metadata_unavailable",
+    )
+    rejected_insufficient_coverage = allocate(
+        "insufficient_data_coverage",
+        "recent_results_unavailable",
+        "insufficient_recent_results",
+    )
+    rejected_duplicate = allocate("duplicate_fixture")
+
+    return RetentionFunnel(
+        fixtures_received=fixtures_received,
+        retained=retained,
+        rejected_competition=rejected_competition,
+        rejected_season=rejected_season,
+        rejected_status=rejected_status,
+        rejected_kickoff_window=rejected_kickoff_window,
+        rejected_missing_teams=rejected_missing_teams,
+        rejected_insufficient_coverage=rejected_insufficient_coverage,
+        rejected_duplicate=rejected_duplicate,
+        rejected_other=remaining,
     )
 
 
@@ -296,6 +461,9 @@ __all__ = [
     "MAX_DISCOVERY_COMPETITIONS",
     "MINIMUM_RECENT_RESULTS_PER_TEAM",
     "RECENT_RESULTS_LOOKBACK_DAYS",
+    "RETENTION_FUNNEL_FIELDS",
+    "RetentionFunnel",
     "build_discovery_plan",
+    "build_retention_funnel",
     "select_recent_matches_for_statistics",
 ]

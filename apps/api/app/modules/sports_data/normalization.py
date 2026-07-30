@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 import hashlib
 import json
@@ -23,12 +24,19 @@ class SportsNormalizationError(ValueError):
     """Raised when a provider row cannot satisfy the canonical B1 contract."""
 
 
+class _FixtureNormalizationError(SportsNormalizationError):
+    def __init__(self, reason_code: str) -> None:
+        super().__init__(reason_code)
+        self.reason_code = reason_code
+
+
 @dataclass(frozen=True)
 class NormalizationResult:
     resource: str
     rows: tuple[dict[str, Any], ...]
     rejected_count: int = 0
     error_codes: tuple[str, ...] = ()
+    rejection_reasons: Mapping[str, int] = field(default_factory=dict)
 
 
 def normalize_leagues(
@@ -142,23 +150,58 @@ def normalize_fixtures(envelope: ApiFootballEnvelope) -> NormalizationResult:
         fulltime = _mapping_or_empty(score.get("fulltime"))
         venue = _mapping_or_empty(fixture.get("venue"))
         provider_match_id = _required_int(fixture, "id")
+        try:
+            provider_competition_id = _required_int(league, "id")
+        except SportsNormalizationError as exc:
+            raise _FixtureNormalizationError(
+                "fixture_competition_invalid"
+            ) from exc
+        try:
+            season = _required_int(league, "season")
+        except SportsNormalizationError as exc:
+            raise _FixtureNormalizationError(
+                "fixture_season_invalid"
+            ) from exc
+        try:
+            kickoff_at = _required_datetime(fixture, "date")
+            fixture_timezone = _required_text(fixture, "timezone")
+        except SportsNormalizationError as exc:
+            raise _FixtureNormalizationError(
+                "fixture_kickoff_invalid"
+            ) from exc
+        try:
+            status_short = _required_text(status, "short")
+            status_long = _required_text(status, "long")
+        except SportsNormalizationError as exc:
+            raise _FixtureNormalizationError(
+                "fixture_status_invalid"
+            ) from exc
+        try:
+            home_team_provider_id = _required_int(home, "id")
+            home_team_name = _required_text(home, "name")
+            away_team_provider_id = _required_int(away, "id")
+            away_team_name = _required_text(away, "name")
+        except SportsNormalizationError as exc:
+            raise _FixtureNormalizationError(
+                "fixture_missing_teams"
+            ) from exc
         return {
             **_provenance(envelope, f"match:{provider_match_id}"),
             "provider_match_id": provider_match_id,
-            "provider_competition_id": _required_int(league, "id"),
-            "season": _required_int(league, "season"),
-            "kickoff_at": _required_datetime(fixture, "date"),
-            "timezone": _required_text(fixture, "timezone"),
-            "status_short": _required_text(status, "short"),
-            "status_long": _required_text(status, "long"),
+            "provider_competition_id": provider_competition_id,
+            "season": season,
+            "kickoff_at": kickoff_at,
+            "timezone": fixture_timezone,
+            "status_short": status_short,
+            "status_long": status_long,
             "elapsed": _optional_int(status, "elapsed"),
             "round": _optional_text(league, "round"),
             "venue_name": _optional_text(venue, "name"),
             "venue_city": _optional_text(venue, "city"),
-            "home_team_provider_id": _required_int(home, "id"),
-            "home_team_name": _required_text(home, "name"),
-            "away_team_provider_id": _required_int(away, "id"),
-            "away_team_name": _required_text(away, "name"),
+            "home_team_provider_id": home_team_provider_id,
+            "home_team_name": home_team_name,
+            "away_team_provider_id": away_team_provider_id,
+            "away_team_name": away_team_name,
             "goals_home": _optional_int(goals, "home"),
             "goals_away": _optional_int(goals, "away"),
             "score_halftime_home": _optional_int(halftime, "home"),
@@ -167,7 +210,23 @@ def normalize_fixtures(envelope: ApiFootballEnvelope) -> NormalizationResult:
             "score_fulltime_away": _optional_int(fulltime, "away"),
         }
 
-    return _normalize_rows("matches", envelope, normalize)
+    rows: list[dict[str, Any]] = []
+    rejection_reasons: Counter[str] = Counter()
+    for item in envelope.data.response:
+        try:
+            rows.append(normalize(item))
+        except _FixtureNormalizationError as exc:
+            rejection_reasons[exc.reason_code] += 1
+        except SportsNormalizationError:
+            rejection_reasons["invalid_fixture"] += 1
+    rejected = sum(rejection_reasons.values())
+    return NormalizationResult(
+        resource="matches",
+        rows=tuple(rows),
+        rejected_count=rejected,
+        error_codes=("invalid_matches_row",) if rejected else (),
+        rejection_reasons=dict(sorted(rejection_reasons.items())),
+    )
 
 
 def normalize_standings(envelope: ApiFootballEnvelope) -> NormalizationResult:

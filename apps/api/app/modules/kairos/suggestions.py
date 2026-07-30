@@ -52,6 +52,7 @@ def build_kairos_suggestion(
     analysis_reasons: list[KairosReason],
     analysis_warnings: list[KairosWarning],
     feature_snapshot_hash: str,
+    competition_name: str | None = None,
 ) -> KairosSuggestion:
     blocking_codes = sorted(
         warning.code
@@ -133,6 +134,7 @@ def build_kairos_suggestion(
         kickoff_at=kickoff_at,
         home_team_name=home_team_name,
         away_team_name=away_team_name,
+        competition_name=competition_name,
         recommendation=recommendation,
         recommendation_code=recommendation_code,
         kairos_score=kairos_score,

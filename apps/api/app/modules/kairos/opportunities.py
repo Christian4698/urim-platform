@@ -86,6 +86,7 @@ class KairosOpportunityService:
             kickoff_at=dataset.target.kickoff_at,
             home_team_name=dataset.target.home_team_name,
             away_team_name=dataset.target.away_team_name,
+            competition_name=dataset.target.competition_name,
             section=section,
             safety_decision=safety_decision,
             primary_analysis=primary,

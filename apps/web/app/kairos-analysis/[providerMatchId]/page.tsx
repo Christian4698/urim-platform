@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ActionLink, PageHeader, StatusBadge } from "../../../components/dashboard-ui";
 import { KairosAnalysisDetail } from "../../../components/kairos-analysis-detail";
+import { isBusinessDate } from "../../../lib/business-time";
 
 export const metadata: Metadata = {
   title: "Analyse Kairos",
@@ -14,10 +15,16 @@ export default async function KairosMatchAnalysisPage({
   searchParams
 }: {
   params: Promise<{ providerMatchId: string }>;
-  searchParams: Promise<{ as_of?: string | string[] }>;
+  searchParams: Promise<{
+    as_of?: string | string[];
+    date?: string | string[];
+  }>;
 }) {
   const { providerMatchId } = await params;
-  const { as_of: asOfParameter } = await searchParams;
+  const {
+    as_of: asOfParameter,
+    date: localDateParameter
+  } = await searchParams;
   if (!/^[1-9][0-9]{0,15}$/.test(providerMatchId)) {
     notFound();
   }
@@ -32,6 +39,17 @@ export default async function KairosMatchAnalysisPage({
   ) {
     notFound();
   }
+  if (
+    localDateParameter !== undefined &&
+    (typeof localDateParameter !== "string" ||
+      !isBusinessDate(localDateParameter))
+  ) {
+    notFound();
+  }
+  const suggestionsHref =
+    localDateParameter === undefined
+      ? "/suggestions"
+      : `/suggestions?date=${encodeURIComponent(localDateParameter)}`;
 
   return (
     <>
@@ -40,8 +58,8 @@ export default async function KairosMatchAnalysisPage({
         eyebrow="Kairos · Analyse complète"
         title={`Match ${providerMatchId}`}
       >
-        <ActionLink href="/suggestions" variant="secondary">
-          Suggestions du jour
+        <ActionLink href={suggestionsHref} variant="secondary">
+          Retour aux suggestions
         </ActionLink>
         <StatusBadge tone="warning">Non calibré</StatusBadge>
       </PageHeader>

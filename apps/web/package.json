@@ -8,7 +8,7 @@
     "build": "next build",
     "lint": "eslint . --max-warnings=0",
     "start": "next start -H 0.0.0.0",
-    "test": "node --test --experimental-strip-types lib/api-client.test.ts lib/kairos-presentation.test.ts lib/system-availability-state.test.ts lib/platform-contract.test.ts",
+    "test": "node --test --experimental-strip-types lib/api-client.test.ts lib/business-time.test.ts lib/kairos-presentation.test.ts lib/system-availability-state.test.ts lib/platform-contract.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

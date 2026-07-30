@@ -8,6 +8,7 @@ import json
 import sys
 from typing import Sequence
 
+from app.core.business_time import business_today
 from app.core.config import settings
 from app.db.session import get_session_factory
 from app.modules.sports_data.provider import (
@@ -23,6 +24,7 @@ from app.modules.sports_data.sync import (
 
 
 def build_parser() -> argparse.ArgumentParser:
+    current_business_date = business_today()
     parser = argparse.ArgumentParser(
         prog="urim-sports-sync",
         description=(
@@ -57,13 +59,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--from",
         dest="starts_on",
         type=_parse_date,
-        default=date.today() - timedelta(days=7),
+        default=current_business_date - timedelta(days=7),
     )
     statistics.add_argument(
         "--to",
         dest="ends_on",
         type=_parse_date,
-        default=date.today(),
+        default=current_business_date,
     )
     statistics.add_argument(
         "--statistics-only",

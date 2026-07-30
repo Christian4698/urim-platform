@@ -177,6 +177,11 @@ class KairosSuggestion(BaseModel):
     kickoff_at: datetime
     home_team_name: str = Field(min_length=1, max_length=200)
     away_team_name: str = Field(min_length=1, max_length=200)
+    competition_name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=240,
+    )
     recommendation: Literal[
         "Home Win",
         "Away Win",
@@ -524,6 +529,11 @@ class KairosMatchOpportunity(BaseModel):
     kickoff_at: datetime
     home_team_name: str = Field(min_length=1, max_length=200)
     away_team_name: str = Field(min_length=1, max_length=200)
+    competition_name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=240,
+    )
     section: Literal[
         "ABOVE_70",
         "HALF_TIME",

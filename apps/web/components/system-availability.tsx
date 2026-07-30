@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getSystemAvailability } from "../lib/api-client";
+import { formatBusinessTime } from "../lib/business-time";
 import {
   getSystemAvailabilityPresentation,
   type SystemAvailabilityState
@@ -28,13 +29,7 @@ export function SystemAvailability({ detailed = false }: { detailed?: boolean })
         const availability = await getSystemAvailability();
         if (!cancelled) {
           setState({ kind: "loaded", availability });
-          setCheckedAt(
-            new Intl.DateTimeFormat("fr-CD", {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit"
-            }).format(new Date())
-          );
+          setCheckedAt(formatBusinessTime(new Date()));
         }
       } catch {
         if (!cancelled) {

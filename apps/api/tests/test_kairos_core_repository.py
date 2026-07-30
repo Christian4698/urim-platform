@@ -17,12 +17,16 @@ from app.modules.kairos.repository import (
 
 
 class RecordingSession:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        rows: tuple[dict[str, object], ...] = (),
+    ) -> None:
         self.statement: Any = None
+        self.rows = rows
 
     def execute(self, statement: Any) -> SimpleNamespace:
         self.statement = statement
-        return SimpleNamespace(mappings=lambda: ())
+        return SimpleNamespace(mappings=lambda: self.rows)
 
 
 def test_latest_as_of_query_enforces_all_temporal_boundaries() -> None:
@@ -240,6 +244,8 @@ def test_daily_target_query_is_temporal_select_only_and_bounded() -> None:
     assert "available_at <=" in sql
     assert "fetched_at <=" in sql
     assert "created_at <=" in sql
+    assert "api_football_competitions" in sql
+    assert "competition_name" in sql
     assert "kickoff_at >" in sql
     assert "status_short in" in sql
     assert " limit " in f" {sql} "
@@ -247,3 +253,47 @@ def test_daily_target_query_is_temporal_select_only_and_bounded() -> None:
     assert " insert " not in f" {sql} "
     assert " update " not in f" {sql} "
     assert " delete " not in f" {sql} "
+
+
+def test_daily_target_uses_real_competition_name_when_available_as_of() -> None:
+    as_of = datetime(2026, 7, 31, 8, tzinfo=UTC)
+    source_time = datetime(2026, 7, 31, 7, tzinfo=UTC)
+    row = {
+        "id": "00000000-0000-0000-0000-000000000001",
+        "provider": "api-football",
+        "provider_event_id": "match:31",
+        "observed_at": source_time,
+        "available_at": source_time,
+        "fetched_at": source_time,
+        "created_at": source_time,
+        "source_version": "football-v3",
+        "quality_flags": [],
+        "raw_hash": "a" * 64,
+        "freshness_status": "fresh",
+        "provider_match_id": 31,
+        "provider_competition_id": 344,
+        "season": 2026,
+        "kickoff_at": datetime(2026, 7, 31, 18, tzinfo=UTC),
+        "status_short": "NS",
+        "home_team_provider_id": 1,
+        "home_team_name": "Home",
+        "away_team_provider_id": 2,
+        "away_team_name": "Away",
+        "goals_home": None,
+        "goals_away": None,
+        "score_fulltime_home": None,
+        "score_fulltime_away": None,
+        "score_halftime_home": None,
+        "score_halftime_away": None,
+        "competition_name": "Ligue nationale réelle",
+    }
+    session = RecordingSession((row,))
+
+    targets = KairosRepository(cast(Session, session)).list_target_matches_as_of(
+        starts_at=datetime(2026, 7, 30, 23, tzinfo=UTC),
+        ends_at=datetime(2026, 7, 31, 23, tzinfo=UTC),
+        as_of=as_of,
+    )
+
+    assert len(targets) == 1
+    assert targets[0].competition_name == "Ligue nationale réelle"

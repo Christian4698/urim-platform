@@ -66,6 +66,7 @@ const kairosSuggestionPayload = {
   suggestion_version: "kairos_daily_suggestions_v1",
   provider_match_id: 999,
   kickoff_at: "2026-07-27T18:00:00Z",
+  competition_name: "Competition Test",
   home_team_name: "Home Test",
   away_team_name: "Away Test",
   recommendation: "Home Win",
@@ -428,6 +429,90 @@ test("fetches safe daily Kairos suggestions from the URIM API", async () => {
   assert.equal(result.suggestions[0]?.bookmaker_data_used, false);
 });
 
+test("fetches one explicit Kinshasa suggestion date without mixing days", async () => {
+  const requestedUrls: URL[] = [];
+  const payload = {
+    local_date: "2026-07-31",
+    timezone: "Africa/Kinshasa",
+    as_of: "2026-07-30T18:00:00Z",
+    suggestion_count: 1,
+    evaluated_match_count: 1,
+    skipped_unsafe_match_count: 0,
+    suggestions: [
+      {
+        ...kairosSuggestionPayload,
+        kickoff_at: "2026-07-31T18:00:00Z"
+      }
+    ],
+    warnings: ["Analyse non calibrée."],
+    read_only: true,
+    db_writes: false,
+    provider_calls: false,
+    automatic_betting_enabled: false,
+    live_automatic_enabled: false,
+    not_for_betting: true
+  } as const;
+  const client = createApiClient({
+    baseUrl: BASE_URL,
+    fetchImpl: async (input) => {
+      requestedUrls.push(new URL(input.toString()));
+      return jsonResponse(payload);
+    }
+  });
+
+  const result = await client.getSuggestionsForDate("2026-07-31");
+
+  assert.equal(requestedUrls[0]?.pathname, "/api/v1/kairos/suggestions");
+  assert.equal(requestedUrls[0]?.searchParams.get("date"), "2026-07-31");
+  assert.equal(result.local_date, "2026-07-31");
+  assert.equal(result.suggestions[0]?.competition_name, "Competition Test");
+
+  let fetchCalled = false;
+  const invalidDateClient = createApiClient({
+    baseUrl: BASE_URL,
+    fetchImpl: async () => {
+      fetchCalled = true;
+      return jsonResponse(payload);
+    }
+  });
+  await assert.rejects(
+    invalidDateClient.getSuggestionsForDate("2026-07-31T00:00:00Z"),
+    (error: unknown) =>
+      error instanceof ApiClientError && error.code === "configuration"
+  );
+  assert.equal(fetchCalled, false);
+
+  const mismatchedDateClient = createApiClient({
+    baseUrl: BASE_URL,
+    fetchImpl: async () =>
+      jsonResponse({ ...payload, local_date: "2026-07-30" })
+  });
+  await assert.rejects(
+    mismatchedDateClient.getSuggestionsForDate("2026-07-31"),
+    (error: unknown) =>
+      error instanceof ApiClientError && error.code === "invalid_response"
+  );
+
+  const crossDayKickoffClient = createApiClient({
+    baseUrl: BASE_URL,
+    fetchImpl: async () =>
+      jsonResponse({
+        ...payload,
+        suggestions: [
+          {
+            ...payload.suggestions[0],
+            kickoff_at: "2026-07-30T22:59:59Z"
+          }
+        ]
+      })
+  });
+  await assert.rejects(
+    crossDayKickoffClient.getSuggestionsForDate("2026-07-31"),
+    (error: unknown) =>
+      error instanceof ApiClientError && error.code === "invalid_response"
+  );
+});
+
 test("fetches strictly gated Kairos opportunities", async () => {
   const candidate = {
     market: "SECOND_HALF_OVER_0_5",
@@ -450,6 +535,7 @@ test("fetches strictly gated Kairos opportunities", async () => {
   const evaluatedMatch = {
     provider_match_id: 999,
     kickoff_at: "2026-07-28T18:00:00Z",
+    competition_name: "Competition Test",
     home_team_name: "Home Test",
     away_team_name: "Away Test",
     section: "GOAL_MARKETS",
@@ -522,6 +608,54 @@ test("fetches strictly gated Kairos opportunities", async () => {
     0.8
   );
   assert.equal(result.observed_hit_rate, null);
+  assert.equal(
+    result.opportunities[0]?.competition_name,
+    "Competition Test"
+  );
+
+  const datedMatch = {
+    ...evaluatedMatch,
+    kickoff_at: "2026-07-31T18:00:00Z"
+  };
+  const datedPayload = {
+    ...payload,
+    local_date: "2026-07-31",
+    opportunities: [datedMatch],
+    evaluated_matches: [datedMatch]
+  };
+  const datedClient = createApiClient({
+    baseUrl: BASE_URL,
+    fetchImpl: async (input) => {
+      const url = new URL(input.toString());
+      assert.equal(url.pathname, "/api/v1/kairos/opportunities");
+      assert.equal(url.searchParams.get("date"), "2026-07-31");
+      return jsonResponse(datedPayload);
+    }
+  });
+  assert.equal(
+    (await datedClient.getOpportunitiesForDate("2026-07-31")).local_date,
+    "2026-07-31"
+  );
+
+  const crossDateMatch = {
+    ...evaluatedMatch,
+    kickoff_at: "2026-07-30T23:00:00Z"
+  };
+  const crossDateClient = createApiClient({
+    baseUrl: BASE_URL,
+    fetchImpl: async () =>
+      jsonResponse({
+        ...payload,
+        local_date: "2026-07-30",
+        opportunities: [crossDateMatch],
+        evaluated_matches: [crossDateMatch]
+      })
+  });
+  await assert.rejects(
+    crossDateClient.getOpportunitiesForDate("2026-07-30"),
+    (error: unknown) =>
+      error instanceof ApiClientError && error.code === "invalid_response"
+  );
 
   const correlatedPayload = {
     ...payload,

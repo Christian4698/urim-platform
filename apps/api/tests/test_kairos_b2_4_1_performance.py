@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import nullcontext
 from datetime import UTC, datetime
+import re
 from typing import Any, cast
 
 import pytest
@@ -120,7 +121,21 @@ def test_performance_empty_report_exposes_every_market_without_claim() -> None:
     assert "AVAILABLE_AT <=" in competition_sql
     assert "FETCHED_AT <=" in competition_sql
     assert "CREATED_AT <=" in competition_sql
-    assert "ROW_NUMBER()" in competition_sql
+    assert "LATERAL" in competition_sql
+    assert "ANALYSIS_TIME" in competition_sql
+    assert len(re.findall(r"\bLIMIT 1\b", competition_sql)) == 2
+    assert (
+        "API_FOOTBALL_MATCHES.AVAILABLE_AT <= "
+        "KAIROS_ANALYSIS_JOURNAL.ANALYSIS_TIME"
+    ) in competition_sql
+    assert (
+        "API_FOOTBALL_COMPETITIONS.AVAILABLE_AT <= "
+        "KAIROS_ANALYSIS_JOURNAL.ANALYSIS_TIME"
+    ) in competition_sql
+    assert "API_FOOTBALL_COMPETITIONS" in competition_sql
+    assert "API_FOOTBALL_COMPETITIONS.NAME" in competition_sql
+    assert "COMPÉTITION INCONNUE" in competition_sql
+    assert "CONCAT(" not in competition_sql
     calibration_sql = str(
         session.statements[5].compile(
             dialect=postgresql.dialect(),

@@ -3,13 +3,19 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 import logging
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from app.core.business_time import (
+    BUSINESS_TIMEZONE_NAME,
+    business_date_at,
+    utc_bounds_for_business_dates,
+    utc_now,
+)
 from app.core.config import Settings, settings
 from app.modules.sports_data.discovery import (
     DailyDiscoverySummary,
@@ -17,6 +23,7 @@ from app.modules.sports_data.discovery import (
     MINIMUM_RECENT_RESULTS_PER_TEAM,
     RECENT_RESULTS_LOOKBACK_DAYS,
     build_discovery_plan,
+    build_retention_funnel,
     select_recent_matches_for_statistics,
 )
 from app.modules.sports_data.normalization import (
@@ -151,8 +158,12 @@ class SportsSyncService:
         self,
         target_date: date,
     ) -> DailyDiscoverySummary:
-        now = datetime.now(UTC)
-        if target_date < now.date() or target_date > now.date() + timedelta(days=30):
+        now = utc_now()
+        current_business_date = business_date_at(now)
+        if (
+            target_date < current_business_date
+            or target_date > current_business_date + timedelta(days=30)
+        ):
             raise SportsSyncConfigurationError(
                 "daily_discovery_date_out_of_range"
             )
@@ -168,10 +179,10 @@ class SportsSyncService:
             raise SportsSyncConfigurationError(
                 "daily_refresh_window_invalid"
             )
-        now = datetime.now(UTC)
+        now = utc_now()
         return await self._sync_daily_window(
             sync_type="daily_refresh",
-            starts_on=now.date(),
+            starts_on=business_date_at(now),
             days=days,
             started_at=now,
         )
@@ -192,6 +203,10 @@ class SportsSyncService:
             raise ValueError("started_at must be timezone-aware.")
 
         ends_on = starts_on + timedelta(days=days - 1)
+        window_starts_at, window_ends_at = utc_bounds_for_business_dates(
+            starts_on,
+            ends_on,
+        )
         provider_id = self.repository.ensure_provider(enabled=True)
         run_id = self.repository.start_run(
             provider_id=provider_id,
@@ -221,6 +236,7 @@ class SportsSyncService:
                 fixture_rows: list[dict[str, Any]] = []
                 fixture_rejected = 0
                 fixture_error_codes: list[str] = []
+                fixture_rejection_reasons: Counter[str] = Counter()
                 for day_offset in range(days):
                     fixture_date = starts_on + timedelta(days=day_offset)
                     state.fixture_dates_requested += 1
@@ -228,7 +244,7 @@ class SportsSyncService:
                         endpoint="fixtures",
                         params={
                             "date": fixture_date.isoformat(),
-                            "timezone": "UTC",
+                            "timezone": BUSINESS_TIMEZONE_NAME,
                         },
                         run_id=run_id,
                         state=state,
@@ -254,17 +270,31 @@ class SportsSyncService:
                     fixture_rows.extend(date_result.rows)
                     fixture_rejected += date_result.rejected_count
                     fixture_error_codes.extend(date_result.error_codes)
+                    fixture_rejection_reasons.update(
+                        date_result.rejection_reasons
+                    )
                 fixture_rows.sort(
                     key=lambda row: (
                         row.get("kickoff_at"),
                         row.get("provider_match_id"),
                     )
                 )
+                fixture_rows, duplicate_fixture_count = (
+                    _deduplicate_fixture_rows(fixture_rows)
+                )
+                _increment_reason(
+                    state.ignored_reasons,
+                    "duplicate_fixture",
+                    duplicate_fixture_count,
+                )
                 fixture_result = NormalizationResult(
                     resource="matches",
                     rows=tuple(fixture_rows),
                     rejected_count=fixture_rejected,
                     error_codes=tuple(fixture_error_codes),
+                    rejection_reasons=dict(
+                        sorted(fixture_rejection_reasons.items())
+                    ),
                 )
 
                 league_envelope = None
@@ -286,20 +316,33 @@ class SportsSyncService:
                         run_id=run_id,
                         state=state,
                     )
-                    plan = build_discovery_plan(
-                        fixture_result,
-                        competition_result,
-                        season_result,
-                        priority_competitions=(
-                            self.settings.api_football_priority_competition_ids
-                        ),
-                        enrichment_request_budget=(
-                            self._remaining_discovery_requests()
-                        ),
-                        as_of=started_at,
+                else:
+                    competition_result = NormalizationResult(
+                        resource="competitions",
+                        rows=(),
                     )
-                    state.ignored_reasons.update(plan.ignored_reasons)
+                    season_result = NormalizationResult(
+                        resource="seasons",
+                        rows=(),
+                    )
 
+                plan = build_discovery_plan(
+                    fixture_result,
+                    competition_result,
+                    season_result,
+                    priority_competitions=(
+                        self.settings.api_football_priority_competition_ids
+                    ),
+                    enrichment_request_budget=(
+                        self._remaining_discovery_requests()
+                    ),
+                    as_of=started_at,
+                    window_starts_at=window_starts_at,
+                    window_ends_at=window_ends_at,
+                )
+                state.ignored_reasons.update(plan.ignored_reasons)
+
+                if league_envelope is not None:
                     for competition in plan.competitions:
                         cause_count_before = len(
                             state.provider_unavailable_causes
@@ -337,10 +380,6 @@ class SportsSyncService:
                             event_competition_ids.add(
                                 competition.provider_competition_id
                             )
-                elif fixture_result.rows:
-                    state.ignored_reasons[
-                        "competition_metadata_unavailable"
-                    ] += len(fixture_result.rows)
 
                 await self._enrich_missing_h2h(
                     target_rows=final_fixture_rows,
@@ -461,13 +500,18 @@ class SportsSyncService:
                 endpoint="daily_discovery",
                 error_code="synchronization_internal_error",
                 retryable=True,
-                occurred_at=datetime.now(UTC),
+                occurred_at=utc_now(),
                 context={"cause": "internal_error"},
             )
             self.session.commit()
 
         fixtures_retained = len(final_fixture_rows)
         fixtures_ignored = max(0, state.fixtures_received - fixtures_retained)
+        retention_funnel = build_retention_funnel(
+            fixtures_received=state.fixtures_received,
+            retained=fixtures_retained,
+            ignored_reasons=state.ignored_reasons,
+        )
         status = (
             "FAILED"
             if fatal_error
@@ -493,6 +537,7 @@ class SportsSyncService:
             "fixtures_retained": fixtures_retained,
             "fixtures_ignored": fixtures_ignored,
             "ignored_reasons": dict(sorted(state.ignored_reasons.items())),
+            "retention_funnel": retention_funnel.as_dict(),
             "competitions_selected": len(final_competitions),
             "statistics_matches_available": (
                 state.statistics_matches_available
@@ -520,7 +565,7 @@ class SportsSyncService:
         self.repository.finish_run(
             run_id=run_id,
             status=status,
-            completed_at=datetime.now(UTC),
+            completed_at=utc_now(),
             request_count=self.client.request_count,
             records_received=state.records_received,
             records_inserted=state.records_inserted,
@@ -556,6 +601,7 @@ class SportsSyncService:
             fixtures_retained=fixtures_retained,
             fixtures_ignored=fixtures_ignored,
             ignored_reasons=dict(sorted(state.ignored_reasons.items())),
+            retention_funnel=retention_funnel,
             competitions_selected=len(final_competitions),
             competitions_added=state.competitions_added,
             seasons_added=state.seasons_added,
@@ -642,7 +688,7 @@ class SportsSyncService:
                     "league": competition_id,
                     "last": MAX_H2H_MATCHES_PER_PAIR,
                     "status": "FT-AET-PEN",
-                    "timezone": "UTC",
+                    "timezone": BUSINESS_TIMEZONE_NAME,
                 },
                 run_id=run_id,
                 state=state,
@@ -763,7 +809,7 @@ class SportsSyncService:
         window_days = days or self.settings.api_football_upcoming_days
         if window_days < 1 or window_days > 30:
             raise SportsSyncConfigurationError("upcoming_window_invalid")
-        starts_on = datetime.now(UTC).date()
+        starts_on = business_date_at(utc_now())
         return await self._sync_match_window(
             "matches_upcoming",
             starts_on,
@@ -789,7 +835,7 @@ class SportsSyncService:
                     "from": starts_on.isoformat(),
                     "to": ends_on.isoformat(),
                     "status": "FT-AET-PEN",
-                    "timezone": "UTC",
+                    "timezone": BUSINESS_TIMEZONE_NAME,
                 },
                 normalize=lambda envelope: (normalize_fixtures(envelope),),
             )
@@ -817,11 +863,9 @@ class SportsSyncService:
             raise SportsSyncConfigurationError(
                 "statistics_window_invalid"
             )
-        starts_at = datetime.combine(starts_on, datetime.min.time(), tzinfo=UTC)
-        ends_at = datetime.combine(
-            ends_on + timedelta(days=1),
-            datetime.min.time(),
-            tzinfo=UTC,
+        starts_at, ends_at = utc_bounds_for_business_dates(
+            starts_on,
+            ends_on,
         )
         max_matches = max(
             1,
@@ -901,7 +945,7 @@ class SportsSyncService:
                     "season": season,
                     "from": starts_on.isoformat(),
                     "to": ends_on.isoformat(),
-                    "timezone": "UTC",
+                    "timezone": BUSINESS_TIMEZONE_NAME,
                 },
                 normalize=lambda envelope: (normalize_fixtures(envelope),),
             )
@@ -978,7 +1022,7 @@ class SportsSyncService:
         if not team_valid_fixtures:
             return None
 
-        history_ends_on = started_at.date() - timedelta(days=1)
+        history_ends_on = business_date_at(started_at) - timedelta(days=1)
         history_starts_on = history_ends_on - timedelta(
             days=RECENT_RESULTS_LOOKBACK_DAYS - 1
         )
@@ -990,7 +1034,7 @@ class SportsSyncService:
                 "from": history_starts_on.isoformat(),
                 "to": history_ends_on.isoformat(),
                 "status": "FT-AET-PEN",
-                "timezone": "UTC",
+                "timezone": BUSINESS_TIMEZONE_NAME,
             },
             run_id=run_id,
             state=state,
@@ -1147,7 +1191,7 @@ class SportsSyncService:
                 endpoint=endpoint,
                 error_code=exc.public_code,
                 retryable=exc.retryable,
-                occurred_at=datetime.now(UTC),
+                occurred_at=utc_now(),
                 context={"cause": exc.reason_code},
             )
             self.session.commit()
@@ -1172,7 +1216,7 @@ class SportsSyncService:
                 endpoint=endpoint,
                 error_code=error_code,
                 retryable=False,
-                occurred_at=datetime.now(UTC),
+                occurred_at=utc_now(),
                 context={"rejected_count": result.rejected_count},
             )
 
@@ -1237,7 +1281,7 @@ class SportsSyncService:
             raise ApiFootballDisabledError(
                 "Le fournisseur sportif est désactivé par configuration."
             )
-        started_at = datetime.now(UTC)
+        started_at = utc_now()
         provider_id = self.repository.ensure_provider(enabled=True)
         run_id = self.repository.start_run(
             provider_id=provider_id,
@@ -1284,7 +1328,7 @@ class SportsSyncService:
                                     endpoint=spec.endpoint,
                                     error_code=error_code,
                                     retryable=False,
-                                    occurred_at=datetime.now(UTC),
+                                    occurred_at=utc_now(),
                                 )
                         self.session.commit()
                         if stop_on_error and rejected > rejected_before_request:
@@ -1296,7 +1340,7 @@ class SportsSyncService:
                             endpoint=spec.endpoint,
                             error_code=exc.public_code,
                             retryable=exc.retryable,
-                            occurred_at=datetime.now(UTC),
+                            occurred_at=utc_now(),
                             context={"cause": exc.reason_code},
                         )
                         self.session.commit()
@@ -1319,7 +1363,7 @@ class SportsSyncService:
                 endpoint=str(last_checkpoint.get("endpoint", "synchronization")),
                 error_code=public_code,
                 retryable=True,
-                occurred_at=datetime.now(UTC),
+                occurred_at=utc_now(),
             )
             self.session.commit()
 
@@ -1334,7 +1378,7 @@ class SportsSyncService:
         self.repository.finish_run(
             run_id=run_id,
             status=status,
-            completed_at=datetime.now(UTC),
+            completed_at=utc_now(),
             request_count=self.client.request_count,
             records_received=received,
             records_inserted=inserted,
@@ -1393,6 +1437,26 @@ def _fixture_team_ids(
         )
         if isinstance(team_id, int)
     }
+
+
+def _deduplicate_fixture_rows(
+    fixtures: Sequence[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], int]:
+    unique_rows: list[dict[str, Any]] = []
+    seen_match_ids: set[int] = set()
+    duplicate_count = 0
+    for fixture in fixtures:
+        provider_match_id = fixture.get("provider_match_id")
+        if (
+            isinstance(provider_match_id, int)
+            and provider_match_id in seen_match_ids
+        ):
+            duplicate_count += 1
+            continue
+        if isinstance(provider_match_id, int):
+            seen_match_ids.add(provider_match_id)
+        unique_rows.append(fixture)
+    return unique_rows, duplicate_count
 
 
 def _increment_reason(

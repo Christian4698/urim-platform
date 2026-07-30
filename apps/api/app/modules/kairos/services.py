@@ -231,6 +231,7 @@ class KairosAnalysisService:
             kickoff_at=dataset.target.kickoff_at,
             home_team_name=dataset.target.home_team_name,
             away_team_name=dataset.target.away_team_name,
+            competition_name=dataset.target.competition_name,
             market_probabilities=market_probabilities,
             confidence_score=confidence_score,
             data_quality_score=data_quality_score,

@@ -44,13 +44,14 @@ prioritaires sert uniquement au classement des candidats.
 
 ## Workflow
 
-Pour une date ou une fenêtre UTC :
+Pour une date ou une fenêtre métier `Africa/Kinshasa` :
 
-1. appeler `fixtures?date=YYYY-MM-DD&timezone=UTC` sans filtre de ligue, une
-   fois par date et dans l'ordre chronologique;
+1. appeler `fixtures?date=YYYY-MM-DD&timezone=Africa/Kinshasa` sans filtre de
+   ligue, une fois par date et dans l'ordre chronologique;
 2. si des fixtures existent, appeler `leagues?current=true`;
 3. normaliser les lignes avec provenance et ordre temporel;
-4. écarter les matchs non futurs, non planifiés, les coupes et les compétitions
+4. écarter les matchs hors de la journée locale demandée, non futurs, non
+   planifiés, les coupes et les compétitions
    sans couverture classement ou statistiques de fixture;
 5. classer les ligues éligibles : priorités configurées d'abord, puis couverture
    statistique, classement, volume de fixtures et identifiant stable;
@@ -101,8 +102,8 @@ urim-sports-sync daily-refresh --days 7
 ```
 
 `daily-discovery` accepte aujourd'hui ou une date située dans les 30 prochains
-jours UTC. `daily-refresh` accepte une fenêtre de 1 à 7 jours et démarre au jour
-UTC courant.
+jours selon `Africa/Kinshasa`. `daily-refresh` accepte une fenêtre de 1 à 7
+jours et démarre au jour métier Kinshasa courant.
 
 La commande historique `upcoming --days 30` conserve des requêtes par
 compétition avec une plage inclusive, `league` et `season`. Elle exige donc :
@@ -130,10 +131,22 @@ du fournisseur. Le refresh corrigé utilise exclusivement le paramètre `date`.
 La sortie JSON contient :
 
 - nombre de fixtures reçues, retenues et ignorées;
+- funnel exclusif `fixtures_received`, `retained`, `rejected_competition`,
+  `rejected_season`, `rejected_status`, `rejected_kickoff_window`,
+  `rejected_missing_teams`, `rejected_insufficient_coverage`,
+  `rejected_duplicate` et `rejected_other`;
 - nombre de dates demandées, réussies et échouées;
 - raisons agrégées : statut non planifié, horaire passé, métadonnées absentes,
   type de compétition, couverture insuffisante, budget, équipes absentes ou
   historique insuffisant;
+
+Le funnel se réconcilie toujours exactement :
+
+`fixtures_received = retained + somme(rejected_*)`.
+
+Les doublons de ce funnel sont les identités répétées dans le lot fournisseur.
+Les doublons PostgreSQL d'une relance idempotente restent suivis séparément et
+ne transforment pas une fixture logiquement retenue en rejet.
 - compétitions sélectionnées;
 - compétitions, saisons, équipes, matchs cibles et résultats récents ajoutés;
 - doublons de matchs;

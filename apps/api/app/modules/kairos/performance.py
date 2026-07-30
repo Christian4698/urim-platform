@@ -9,11 +9,11 @@ from sqlalchemy.orm import Session
 
 from app.db import models
 from app.modules.kairos.opportunity_config import OPPORTUNITY_MARKET_GROUPS
-from app.modules.kairos.repository import build_latest_as_of_subquery
 from app.modules.kairos.schemas import (
     KairosPerformanceResponse,
     KairosPerformanceSegment,
 )
+from app.modules.sports_data.provider import API_FOOTBALL_PROVIDER
 
 
 MINIMUM_PERFORMANCE_SAMPLE: Final = 30
@@ -76,10 +76,25 @@ class KairosPerformanceRepository:
             for market in OPPORTUNITY_MARKET_GROUPS
         ]
 
-        latest_match = build_latest_as_of_subquery(
-            models.api_football_matches,
-            (models.api_football_matches.c.provider_match_id,),
-            as_of=generated_at,
+        match_table = models.api_football_matches
+        latest_match = (
+            sa.select(match_table.c.provider_competition_id)
+            .where(
+                match_table.c.provider == API_FOOTBALL_PROVIDER,
+                match_table.c.provider_match_id
+                == journal.c.provider_match_id,
+                match_table.c.available_at <= journal.c.analysis_time,
+                match_table.c.fetched_at <= journal.c.analysis_time,
+                match_table.c.created_at <= journal.c.analysis_time,
+            )
+            .order_by(
+                match_table.c.available_at.desc(),
+                match_table.c.fetched_at.desc(),
+                match_table.c.created_at.desc(),
+            )
+            .limit(1)
+            .correlate(journal)
+            .lateral("latest_match_as_of_analysis")
         )
         competition_key = sa.func.coalesce(
             sa.cast(
@@ -88,26 +103,36 @@ class KairosPerformanceRepository:
             ),
             "unknown",
         )
-        competition_label = sa.case(
-            (
-                latest_match.c.provider_competition_id.is_(None),
-                "Compétition inconnue",
-            ),
-            else_=sa.func.concat(
-                "Compétition ",
-                sa.cast(
-                    latest_match.c.provider_competition_id,
-                    sa.String(),
-                ),
-            ),
+        competition_table = models.api_football_competitions
+        latest_competition = (
+            sa.select(competition_table.c.name)
+            .where(
+                competition_table.c.provider == API_FOOTBALL_PROVIDER,
+                competition_table.c.provider_competition_id
+                == latest_match.c.provider_competition_id,
+                competition_table.c.available_at
+                <= journal.c.analysis_time,
+                competition_table.c.fetched_at
+                <= journal.c.analysis_time,
+                competition_table.c.created_at
+                <= journal.c.analysis_time,
+            )
+            .order_by(
+                competition_table.c.available_at.desc(),
+                competition_table.c.fetched_at.desc(),
+                competition_table.c.created_at.desc(),
+            )
+            .limit(1)
+            .correlate(journal, latest_match)
+            .lateral("latest_competition_as_of_analysis")
         )
-        competition_base = base.outerjoin(
-            latest_match,
-            sa.and_(
-                latest_match.c.provider_match_id
-                == journal.c.provider_match_id,
-                latest_match.c.observation_rank == 1,
-            ),
+        competition_label = sa.func.coalesce(
+            latest_competition.c.name,
+            "Compétition inconnue",
+        )
+        competition_base = (
+            base.outerjoin(latest_match, sa.true())
+            .outerjoin(latest_competition, sa.true())
         )
         performance_by_competition = self._segments(
             from_clause=competition_base,

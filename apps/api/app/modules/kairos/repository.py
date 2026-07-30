@@ -160,8 +160,27 @@ class KairosRepository:
                 table.c.kickoff_at < ends_at,
             ),
         )
+        competition_table = models.api_football_competitions
+        latest_competition = build_latest_as_of_subquery(
+            competition_table,
+            (competition_table.c.provider_competition_id,),
+            as_of=as_of,
+        )
         statement = (
-            sa.select(latest)
+            sa.select(
+                latest,
+                latest_competition.c.name.label("competition_name"),
+            )
+            .select_from(
+                latest.outerjoin(
+                    latest_competition,
+                    sa.and_(
+                        latest_competition.c.provider_competition_id
+                        == latest.c.provider_competition_id,
+                        latest_competition.c.observation_rank == 1,
+                    ),
+                )
+            )
             .where(
                 latest.c.observation_rank == 1,
                 latest.c.kickoff_at >= starts_at,
@@ -195,9 +214,31 @@ class KairosRepository:
                 table.c.provider_match_id == provider_match_id,
             ),
         )
-        statement = sa.select(latest).where(
-            latest.c.observation_rank == 1,
-            latest.c.provider_match_id == provider_match_id,
+        competition_table = models.api_football_competitions
+        latest_competition = build_latest_as_of_subquery(
+            competition_table,
+            (competition_table.c.provider_competition_id,),
+            as_of=as_of,
+        )
+        statement = (
+            sa.select(
+                latest,
+                latest_competition.c.name.label("competition_name"),
+            )
+            .select_from(
+                latest.outerjoin(
+                    latest_competition,
+                    sa.and_(
+                        latest_competition.c.provider_competition_id
+                        == latest.c.provider_competition_id,
+                        latest_competition.c.observation_rank == 1,
+                    ),
+                )
+            )
+            .where(
+                latest.c.observation_rank == 1,
+                latest.c.provider_match_id == provider_match_id,
+            )
         )
         row = self.session.execute(statement).mappings().first()
         return _match_from_row(row) if row else None
@@ -510,6 +551,13 @@ def _source_from_row(row: Mapping[str, Any]) -> SourceObservation:
 
 
 def _match_from_row(row: Mapping[str, Any]) -> MatchObservation:
+    raw_competition_name = row.get("competition_name")
+    competition_name = (
+        raw_competition_name.strip()
+        if isinstance(raw_competition_name, str)
+        and raw_competition_name.strip()
+        else None
+    )
     return MatchObservation(
         source=_source_from_row(row),
         provider_match_id=int(row["provider_match_id"]),
@@ -527,6 +575,7 @@ def _match_from_row(row: Mapping[str, Any]) -> MatchObservation:
         score_fulltime_away=_optional_int(row.get("score_fulltime_away")),
         score_halftime_home=_optional_int(row.get("score_halftime_home")),
         score_halftime_away=_optional_int(row.get("score_halftime_away")),
+        competition_name=competition_name,
     )
 
 

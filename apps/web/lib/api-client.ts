@@ -1,3 +1,9 @@
+import {
+  BUSINESS_TIME_ZONE,
+  isBusinessDate,
+  isInstantOnBusinessDate
+} from "./business-time.ts";
+
 const DEFAULT_TIMEOUT_MS = 5_000;
 const MAX_TIMEOUT_MS = 30_000;
 
@@ -180,6 +186,7 @@ export type KairosSuggestion = {
   suggestion_version: "kairos_daily_suggestions_v1";
   provider_match_id: number;
   kickoff_at: string;
+  competition_name: string | null;
   home_team_name: string;
   away_team_name: string;
   recommendation:
@@ -214,7 +221,7 @@ export type KairosSuggestion = {
 
 export type KairosDailySuggestions = {
   local_date: string;
-  timezone: "Africa/Kinshasa";
+  timezone: typeof BUSINESS_TIME_ZONE;
   as_of: string;
   suggestion_count: number;
   evaluated_match_count: number;
@@ -290,6 +297,7 @@ export type KairosMissingData =
 export type KairosMatchOpportunity = {
   provider_match_id: number;
   kickoff_at: string;
+  competition_name: string | null;
   home_team_name: string;
   away_team_name: string;
   section:
@@ -314,7 +322,7 @@ export type KairosMatchOpportunity = {
 
 export type KairosDailyOpportunities = {
   local_date: string;
-  timezone: "Africa/Kinshasa";
+  timezone: typeof BUSINESS_TIME_ZONE;
   as_of: string;
   generated_at: string;
   opportunity_count: number;
@@ -475,7 +483,9 @@ export type UrimApiClient = {
   getSystemAvailability: () => Promise<SystemAvailability>;
   getSportsData: () => Promise<SportsDataSnapshot>;
   getDailySuggestions: () => Promise<KairosDailySuggestions>;
+  getSuggestionsForDate: (date: string) => Promise<KairosDailySuggestions>;
   getDailyOpportunities: () => Promise<KairosDailyOpportunities>;
+  getOpportunitiesForDate: (date: string) => Promise<KairosDailyOpportunities>;
   getKairosPerformance: () => Promise<KairosPerformance>;
   getKairosAnalysis: (
     providerMatchId: number,
@@ -485,6 +495,16 @@ export type UrimApiClient = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isNullableDisplayName(value: unknown): value is string | null {
+  return (
+    value === null ||
+    (typeof value === "string" &&
+      value.trim() === value &&
+      value.length > 0 &&
+      value.length <= 240)
+  );
 }
 
 function isHealthResponse(value: unknown): value is HealthResponse {
@@ -719,6 +739,7 @@ function isKairosSuggestion(value: unknown): value is KairosSuggestion {
     value.suggestion_version === "kairos_daily_suggestions_v1" &&
     safeProviderMatchId &&
     typeof value.kickoff_at === "string" &&
+    isNullableDisplayName(value.competition_name) &&
     typeof value.home_team_name === "string" &&
     typeof value.away_team_name === "string" &&
     recommendations.includes(String(value.recommendation)) &&
@@ -752,14 +773,19 @@ function isKairosSuggestion(value: unknown): value is KairosSuggestion {
 function isKairosDailySuggestions(
   value: unknown
 ): value is KairosDailySuggestions {
+  if (!isRecord(value) || !isBusinessDate(value.local_date)) {
+    return false;
+  }
+  const localDate = value.local_date;
   return (
-    isRecord(value) &&
-    typeof value.local_date === "string" &&
-    value.timezone === "Africa/Kinshasa" &&
+    value.timezone === BUSINESS_TIME_ZONE &&
     typeof value.as_of === "string" &&
     Array.isArray(value.suggestions) &&
     value.suggestions.length <= 12 &&
     value.suggestions.every(isKairosSuggestion) &&
+    value.suggestions.every((suggestion) =>
+      isInstantOnBusinessDate(suggestion.kickoff_at, localDate)
+    ) &&
     value.suggestion_count === value.suggestions.length &&
     isFiniteScore(value.evaluated_match_count, 16) &&
     isFiniteScore(value.skipped_unsafe_match_count, 16) &&
@@ -907,6 +933,7 @@ function isKairosMatchOpportunity(
     !Number.isSafeInteger(value.provider_match_id) ||
     Number(value.provider_match_id) <= 0 ||
     typeof value.kickoff_at !== "string" ||
+    !isNullableDisplayName(value.competition_name) ||
     typeof value.home_team_name !== "string" ||
     typeof value.away_team_name !== "string" ||
     ![
@@ -972,15 +999,20 @@ function isKairosMatchOpportunity(
 function isKairosDailyOpportunities(
   value: unknown
 ): value is KairosDailyOpportunities {
+  if (!isRecord(value) || !isBusinessDate(value.local_date)) {
+    return false;
+  }
+  const localDate = value.local_date;
   if (
-    !isRecord(value) ||
-    typeof value.local_date !== "string" ||
-    value.timezone !== "Africa/Kinshasa" ||
+    value.timezone !== BUSINESS_TIME_ZONE ||
     typeof value.as_of !== "string" ||
     typeof value.generated_at !== "string" ||
     !Array.isArray(value.opportunities) ||
     value.opportunities.length > 12 ||
     !value.opportunities.every(isKairosMatchOpportunity) ||
+    !value.opportunities.every((item) =>
+      isInstantOnBusinessDate(item.kickoff_at, localDate)
+    ) ||
     !value.opportunities.every(
       (item) => item.safety_decision === "ANALYSIS_ALLOWED"
     ) ||
@@ -988,6 +1020,9 @@ function isKairosDailyOpportunities(
     !Array.isArray(value.evaluated_matches) ||
     value.evaluated_matches.length > 16 ||
     !value.evaluated_matches.every(isKairosMatchOpportunity) ||
+    !value.evaluated_matches.every((item) =>
+      isInstantOnBusinessDate(item.kickoff_at, localDate)
+    ) ||
     !Number.isSafeInteger(value.evaluated_match_count) ||
     Number(value.evaluated_match_count) < 0 ||
     Number(value.evaluated_match_count) > 16 ||
@@ -1439,6 +1474,29 @@ async function publicHttpError(response: Response): Promise<ApiClientError> {
   );
 }
 
+function requireBusinessDate(value: string): string {
+  if (!isBusinessDate(value)) {
+    throw new ApiClientError(
+      "configuration",
+      "La date métier Kairos est invalide."
+    );
+  }
+  return value;
+}
+
+function requireRequestedDate<T extends { local_date: string }>(
+  response: T,
+  requestedDate: string
+): T {
+  if (response.local_date !== requestedDate) {
+    throw new ApiClientError(
+      "invalid_response",
+      "La réponse Kairos ne correspond pas à la date demandée."
+    );
+  }
+  return response;
+}
+
 export function createApiClient(options: ApiClientOptions = {}): UrimApiClient {
   const baseUrl = normalizeBaseUrl(options.baseUrl ?? process.env.NEXT_PUBLIC_API_URL);
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
@@ -1464,6 +1522,18 @@ export function createApiClient(options: ApiClientOptions = {}): UrimApiClient {
         fetchImpl,
         timeoutMs
       ),
+    async getSuggestionsForDate(date: string) {
+      const requestedDate = requireBusinessDate(date);
+      const query = new URLSearchParams({ date: requestedDate });
+      const response = await requestJson(
+        baseUrl,
+        `api/v1/kairos/suggestions?${query.toString()}`,
+        isKairosDailySuggestions,
+        fetchImpl,
+        timeoutMs
+      );
+      return requireRequestedDate(response, requestedDate);
+    },
     getDailyOpportunities: () =>
       requestJson(
         baseUrl,
@@ -1472,6 +1542,18 @@ export function createApiClient(options: ApiClientOptions = {}): UrimApiClient {
         fetchImpl,
         timeoutMs
       ),
+    async getOpportunitiesForDate(date: string) {
+      const requestedDate = requireBusinessDate(date);
+      const query = new URLSearchParams({ date: requestedDate });
+      const response = await requestJson(
+        baseUrl,
+        `api/v1/kairos/opportunities?${query.toString()}`,
+        isKairosDailyOpportunities,
+        fetchImpl,
+        timeoutMs
+      );
+      return requireRequestedDate(response, requestedDate);
+    },
     getKairosPerformance: () =>
       requestJson(
         baseUrl,

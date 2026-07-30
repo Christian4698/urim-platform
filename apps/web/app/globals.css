@@ -1466,10 +1466,130 @@ button:disabled {
   }
 }
 
+.kairos-dated-view,
 .kairos-suggestions-content,
 .kairos-detail-content {
   display: grid;
   gap: 22px;
+}
+
+.kairos-date-navigation {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.kairos-date-navigation-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.kairos-date-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.kairos-date-actions button,
+.kairos-week-days button {
+  border: 1px solid var(--line-soft);
+  color: var(--text-soft);
+  background: rgb(244 247 251 / 0.035);
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease,
+    color 150ms ease;
+}
+
+.kairos-date-actions button {
+  padding: 10px 14px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.kairos-date-actions button:hover,
+.kairos-week-days button:hover {
+  border-color: rgb(55 214 225 / 0.45);
+  color: var(--text);
+}
+
+.kairos-date-actions button.is-selected,
+.kairos-week-days button.is-selected {
+  border-color: rgb(55 214 225 / 0.65);
+  color: var(--text);
+  background: rgb(55 214 225 / 0.12);
+}
+
+.kairos-date-actions button:disabled,
+.kairos-week-days button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.kairos-date-context {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+
+.kairos-date-context > span {
+  display: grid;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.kairos-date-context strong {
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.kairos-week-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.kairos-week-days button {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 12px 9px;
+  border-radius: 12px;
+  text-align: left;
+}
+
+.kairos-week-days span {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.kairos-week-days strong {
+  overflow: hidden;
+  color: inherit;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .kairos-day-summary,
@@ -1552,6 +1672,15 @@ button:disabled {
   color: var(--text-muted);
   font-size: 0.76rem;
   letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.kairos-fixture .kairos-competition,
+.kairos-detail-hero .kairos-competition {
+  color: var(--cyan-soft);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -2319,6 +2448,23 @@ button:disabled {
 }
 
 @media (max-width: 800px) {
+  .kairos-date-navigation-main {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .kairos-date-context {
+    justify-content: flex-start;
+  }
+
+  .kairos-date-context > span {
+    text-align: left;
+  }
+
+  .kairos-week-days {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .opportunity-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2355,6 +2501,24 @@ button:disabled {
 }
 
 @media (max-width: 520px) {
+  .kairos-date-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .kairos-date-actions button {
+    width: 100%;
+  }
+
+  .kairos-date-context {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .kairos-week-days {
+    grid-template-columns: 1fr;
+  }
+
   .opportunity-summary {
     grid-template-columns: 1fr;
   }

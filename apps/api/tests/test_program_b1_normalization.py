@@ -279,6 +279,44 @@ def test_invalid_rows_are_rejected_without_invented_fallbacks() -> None:
     assert result.rows == ()
     assert result.rejected_count == 1
     assert result.error_codes == ("invalid_matches_row",)
+    assert result.rejection_reasons == {"invalid_fixture": 1}
+
+
+def test_fixture_rejections_preserve_terminal_retention_reasons() -> None:
+    common = {
+        "fixture": {
+            "id": 10,
+            "date": "2026-07-23T14:00:00+00:00",
+            "timezone": "UTC",
+            "status": {"short": "NS", "long": "Not Started"},
+        },
+        "league": {"id": 39, "season": 2026},
+        "teams": {
+            "home": {"id": 1, "name": "Home Test"},
+            "away": {"id": 2, "name": "Away Test"},
+        },
+    }
+    missing_teams = {
+        **common,
+        "fixture": {**common["fixture"], "id": 11},
+        "teams": {"home": common["teams"]["home"], "away": {}},
+    }
+    missing_season = {
+        **common,
+        "fixture": {**common["fixture"], "id": 12},
+        "league": {"id": 39},
+    }
+
+    result = normalize_fixtures(
+        envelope("fixtures", [missing_teams, missing_season])
+    )
+
+    assert result.rows == ()
+    assert result.rejected_count == 2
+    assert result.rejection_reasons == {
+        "fixture_missing_teams": 1,
+        "fixture_season_invalid": 1,
+    }
 
 
 def test_temporal_order_is_blocking() -> None:

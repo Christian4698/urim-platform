@@ -2,16 +2,20 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterator
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, date, datetime
 from threading import BoundedSemaphore
 from typing import Annotated, Final
-from zoneinfo import ZoneInfo
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from pydantic import BeforeValidator
 from sqlalchemy.orm import Session
 
+from app.core.business_time import (
+    business_date_at,
+    utc_bounds_for_business_date,
+    utc_now,
+)
 from app.core.config import settings
 from app.db.session import get_session_factory
 from app.modules.kairos.models import (
@@ -49,12 +53,13 @@ from app.modules.kairos.services import (
 router = APIRouter(prefix="/kairos", tags=["kairos"])
 POSTGRES_BIGINT_MAX: Final = 9_223_372_036_854_775_807
 KAIROS_MIN_AS_OF: Final = datetime(1900, 1, 1, tzinfo=UTC)
+KAIROS_MIN_BUSINESS_DATE: Final = date(1900, 1, 1)
+KAIROS_MAX_BUSINESS_DATE: Final = date(2100, 12, 31)
 KAIROS_STATEMENT_TIMEOUT: Final = "3000ms"
 MAX_CONCURRENT_KAIROS_ANALYSES: Final = 8
 MAX_CONCURRENT_DAILY_SUGGESTIONS: Final = 2
 MAX_DAILY_TARGET_MATCHES: Final = 16
 MAX_DAILY_SUGGESTIONS: Final = 12
-KAIROS_LOCAL_TIMEZONE: Final = ZoneInfo("Africa/Kinshasa")
 _ANALYSIS_CAPACITY = BoundedSemaphore(MAX_CONCURRENT_KAIROS_ANALYSES)
 _SUGGESTIONS_CAPACITY = BoundedSemaphore(MAX_CONCURRENT_DAILY_SUGGESTIONS)
 _METHODOLOGY_RATE_LIMIT = 120
@@ -114,6 +119,39 @@ ProviderMatchId = Annotated[
 ]
 
 
+def _canonical_business_date(value: object) -> date:
+    if (
+        not isinstance(value, str)
+        or len(value) != 10
+        or value[4] != "-"
+        or value[7] != "-"
+    ):
+        raise ValueError("date must use the canonical YYYY-MM-DD format")
+    digits = value[:4] + value[5:7] + value[8:10]
+    if not digits.isascii() or not digits.isdecimal():
+        raise ValueError("date must use the canonical YYYY-MM-DD format")
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError(
+            "date must use the canonical YYYY-MM-DD format"
+        ) from exc
+    if (
+        parsed.isoformat() != value
+        or parsed < KAIROS_MIN_BUSINESS_DATE
+        or parsed > KAIROS_MAX_BUSINESS_DATE
+    ):
+        raise ValueError("date is outside the supported business range")
+    return parsed
+
+
+KairosBusinessDate = Annotated[
+    date,
+    BeforeValidator(_canonical_business_date),
+    Query(alias="date"),
+]
+
+
 def _analysis_capacity_dependency() -> Iterator[None]:
     if not _ANALYSIS_CAPACITY.acquire(blocking=False):
         raise HTTPException(
@@ -159,14 +197,40 @@ def daily_suggestions(
 ) -> KairosDailySuggestionsResponse:
     _validate_query_parameters(request, allowed=frozenset())
     _enforce_rate_limit(request, _SUGGESTIONS_RATE_LIMITER)
-    as_of = datetime.now(UTC)
-    local_date = as_of.astimezone(KAIROS_LOCAL_TIMEZONE).date()
-    starts_at = datetime.combine(
-        local_date,
-        time.min,
-        tzinfo=KAIROS_LOCAL_TIMEZONE,
-    ).astimezone(UTC)
-    ends_at = starts_at + timedelta(days=1)
+    as_of = utc_now()
+    return _daily_suggestions_for_date(
+        local_date=business_date_at(as_of),
+        as_of=as_of,
+    )
+
+
+@router.get(
+    "/suggestions",
+    response_model=KairosDailySuggestionsResponse,
+)
+def dated_suggestions(
+    request: Request,
+    requested_date: KairosBusinessDate,
+    _capacity: Annotated[None, Depends(_suggestions_capacity_dependency)],
+) -> KairosDailySuggestionsResponse:
+    _validate_query_parameters(
+        request,
+        allowed=frozenset({"date"}),
+        singular=frozenset({"date"}),
+    )
+    _enforce_rate_limit(request, _SUGGESTIONS_RATE_LIMITER)
+    return _daily_suggestions_for_date(
+        local_date=requested_date,
+        as_of=utc_now(),
+    )
+
+
+def _daily_suggestions_for_date(
+    *,
+    local_date: date,
+    as_of: datetime,
+) -> KairosDailySuggestionsResponse:
+    starts_at, ends_at = utc_bounds_for_business_date(local_date)
 
     with _session() as session:
         repository = KairosRepository(session)
@@ -242,14 +306,40 @@ def daily_opportunities(
 ) -> KairosDailyOpportunitiesResponse:
     _validate_query_parameters(request, allowed=frozenset())
     _enforce_rate_limit(request, _OPPORTUNITIES_RATE_LIMITER)
-    as_of = datetime.now(UTC)
-    local_date = as_of.astimezone(KAIROS_LOCAL_TIMEZONE).date()
-    starts_at = datetime.combine(
-        local_date,
-        time.min,
-        tzinfo=KAIROS_LOCAL_TIMEZONE,
-    ).astimezone(UTC)
-    ends_at = starts_at + timedelta(days=1)
+    as_of = utc_now()
+    return _daily_opportunities_for_date(
+        local_date=business_date_at(as_of),
+        as_of=as_of,
+    )
+
+
+@router.get(
+    "/opportunities",
+    response_model=KairosDailyOpportunitiesResponse,
+)
+def dated_opportunities(
+    request: Request,
+    requested_date: KairosBusinessDate,
+    _capacity: Annotated[None, Depends(_suggestions_capacity_dependency)],
+) -> KairosDailyOpportunitiesResponse:
+    _validate_query_parameters(
+        request,
+        allowed=frozenset({"date"}),
+        singular=frozenset({"date"}),
+    )
+    _enforce_rate_limit(request, _OPPORTUNITIES_RATE_LIMITER)
+    return _daily_opportunities_for_date(
+        local_date=requested_date,
+        as_of=utc_now(),
+    )
+
+
+def _daily_opportunities_for_date(
+    *,
+    local_date: date,
+    as_of: datetime,
+) -> KairosDailyOpportunitiesResponse:
+    starts_at, ends_at = utc_bounds_for_business_date(local_date)
     with _session() as session:
         repository = KairosRepository(session)
         targets = repository.list_target_matches_as_of(
@@ -469,7 +559,7 @@ def performance(
 ) -> KairosPerformanceResponse:
     _validate_query_parameters(request, allowed=frozenset())
     _enforce_rate_limit(request, _PERFORMANCE_RATE_LIMITER)
-    generated_at = datetime.now(UTC)
+    generated_at = utc_now()
     with _session() as session:
         return KairosPerformanceRepository(session).report(
             generated_at=generated_at
@@ -492,7 +582,7 @@ def match_analysis(
         singular=frozenset({"as_of"}),
     )
     _enforce_rate_limit(request, _ANALYSIS_RATE_LIMITER)
-    now = datetime.now(UTC)
+    now = utc_now()
     as_of_value = as_of or now
     if as_of_value.tzinfo is None:
         raise HTTPException(

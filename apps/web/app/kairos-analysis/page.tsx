@@ -8,7 +8,7 @@ import {
 
 export const metadata: Metadata = {
   title: "Analyses Kairos",
-  description: "Accès aux analyses explicables des suggestions Kairos du jour.",
+  description: "Accès aux analyses explicables des suggestions Kairos datées.",
   alternates: { canonical: "/kairos-analysis" }
 };
 
@@ -24,10 +24,10 @@ export default function KairosAnalysisPage() {
         <StatusBadge tone="danger">Aucun pari</StatusBadge>
       </PageHeader>
       <EmptyState
-        description="Choisissez un match dans la liste du jour. Kairos ne fabrique pas d’analyse pour un identifiant ou un match sans données suffisantes."
+        description="Choisissez un match dans une liste datée. Kairos ne fabrique pas d’analyse pour un identifiant ou un match sans données suffisantes."
         title="Sélectionnez une suggestion"
       >
-        <ActionLink href="/suggestions">Voir les suggestions du jour</ActionLink>
+        <ActionLink href="/suggestions">Voir les suggestions Kairos</ActionLink>
       </EmptyState>
     </>
   );

@@ -1,13 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ApiClientError,
   createApiClient,
   type KairosDailySuggestions,
   type KairosSuggestion
 } from "../lib/api-client";
+import {
+  type BusinessDateSelection,
+  formatBusinessDate,
+  formatBusinessDateTime,
+  resolveBusinessDateSelection
+} from "../lib/business-time";
 import {
   buildKairosAnalysisHref,
   getDailySuggestionsEmptyState,
@@ -17,6 +24,7 @@ import {
 } from "../lib/kairos-presentation";
 import { EmptyState, StatusBadge } from "./dashboard-ui";
 import { Icon } from "./icon";
+import { KairosDateNavigation } from "./kairos-date-navigation";
 
 type ViewState =
   | { kind: "loading" }
@@ -24,11 +32,36 @@ type ViewState =
   | { kind: "error"; message: string }
   | { kind: "ready"; data: KairosDailySuggestions };
 
-export function KairosSuggestions() {
+export function KairosSuggestions({ initialDate }: { initialDate?: string }) {
   const [attempt, setAttempt] = useState(0);
+  const [businessToday, setBusinessToday] = useState<string | null>(null);
+  const [selection, setSelection] = useState<BusinessDateSelection>(
+    initialDate === undefined
+      ? { kind: "today" }
+      : { kind: "date", date: initialDate }
+  );
   const [state, setState] = useState<ViewState>({ kind: "loading" });
+  const selectedDate =
+    businessToday === null
+      ? selection.kind === "date"
+        ? selection.date
+        : null
+      : resolveBusinessDateSelection(selection, businessToday);
+  const handleBusinessTodayChange = useCallback((date: string) => {
+    setBusinessToday(date);
+  }, []);
+  const handleSelectionChange = useCallback(
+    (nextSelection: BusinessDateSelection) => {
+      setState({ kind: "loading" });
+      setSelection(nextSelection);
+    },
+    []
+  );
 
   useEffect(() => {
+    if (selectedDate === null) {
+      return;
+    }
     let cancelled = false;
     const load = async () => {
       if (!navigator.onLine) {
@@ -37,7 +70,11 @@ export function KairosSuggestions() {
       }
       setState({ kind: "loading" });
       try {
-        const data = await createApiClient({ timeoutMs: 10_000 }).getDailySuggestions();
+        const client = createApiClient({ timeoutMs: 10_000 });
+        const data =
+          selection.kind === "today"
+            ? await client.getDailySuggestions()
+            : await client.getSuggestionsForDate(selectedDate);
         if (!cancelled) {
           setState({ kind: "ready", data });
         }
@@ -63,10 +100,11 @@ export function KairosSuggestions() {
       window.removeEventListener("offline", handleOffline);
       window.removeEventListener("online", handleOnline);
     };
-  }, [attempt]);
+  }, [attempt, selectedDate, selection.kind]);
 
+  let content: ReactNode;
   if (state.kind === "loading") {
-    return (
+    content = (
       <section aria-busy="true" aria-label="Chargement des suggestions Kairos">
         <div className="kairos-card-grid">
           {Array.from({ length: 3 }, (_, index) => (
@@ -75,10 +113,8 @@ export function KairosSuggestions() {
         </div>
       </section>
     );
-  }
-
-  if (state.kind === "offline" || state.kind === "error") {
-    return (
+  } else if (state.kind === "offline" || state.kind === "error") {
+    content = (
       <EmptyState
         description={
           state.kind === "offline"
@@ -97,56 +133,87 @@ export function KairosSuggestions() {
         </button>
       </EmptyState>
     );
-  }
-
-  const emptyState = getDailySuggestionsEmptyState(state.data);
-  if (emptyState) {
-    return (
-      <EmptyState
-        description={emptyState.description}
-        title={emptyState.title}
-      />
+  } else {
+    const data = state.data;
+    const emptyState = getDailySuggestionsEmptyState(data);
+    content = (
+      <div className="kairos-suggestions-content">
+        <div className="kairos-day-summary">
+          <span>
+            {data.suggestion_count} suggestion(s) sur{" "}
+            {data.evaluated_match_count} match(s) analysé(s) ·{" "}
+            {formatBusinessDate(data.local_date) ?? data.local_date}
+          </span>
+          <span>
+            Calcul arrêté au{" "}
+            {formatBusinessDateTime(data.as_of) ?? "horaire indisponible"}
+          </span>
+        </div>
+        {emptyState ? (
+          <EmptyState
+            description={emptyState.description}
+            title={emptyState.title}
+          />
+        ) : (
+          <section
+            className="kairos-card-grid"
+            aria-label={`Suggestions Kairos du ${data.local_date}`}
+          >
+            {data.suggestions.map((suggestion) => (
+              <SuggestionCard
+                asOf={data.as_of}
+                key={suggestion.provider_match_id}
+                localDate={data.local_date}
+                suggestion={suggestion}
+              />
+            ))}
+          </section>
+        )}
+        <div className="kairos-safety-note">
+          <Icon height={20} name="shield" width={20} />
+          <div>
+            {data.warnings.map((warning) => (
+              <p key={warning}>{warning}</p>
+            ))}
+          </div>
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="kairos-suggestions-content">
-      <div className="kairos-day-summary">
-        <span>
-          {state.data.suggestion_count} suggestion(s) sur{" "}
-          {state.data.evaluated_match_count} match(s) analysé(s)
-        </span>
-        <span>Calcul arrêté au {formatDateTime(state.data.as_of)}</span>
-      </div>
-      <section className="kairos-card-grid" aria-label="Suggestions Kairos du jour">
-        {state.data.suggestions.map((suggestion) => (
-          <SuggestionCard
-            asOf={state.data.as_of}
-            key={suggestion.provider_match_id}
-            suggestion={suggestion}
-          />
-        ))}
-      </section>
-      <div className="kairos-safety-note">
-        <Icon height={20} name="shield" width={20} />
-        <p>{state.data.warnings[0]}</p>
-      </div>
+    <div className="kairos-dated-view">
+      <KairosDateNavigation
+        businessToday={businessToday}
+        consultedDate={
+          state.kind === "ready" ? state.data.local_date : selectedDate
+        }
+        onBusinessTodayChange={handleBusinessTodayChange}
+        onSelectionChange={handleSelectionChange}
+        selection={selection}
+      />
+      {content}
     </div>
   );
 }
 
 function SuggestionCard({
   suggestion,
-  asOf
+  asOf,
+  localDate
 }: {
   suggestion: KairosSuggestion;
   asOf: string;
+  localDate: string;
 }) {
   const presentation = presentKairosSuggestion(suggestion);
   return (
     <article className={suggestion.no_bet ? "kairos-card is-no-bet" : "kairos-card"}>
       <div className="kairos-card-topline">
-        <time dateTime={suggestion.kickoff_at}>{formatDateTime(suggestion.kickoff_at)}</time>
+        <time dateTime={suggestion.kickoff_at}>
+          {formatBusinessDateTime(suggestion.kickoff_at) ??
+            "Horaire indisponible"}
+        </time>
         <StatusBadge tone={suggestion.no_bet ? "warning" : "cyan"}>
           {suggestion.no_bet
             ? `${KAIROS_GUARDRAIL_LABEL} · NO_BET`
@@ -154,6 +221,9 @@ function SuggestionCard({
         </StatusBadge>
       </div>
       <div className="kairos-fixture">
+        {suggestion.competition_name !== null && (
+          <span className="kairos-competition">{suggestion.competition_name}</span>
+        )}
         <strong>{suggestion.home_team_name}</strong>
         <span>contre</span>
         <strong>{suggestion.away_team_name}</strong>
@@ -202,7 +272,7 @@ function SuggestionCard({
       )}
       <Link
         className="action-link action-link-secondary"
-        href={buildKairosAnalysisHref(suggestion, asOf)}
+        href={buildKairosAnalysisHref(suggestion, asOf, localDate)}
       >
         <span>Voir l’analyse complète</span>
         <Icon height={17} name="arrow" width={17} />
@@ -218,16 +288,4 @@ function recommendationLabel(suggestion: KairosSuggestion): string {
     HOME_OR_AWAY: "Double Chance · sans nul"
   };
   return doubleChanceLabels[suggestion.recommendation_code] ?? suggestion.recommendation;
-}
-
-function formatDateTime(value: string): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "Horaire indisponible";
-  }
-  return new Intl.DateTimeFormat("fr-CD", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Africa/Kinshasa"
-  }).format(parsed);
 }

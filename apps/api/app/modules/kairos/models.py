@@ -63,6 +63,7 @@ class MatchObservation:
     score_fulltime_away: int | None
     score_halftime_home: int | None = None
     score_halftime_away: int | None = None
+    competition_name: str | None = None
 
     def fulltime_score(self) -> tuple[int, int] | None:
         candidates = (

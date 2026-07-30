@@ -516,7 +516,9 @@ def test_daily_suggestions_sort_actionable_signal_before_no_bet(
     "path",
     [
         "/api/v1/kairos/methodology",
+        "/api/v1/kairos/suggestions?date=2026-07-31",
         "/api/v1/kairos/suggestions/today",
+        "/api/v1/kairos/opportunities?date=2026-07-31",
         "/api/v1/kairos/opportunities/today",
         "/api/v1/kairos/matches/999/analysis",
     ],

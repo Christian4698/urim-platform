@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import asdict
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import date
 import json
 import sys
 from typing import Sequence
-from zoneinfo import ZoneInfo
 
+from app.core.business_time import utc_bounds_for_business_date, utc_now
 from app.core.config import settings
 from app.db.session import get_session_factory
 from app.modules.kairos.journal import (
@@ -26,10 +26,6 @@ from app.modules.kairos.repository import (
     KairosRepository,
 )
 from app.modules.kairos.services import RECENT_WINDOW_MATCHES
-
-
-LOCAL_TIMEZONE = ZoneInfo("Africa/Kinshasa")
-
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -51,12 +47,12 @@ def build_parser() -> argparse.ArgumentParser:
 def run_command(args: argparse.Namespace) -> dict[str, object]:
     if not settings.database_url:
         raise RuntimeError("kairos_journal_database_unavailable")
-    now = datetime.now(UTC)
+    now = utc_now()
     session_factory = get_session_factory()
     with session_factory() as session:
         journal = KairosJournalRepository(session)
         if args.command == "snapshot":
-            starts_at, ends_at = _utc_day_bounds(args.date)
+            starts_at, ends_at = utc_bounds_for_business_date(args.date)
             repository = KairosRepository(session)
             targets = repository.list_target_matches_as_of(
                 starts_at=starts_at,
@@ -118,7 +114,7 @@ def run_command(args: argparse.Namespace) -> dict[str, object]:
                 "betting_actions": False,
             }
         if args.command == "resolve":
-            starts_at, ends_at = _utc_day_bounds(args.date)
+            starts_at, ends_at = utc_bounds_for_business_date(args.date)
             summary = journal.resolve_completed(
                 as_of=now,
                 starts_at=starts_at,
@@ -169,15 +165,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
     print(json.dumps({"status": "completed", **result}, sort_keys=True))
     return 0
-
-
-def _utc_day_bounds(local_date: date) -> tuple[datetime, datetime]:
-    starts_at = datetime.combine(
-        local_date,
-        time.min,
-        tzinfo=LOCAL_TIMEZONE,
-    ).astimezone(UTC)
-    return starts_at, starts_at + timedelta(days=1)
 
 
 def _parse_date(value: str) -> date:

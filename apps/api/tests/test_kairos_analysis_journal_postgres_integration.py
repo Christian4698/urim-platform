@@ -542,119 +542,150 @@ def test_b2_4_full_snapshot_resolve_report_workflow_uses_valid_results_only(
         created_at=kickoff_at - timedelta(minutes=30),
         kickoff_at=kickoff_at,
     )
-    with postgres_engine.begin() as connection:
-        connection.execute(
-            models.kairos_analysis_journal.insert().values(journal_row)
-        )
-        unresolved = connection.execute(
-            sa.select(sa.func.count())
-            .select_from(models.kairos_analysis_resolutions)
-            .where(
-                models.kairos_analysis_resolutions.c.analysis_id
-                == journal_row["analysis_id"]
-            )
-        ).scalar_one()
-    assert unresolved == 0
-
-    with Session(postgres_engine) as session:
-        sports_repository = SportsRepository(session)
-        provider_id = sports_repository.ensure_provider(enabled=True)
-        run_id = sports_repository.start_run(
-            provider_id=provider_id,
-            sync_type="b2_4_postgres_workflow_test",
-            scope={"mode": "TEST_ONLY"},
-            started_at=now - timedelta(hours=1),
-        )
-        available_at = now - timedelta(minutes=30)
-        session.execute(
-            models.api_football_matches.insert().values(
-                provider_id=provider_id,
-                sync_run_id=run_id,
-                provider="api-football",
-                provider_event_id=(
-                    f"fixture:{journal_row['provider_match_id']}"
-                ),
-                observed_at=available_at,
-                available_at=available_at,
-                fetched_at=available_at + timedelta(minutes=1),
-                source_version="football-v3-test",
-                quality_flags=["TEST_ONLY"],
-                raw_hash=_hash(
-                    f"match:{journal_row['provider_match_id']}"
-                ),
-                freshness_status="fresh",
-                provider_match_id=journal_row["provider_match_id"],
-                provider_competition_id=999_991,
-                season=2026,
-                kickoff_at=kickoff_at,
-                timezone="UTC",
-                status_short="FT",
-                status_long="Match Finished",
-                home_team_provider_id=999_992,
-                home_team_name="TEST_ONLY Home",
-                away_team_provider_id=999_993,
-                away_team_name="TEST_ONLY Away",
-                goals_home=1,
-                goals_away=0,
-                score_halftime_home=0,
-                score_halftime_away=0,
-                score_fulltime_home=1,
-                score_fulltime_away=0,
-            )
-        )
-        session.commit()
-
-    resolve_as_of = datetime.now(UTC)
-    with Session(postgres_engine) as session:
-        journal_repository = KairosJournalRepository(session)
-        summary = journal_repository.resolve_completed(as_of=resolve_as_of)
-        session.commit()
-    assert summary.inserted >= 1
-
     void_journal = _journal_row(market="HOME_OR_DRAW")
     void_resolution = _resolution_row(
         void_journal,
         outcome="VOID",
         scores=(0, 0, 0, 0),
     )
-    with postgres_engine.begin() as connection:
-        connection.execute(
-            models.kairos_analysis_journal.insert().values(void_journal)
-        )
-        connection.execute(
-            models.kairos_analysis_resolutions.insert().values(
-                void_resolution
-            )
-        )
-
-    with Session(postgres_engine) as session:
-        metrics = KairosJournalRepository(session).resolved_metrics()
     with postgres_engine.connect() as connection:
-        workflow_outcome = connection.execute(
-            sa.select(models.kairos_analysis_resolutions.c.outcome).where(
-                models.kairos_analysis_resolutions.c.analysis_id
-                == journal_row["analysis_id"]
-            )
-        ).scalar_one()
-        valid_resolution_count = connection.execute(
-            sa.select(sa.func.count())
-            .select_from(models.kairos_analysis_resolutions)
-            .where(
-                models.kairos_analysis_resolutions.c.outcome.in_(
-                    ("SUCCESS", "FAILURE")
+        transaction = connection.begin()
+        try:
+            resolve_as_of = connection.execute(
+                sa.select(sa.func.transaction_timestamp())
+            ).scalar_one()
+            valid_before = connection.execute(
+                sa.select(sa.func.count())
+                .select_from(models.kairos_analysis_resolutions)
+                .where(
+                    models.kairos_analysis_resolutions.c.outcome.in_(
+                        ("SUCCESS", "FAILURE")
+                    )
                 )
-            )
-        ).scalar_one()
-        all_resolution_count = connection.execute(
-            sa.select(sa.func.count()).select_from(
-                models.kairos_analysis_resolutions
-            )
-        ).scalar_one()
+            ).scalar_one()
+            all_before = connection.execute(
+                sa.select(sa.func.count()).select_from(
+                    models.kairos_analysis_resolutions
+                )
+            ).scalar_one()
+
+            with Session(bind=connection) as session:
+                session.execute(
+                    models.kairos_analysis_journal.insert().values(
+                        journal_row
+                    )
+                )
+                unresolved = session.execute(
+                    sa.select(sa.func.count())
+                    .select_from(models.kairos_analysis_resolutions)
+                    .where(
+                        models.kairos_analysis_resolutions.c.analysis_id
+                        == journal_row["analysis_id"]
+                    )
+                ).scalar_one()
+                assert unresolved == 0
+
+                sports_repository = SportsRepository(session)
+                provider_id = sports_repository.ensure_provider(
+                    enabled=True
+                )
+                run_id = sports_repository.start_run(
+                    provider_id=provider_id,
+                    sync_type="b2_4_postgres_workflow_test",
+                    scope={"mode": "TEST_ONLY"},
+                    started_at=now - timedelta(hours=1),
+                )
+                available_at = resolve_as_of - timedelta(minutes=30)
+                session.execute(
+                    models.api_football_matches.insert().values(
+                        provider_id=provider_id,
+                        sync_run_id=run_id,
+                        provider="api-football",
+                        provider_event_id=(
+                            f"fixture:{journal_row['provider_match_id']}"
+                        ),
+                        observed_at=available_at,
+                        available_at=available_at,
+                        fetched_at=available_at + timedelta(minutes=1),
+                        source_version="football-v3-test",
+                        quality_flags=["TEST_ONLY"],
+                        raw_hash=_hash(
+                            f"match:{journal_row['provider_match_id']}"
+                        ),
+                        freshness_status="fresh",
+                        provider_match_id=journal_row[
+                            "provider_match_id"
+                        ],
+                        provider_competition_id=999_991,
+                        season=2026,
+                        kickoff_at=kickoff_at,
+                        timezone="UTC",
+                        status_short="FT",
+                        status_long="Match Finished",
+                        home_team_provider_id=999_992,
+                        home_team_name="TEST_ONLY Home",
+                        away_team_provider_id=999_993,
+                        away_team_name="TEST_ONLY Away",
+                        goals_home=1,
+                        goals_away=0,
+                        score_halftime_home=0,
+                        score_halftime_away=0,
+                        score_fulltime_home=1,
+                        score_fulltime_away=0,
+                    )
+                )
+                session.flush()
+
+                journal_repository = KairosJournalRepository(session)
+                summary = journal_repository.resolve_completed(
+                    as_of=resolve_as_of,
+                    starts_at=kickoff_at,
+                    ends_at=kickoff_at + timedelta(seconds=1),
+                )
+                assert summary.inserted == 1
+
+                session.execute(
+                    models.kairos_analysis_journal.insert().values(
+                        void_journal
+                    )
+                )
+                session.execute(
+                    models.kairos_analysis_resolutions.insert().values(
+                        void_resolution
+                    )
+                )
+                session.flush()
+                metrics = journal_repository.resolved_metrics()
+
+                workflow_outcome = session.execute(
+                    sa.select(
+                        models.kairos_analysis_resolutions.c.outcome
+                    ).where(
+                        models.kairos_analysis_resolutions.c.analysis_id
+                        == journal_row["analysis_id"]
+                    )
+                ).scalar_one()
+                valid_resolution_count = session.execute(
+                    sa.select(sa.func.count())
+                    .select_from(models.kairos_analysis_resolutions)
+                    .where(
+                        models.kairos_analysis_resolutions.c.outcome.in_(
+                            ("SUCCESS", "FAILURE")
+                        )
+                    )
+                ).scalar_one()
+                all_resolution_count = session.execute(
+                    sa.select(sa.func.count()).select_from(
+                        models.kairos_analysis_resolutions
+                    )
+                ).scalar_one()
+        finally:
+            transaction.rollback()
 
     resolved_metric_count = sum(
         metric.resolved_sample_size for metric in metrics.values()
     )
     assert workflow_outcome == "SUCCESS"
     assert resolved_metric_count == valid_resolution_count
-    assert all_resolution_count > valid_resolution_count
-    assert resolved_metric_count < 30
+    assert valid_resolution_count - valid_before == 1
+    assert all_resolution_count - all_before == 2

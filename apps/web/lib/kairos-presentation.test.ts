@@ -35,6 +35,7 @@ function suggestion(
     suggestion_version: "kairos_daily_suggestions_v1",
     provider_match_id: 999,
     kickoff_at: "2026-07-27T18:00:00Z",
+    competition_name: "Competition Test",
     home_team_name: "Home Test",
     away_team_name: "Away Test",
     recommendation: "NO_BET",
@@ -107,12 +108,18 @@ test("identifies stale and insufficient data as separate release-critical states
 });
 
 test("presents absence of matches without inventing a suggestion", () => {
-  const empty = getDailySuggestionsEmptyState({ suggestions: [] });
+  const empty = getDailySuggestionsEmptyState({
+    local_date: "2026-07-27",
+    suggestions: []
+  });
 
   assert.equal(empty?.title, "Aucune suggestion disponible");
-  assert.match(empty?.description ?? "", /Aucun match futur synchronisé/);
+  assert.match(empty?.description ?? "", /Aucun match synchronisé/);
   assert.equal(
-    getDailySuggestionsEmptyState({ suggestions: [suggestion([])] }),
+    getDailySuggestionsEmptyState({
+      local_date: "2026-07-27",
+      suggestions: [suggestion([])]
+    }),
     null
   );
 });
@@ -124,6 +131,18 @@ test("preserves the exact daily as_of in the detailed analysis link", () => {
     pathname: "/kairos-analysis/999",
     query: { as_of: asOf }
   });
+});
+
+test("preserves the consulted business date in the detailed analysis link", () => {
+  const asOf = "2026-07-30T18:00:00+00:00";
+
+  assert.deepEqual(
+    buildKairosAnalysisHref(suggestion([]), asOf, "2026-07-31"),
+    {
+      pathname: "/kairos-analysis/999",
+      query: { as_of: asOf, date: "2026-07-31" }
+    }
+  );
 });
 
 test("uses distinct guardrail and analytical suggestion labels", () => {

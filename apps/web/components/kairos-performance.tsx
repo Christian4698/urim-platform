@@ -7,6 +7,7 @@ import {
   type KairosPerformance,
   type KairosPerformanceSegment
 } from "../lib/api-client";
+import { formatBusinessDateTime } from "../lib/business-time";
 import {
   DataPanel,
   EmptyState,
@@ -133,7 +134,7 @@ export function KairosPerformanceDashboard() {
         title="Performance par marché"
       />
       <SegmentPanel
-        description="Segmentation descriptive par identifiant de compétition."
+        description="Segmentation descriptive par nom de compétition lorsqu’il est disponible."
         segments={data.performance_by_competition}
         title="Performance par compétition"
       />
@@ -250,11 +251,5 @@ function formatRate(value: number | null): string {
 
 function formatDateTime(value: string | null): string {
   if (value === null) return "Aucune";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "Indisponible";
-  return new Intl.DateTimeFormat("fr-CD", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Africa/Kinshasa"
-  }).format(parsed);
+  return formatBusinessDateTime(value) ?? "Indisponible";
 }

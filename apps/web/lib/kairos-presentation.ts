@@ -3,6 +3,7 @@ import type {
   KairosSuggestion,
   KairosSuggestionReason
 } from "./api-client";
+import { formatBusinessDate } from "./business-time.ts";
 
 export const KAIROS_GUARDRAIL_LABEL = "Garde-fou Kairos";
 export const KAIROS_ANALYTICAL_SUGGESTION_LABEL = "Suggestion analytique";
@@ -56,23 +57,29 @@ export function presentKairosSuggestion(
 
 export function buildKairosAnalysisHref(
   suggestion: Pick<KairosSuggestion, "provider_match_id">,
-  asOf: string
+  asOf: string,
+  localDate?: string
 ) {
+  const query: Record<string, string> = { as_of: asOf };
+  if (localDate !== undefined) {
+    query.date = localDate;
+  }
   return {
     pathname: `/kairos-analysis/${suggestion.provider_match_id}`,
-    query: { as_of: asOf }
+    query
   };
 }
 
 export function getDailySuggestionsEmptyState(
-  data: Pick<KairosDailySuggestions, "suggestions">
+  data: Pick<KairosDailySuggestions, "local_date" | "suggestions">
 ) {
   if (data.suggestions.length > 0) {
     return null;
   }
   return {
     title: "Aucune suggestion disponible",
-    description:
-      "Aucun match futur synchronisé aujourd’hui ne possède actuellement un contexte exploitable. Aucune valeur par défaut n’est affichée."
+    description: `Aucun match synchronisé pour le ${
+      formatBusinessDate(data.local_date) ?? data.local_date
+    } ne possède actuellement un contexte exploitable. Aucune valeur par défaut n’est affichée.`
   } as const;
 }

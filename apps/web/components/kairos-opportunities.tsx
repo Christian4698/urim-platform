@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ApiClientError,
   createApiClient,
@@ -10,8 +10,15 @@ import {
   type KairosOpportunityCandidate,
   type KairosRejectionReason
 } from "../lib/api-client";
+import {
+  type BusinessDateSelection,
+  formatBusinessDate,
+  formatBusinessDateTime,
+  resolveBusinessDateSelection
+} from "../lib/business-time";
 import { EmptyState, StatusBadge } from "./dashboard-ui";
 import { Icon } from "./icon";
+import { KairosDateNavigation } from "./kairos-date-navigation";
 
 type ViewState =
   | { kind: "loading" }
@@ -50,11 +57,36 @@ const missingDataLabels: Record<string, string> = {
   match_statistics: "statistiques de match"
 };
 
-export function KairosOpportunities() {
+export function KairosOpportunities({ initialDate }: { initialDate?: string }) {
   const [attempt, setAttempt] = useState(0);
+  const [businessToday, setBusinessToday] = useState<string | null>(null);
+  const [selection, setSelection] = useState<BusinessDateSelection>(
+    initialDate === undefined
+      ? { kind: "today" }
+      : { kind: "date", date: initialDate }
+  );
   const [state, setState] = useState<ViewState>({ kind: "loading" });
+  const selectedDate =
+    businessToday === null
+      ? selection.kind === "date"
+        ? selection.date
+        : null
+      : resolveBusinessDateSelection(selection, businessToday);
+  const handleBusinessTodayChange = useCallback((date: string) => {
+    setBusinessToday(date);
+  }, []);
+  const handleSelectionChange = useCallback(
+    (nextSelection: BusinessDateSelection) => {
+      setState({ kind: "loading" });
+      setSelection(nextSelection);
+    },
+    []
+  );
 
   useEffect(() => {
+    if (selectedDate === null) {
+      return;
+    }
     let cancelled = false;
     const load = async () => {
       if (!navigator.onLine) {
@@ -63,9 +95,13 @@ export function KairosOpportunities() {
       }
       setState({ kind: "loading" });
       try {
-        const data = await createApiClient({
+        const client = createApiClient({
           timeoutMs: 10_000
-        }).getDailyOpportunities();
+        });
+        const data =
+          selection.kind === "today"
+            ? await client.getDailyOpportunities()
+            : await client.getOpportunitiesForDate(selectedDate);
         if (!cancelled) {
           setState({ kind: "ready", data });
         }
@@ -91,39 +127,57 @@ export function KairosOpportunities() {
       window.removeEventListener("offline", handleOffline);
       window.removeEventListener("online", handleOnline);
     };
-  }, [attempt]);
+  }, [attempt, selectedDate, selection.kind]);
+
+  const navigation = (
+    <KairosDateNavigation
+      businessToday={businessToday}
+      consultedDate={
+        state.kind === "ready" ? state.data.local_date : selectedDate
+      }
+      onBusinessTodayChange={handleBusinessTodayChange}
+      onSelectionChange={handleSelectionChange}
+      selection={selection}
+    />
+  );
 
   if (state.kind === "loading") {
     return (
-      <section aria-busy="true" aria-label="Chargement des opportunités Kairos">
-        <div className="kairos-card-grid">
-          {Array.from({ length: 3 }, (_, index) => (
-            <span className="skeleton-card kairos-card-skeleton" key={index} />
-          ))}
-        </div>
-      </section>
+      <div className="kairos-dated-view">
+        {navigation}
+        <section aria-busy="true" aria-label="Chargement des opportunités Kairos">
+          <div className="kairos-card-grid">
+            {Array.from({ length: 3 }, (_, index) => (
+              <span className="skeleton-card kairos-card-skeleton" key={index} />
+            ))}
+          </div>
+        </section>
+      </div>
     );
   }
 
   if (state.kind === "offline" || state.kind === "error") {
     return (
-      <EmptyState
-        description={
-          state.kind === "offline"
-            ? "Aucune analyse ancienne n’est présentée comme actuelle."
-            : state.message
-        }
-        title={state.kind === "offline" ? "Mode hors ligne" : "Lecture impossible"}
-      >
-        <button
-          className="refresh-button"
-          onClick={() => setAttempt((current) => current + 1)}
-          type="button"
+      <div className="kairos-dated-view">
+        {navigation}
+        <EmptyState
+          description={
+            state.kind === "offline"
+              ? "Aucune analyse ancienne n’est présentée comme actuelle."
+              : state.message
+          }
+          title={state.kind === "offline" ? "Mode hors ligne" : "Lecture impossible"}
         >
-          <Icon height={17} name="refresh" width={17} />
-          Réessayer
-        </button>
-      </EmptyState>
+          <button
+            className="refresh-button"
+            onClick={() => setAttempt((current) => current + 1)}
+            type="button"
+          >
+            <Icon height={17} name="refresh" width={17} />
+            Réessayer
+          </button>
+        </EmptyState>
+      </div>
     );
   }
 
@@ -154,13 +208,17 @@ export function KairosOpportunities() {
   ];
 
   return (
-    <div className="opportunity-center">
+    <div className="kairos-dated-view">
+      {navigation}
+      <div className="opportunity-center">
       <section
         className={`opportunity-message is-${data.message_code}`}
         aria-live="polite"
       >
         <div>
-          <span>Kairos aujourd’hui</span>
+          <span>
+            Kairos · {formatBusinessDate(data.local_date) ?? data.local_date}
+          </span>
           <strong>{data.message}</strong>
         </div>
         <Link className="action-link" href="/kairos/performance">
@@ -276,6 +334,7 @@ export function KairosOpportunities() {
           ))}
         </div>
       </div>
+      </div>
     </div>
   );
 }
@@ -285,12 +344,17 @@ function OpportunityCard({ item }: { item: KairosMatchOpportunity }) {
   return (
     <article className={`kairos-card ${primary === null ? "is-no-bet" : ""}`}>
       <div className="kairos-card-topline">
-        <time dateTime={item.kickoff_at}>{formatDateTime(item.kickoff_at)}</time>
+        <time dateTime={item.kickoff_at}>
+          {formatBusinessDateTime(item.kickoff_at) ?? "Horaire indisponible"}
+        </time>
         <StatusBadge tone={primary === null ? "warning" : "cyan"}>
           {item.safety_decision}
         </StatusBadge>
       </div>
       <div className="kairos-fixture">
+        {item.competition_name !== null && (
+          <span className="kairos-competition">{item.competition_name}</span>
+        )}
         <strong>{item.home_team_name}</strong>
         <span>contre</span>
         <strong>{item.away_team_name}</strong>
@@ -373,16 +437,4 @@ function formatProbability(value: number): string {
     style: "percent",
     maximumFractionDigits: 1
   }).format(value);
-}
-
-function formatDateTime(value: string): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "Horaire indisponible";
-  }
-  return new Intl.DateTimeFormat("fr-CD", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Africa/Kinshasa"
-  }).format(parsed);
 }

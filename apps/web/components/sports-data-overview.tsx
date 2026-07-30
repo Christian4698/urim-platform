@@ -7,6 +7,7 @@ import {
   type SportsDataSnapshot,
   type SportsMatch
 } from "../lib/api-client";
+import { formatBusinessDateTime } from "../lib/business-time";
 import {
   DataPanel,
   EmptyState,
@@ -322,13 +323,5 @@ function formatDateTime(value: string | null): string {
   if (!value) {
     return "Non disponible";
   }
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "Non disponible";
-  }
-  return new Intl.DateTimeFormat("fr-CD", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Africa/Kinshasa"
-  }).format(parsed);
+  return formatBusinessDateTime(value) ?? "Non disponible";
 }

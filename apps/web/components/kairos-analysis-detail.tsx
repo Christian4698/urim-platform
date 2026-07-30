@@ -12,6 +12,7 @@ import {
   KAIROS_GUARDRAIL_LABEL,
   presentKairosSuggestion
 } from "../lib/kairos-presentation";
+import { formatBusinessDateTime } from "../lib/business-time";
 import {
   ActionLink,
   DataPanel,
@@ -99,7 +100,15 @@ export function KairosAnalysisDetail({
     <div className="kairos-detail-content">
       <section className="kairos-detail-hero">
         <div>
-          <span>{formatDateTime(data.kickoff_at)}</span>
+          <span>
+            {formatBusinessDateTime(data.kickoff_at, "long") ??
+              "Horaire indisponible"}
+          </span>
+          {suggestion.competition_name !== null && (
+            <span className="kairos-competition">
+              {suggestion.competition_name}
+            </span>
+          )}
           <h2>
             {suggestion.home_team_name} <small>contre</small>{" "}
             {suggestion.away_team_name}
@@ -380,16 +389,6 @@ function FactorPanel({
       )}
     </DataPanel>
   );
-}
-
-function formatDateTime(value: string): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "Horaire indisponible";
-  return new Intl.DateTimeFormat("fr-CD", {
-    dateStyle: "long",
-    timeStyle: "short",
-    timeZone: "Africa/Kinshasa"
-  }).format(parsed);
 }
 
 function halfTimeMarketLabel(market: string): string {

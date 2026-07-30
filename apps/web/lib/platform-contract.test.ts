@@ -71,6 +71,34 @@ test("Kairos B2.4.1 explains empty states and separates estimated from observed 
   );
 });
 
+test("Kairos B2.4.2 navigates one Kinshasa business date at a time", () => {
+  const businessTime = read("apps/web/lib/business-time.ts");
+  const navigation = read(
+    "apps/web/components/kairos-date-navigation.tsx"
+  );
+  const apiClient = read("apps/web/lib/api-client.ts");
+  const datedViews = [
+    read("apps/web/components/kairos-suggestions.tsx"),
+    read("apps/web/components/kairos-opportunities.tsx")
+  ].join("\n");
+
+  assert.match(navigation, /Aujourd’hui/);
+  assert.match(navigation, /Demain/);
+  assert.match(navigation, /Prochains 7 jours/);
+  assert.match(navigation, /Date consultée/);
+  assert.match(navigation, /Heure locale/);
+  assert.match(apiClient, /kairos\/suggestions\?\$\{query\.toString\(\)\}/);
+  assert.match(apiClient, /kairos\/opportunities\?\$\{query\.toString\(\)\}/);
+  assert.match(apiClient, /response\.local_date !== requestedDate/);
+  assert.match(apiClient, /isInstantOnBusinessDate/);
+  assert.match(datedViews, /competition_name/);
+  assert.doesNotMatch(datedViews, /Compétition\s+\$\{|bookmaker|cote|mise/i);
+  assert.equal(
+    (businessTime.match(/Africa\/Kinshasa/g) ?? []).length,
+    1
+  );
+});
+
 test("Kairos B2.2 UI remains read-only and contains no bookmaker or secret integration", () => {
   const source = [
     read("apps/web/components/kairos-suggestions.tsx"),

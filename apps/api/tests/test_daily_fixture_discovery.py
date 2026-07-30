@@ -522,6 +522,64 @@ def test_daily_discovery_ingests_only_kairos_inputs_and_reports_counts() -> None
     assert repository.finished["checkpoint"]["fixtures_retained"] == 1
 
 
+def test_daily_discovery_explains_a_batch_with_only_missing_teams() -> None:
+    missing_teams = _fixture(
+        1234,
+        kickoff_at=datetime(2026, 7, 29, 18, 0, tzinfo=UTC),
+    )
+    missing_teams["teams"] = {
+        "home": {"id": HOME_ID, "name": "TEST_ONLY_HOME"},
+        "away": {},
+    }
+    client = FakeClient(
+        {
+            "fixtures": [
+                _envelope(
+                    "fixtures",
+                    [missing_teams],
+                    "missing-teams-only",
+                )
+            ]
+        }
+    )
+    service = SportsSyncService(
+        FakeSession(),  # type: ignore[arg-type]
+        app_settings=_settings(),
+        client=client,  # type: ignore[arg-type]
+    )
+    repository = FakeRepository()
+    service.repository = repository  # type: ignore[assignment]
+
+    summary = asyncio.run(
+        service._sync_daily_window(
+            sync_type="daily_discovery",
+            starts_on=TARGET_DATE,
+            days=1,
+            started_at=NOW,
+        )
+    )
+
+    assert [endpoint for endpoint, _params in client.requests] == ["fixtures"]
+    assert summary.fixtures_received == 1
+    assert summary.fixtures_retained == 0
+    assert summary.retention_funnel.as_dict() == {
+        "fixtures_received": 1,
+        "retained": 0,
+        "rejected_competition": 0,
+        "rejected_season": 0,
+        "rejected_status": 0,
+        "rejected_kickoff_window": 0,
+        "rejected_missing_teams": 1,
+        "rejected_insufficient_coverage": 0,
+        "rejected_duplicate": 0,
+        "rejected_other": 0,
+    }
+    assert repository.finished is not None
+    assert repository.finished["checkpoint"]["retention_funnel"] == (
+        summary.retention_funnel.as_dict()
+    )
+
+
 def test_daily_discovery_respects_request_budget_before_statistics() -> None:
     responses = _responses()
     responses["fixtures/statistics"] = []
@@ -553,7 +611,7 @@ def test_daily_discovery_respects_request_budget_before_statistics() -> None:
     )
 
 
-def test_daily_refresh_queries_each_utc_date_in_temporal_order() -> None:
+def test_daily_refresh_queries_each_kinshasa_date_in_temporal_order() -> None:
     session = FakeSession()
     client = FakeClient(_refresh_responses())
     service = SportsSyncService(
@@ -579,8 +637,8 @@ def test_daily_refresh_queries_each_utc_date_in_temporal_order() -> None:
     ]
     assert fixture_discovery_params == [
         {
-            "date": (TARGET_DATE + timedelta(days=offset)).isoformat(),
-            "timezone": "UTC",
+                "date": (TARGET_DATE + timedelta(days=offset)).isoformat(),
+                "timezone": "Africa/Kinshasa",
         }
         for offset in range(7)
     ]

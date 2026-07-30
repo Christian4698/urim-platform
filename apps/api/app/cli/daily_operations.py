@@ -4,7 +4,7 @@ import argparse
 import asyncio
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 import json
 import sys
 import time
@@ -15,11 +15,13 @@ from redis import Redis
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.cli import kairos_journal, sports_sync
+from app.core.business_time import utc_now
 from app.core.config import settings
 from app.modules.sports_data.provider import (
     ApiFootballDisabledError,
     ApiFootballRequestError,
 )
+from app.modules.sports_data.discovery import RETENTION_FUNNEL_FIELDS
 from app.modules.sports_data.sync import SportsSyncConfigurationError
 
 
@@ -45,6 +47,10 @@ return 0
 
 class DailyOperationsUnavailable(RuntimeError):
     """Raised when the orchestrator cannot make a safe decision."""
+
+
+class DailyOperationsRetentionFunnelError(DailyOperationsUnavailable):
+    """Raised when retention metrics are missing or contradictory."""
 
 
 class RedisOperationsClient(Protocol):
@@ -81,6 +87,7 @@ class OperationMetrics:
     synchronization_failed: int = 0
     fixtures_received: int = 0
     fixtures_retained: int = 0
+    matches_evaluated: int = 0
     snapshots_created: int = 0
     resolutions_created: int = 0
     opportunities_generated: int = 0
@@ -91,6 +98,11 @@ class OperationMetrics:
     postgresql_error_count: int = 0
     quota_remaining_daily: int | None = None
     quota_remaining_minute: int | None = None
+    retention_funnel: dict[str, int] = field(
+        default_factory=lambda: {
+            field_name: 0 for field_name in RETENTION_FUNNEL_FIELDS
+        }
+    )
     step_duration_ms: dict[str, int] = field(default_factory=dict)
 
 
@@ -216,7 +228,7 @@ class DailyOperationsOrchestrator:
     async def run(self, target_date: date) -> dict[str, Any]:
         correlation_id = str(uuid4())
         lock_token = uuid4().hex
-        started_at = datetime.now(UTC)
+        started_at = utc_now()
         metrics = OperationMetrics()
         step_results: list[dict[str, Any]] = []
         if not self.guard.acquire(lock_token):
@@ -258,6 +270,7 @@ class DailyOperationsOrchestrator:
                         step.runner(target_date),
                         timeout=step.timeout_seconds,
                     )
+                    safe_metrics = _safe_step_metrics(step.name, result)
                 except Exception as exc:
                     duration_ms = max(
                         0,
@@ -293,7 +306,6 @@ class DailyOperationsOrchestrator:
                     round((self.monotonic() - step_started) * 1_000),
                 )
                 metrics.step_duration_ms[step.name] = duration_ms
-                safe_metrics = _safe_step_metrics(step.name, result)
                 _record_success(metrics, step.name, safe_metrics)
                 step_result = {
                     "step": step.name,
@@ -527,11 +539,45 @@ def _safe_step_metrics(
                 "sample_status",
             )
         }
-    return {
+    safe_metrics = {
         key: result.get(key)
         for key in allowed
         if key in result
     }
+    if step in {"daily_discovery", "daily_refresh"}:
+        fixtures_received = _strict_nonnegative_int(
+            result.get("fixtures_received")
+        )
+        fixtures_retained = _strict_nonnegative_int(
+            result.get("fixtures_retained")
+        )
+        retention_funnel = _safe_retention_funnel(
+            result.get("retention_funnel")
+        )
+        if (
+            fixtures_received is None
+            or fixtures_retained is None
+            or fixtures_retained > fixtures_received
+            or retention_funnel is None
+            or retention_funnel["fixtures_received"]
+            != fixtures_received
+            or retention_funnel["retained"] != fixtures_retained
+        ):
+            raise DailyOperationsRetentionFunnelError(
+                "daily_operations_retention_funnel_invalid"
+            )
+        fixtures_ignored = result.get("fixtures_ignored")
+        if fixtures_ignored is not None and (
+            _strict_nonnegative_int(fixtures_ignored)
+            != fixtures_received - fixtures_retained
+        ):
+            raise DailyOperationsRetentionFunnelError(
+                "daily_operations_retention_funnel_invalid"
+            )
+        safe_metrics["fixtures_received"] = fixtures_received
+        safe_metrics["fixtures_retained"] = fixtures_retained
+        safe_metrics["retention_funnel"] = retention_funnel
+    return safe_metrics
 
 
 def _record_success(
@@ -553,7 +599,18 @@ def _record_success(
         metrics.quota_remaining_minute = _safe_optional_int(
             values.get("quota_remaining_minute")
         )
+        retention_funnel = _safe_retention_funnel(
+            values.get("retention_funnel")
+        )
+        if retention_funnel is not None:
+            for field_name in RETENTION_FUNNEL_FIELDS:
+                metrics.retention_funnel[field_name] += retention_funnel[
+                    field_name
+                ]
     elif step == "snapshot":
+        metrics.matches_evaluated += _safe_int(
+            values.get("matches_evaluated")
+        )
         metrics.snapshots_created += _safe_int(
             values.get("snapshots_created")
         )
@@ -582,6 +639,8 @@ def _record_failure(
 
 
 def _public_step_error(step: str, exc: Exception) -> str:
+    if isinstance(exc, DailyOperationsRetentionFunnelError):
+        return "retention_funnel_invalid"
     if isinstance(exc, (TimeoutError, asyncio.TimeoutError)):
         return "step_timeout"
     if isinstance(
@@ -617,7 +676,7 @@ def _summary(
         "correlation_id": correlation_id,
         "target_date": target_date.isoformat(),
         "started_at": started_at.isoformat(),
-        "completed_at": datetime.now(UTC).isoformat(),
+        "completed_at": utc_now().isoformat(),
         "error_code": error_code,
         "steps": step_results,
         "metrics": asdict(metrics),
@@ -672,6 +731,9 @@ def _sanitize_saved_status(value: Mapping[str, Any]) -> dict[str, Any]:
         )
     steps: list[dict[str, Any]] = []
     allowed_steps = frozenset(STEP_TIMEOUTS)
+    step_retention_funnel = {
+        field_name: 0 for field_name in RETENTION_FUNNEL_FIELDS
+    }
     for raw_step in raw_steps:
         if not isinstance(raw_step, Mapping):
             raise DailyOperationsUnavailable(
@@ -697,14 +759,31 @@ def _sanitize_saved_status(value: Mapping[str, Any]) -> dict[str, Any]:
             "step_timeout",
             "provider_unavailable",
             "postgresql_error",
+            "retention_funnel_invalid",
             "daily_operations_internal_error",
         }:
             safe_step["error_code"] = error_code
         raw_step_metrics = raw_step.get("metrics")
         if isinstance(raw_step_metrics, Mapping):
-            safe_step["metrics"] = _safe_step_metrics(
+            safe_step_metrics = _safe_step_metrics(
                 str(name),
                 raw_step_metrics,
+            )
+            safe_step["metrics"] = safe_step_metrics
+            if (
+                step_status == "completed"
+                and name in {"daily_discovery", "daily_refresh"}
+            ):
+                for field_name in RETENTION_FUNNEL_FIELDS:
+                    step_retention_funnel[field_name] += (
+                        safe_step_metrics["retention_funnel"][field_name]
+                    )
+        elif (
+            step_status == "completed"
+            and name in {"daily_discovery", "daily_refresh"}
+        ):
+            raise DailyOperationsUnavailable(
+                "daily_operations_status_invalid"
             )
         steps.append(safe_step)
 
@@ -714,6 +793,7 @@ def _sanitize_saved_status(value: Mapping[str, Any]) -> dict[str, Any]:
         "synchronization_failed",
         "fixtures_received",
         "fixtures_retained",
+        "matches_evaluated",
         "snapshots_created",
         "resolutions_created",
         "opportunities_generated",
@@ -730,6 +810,20 @@ def _sanitize_saved_status(value: Mapping[str, Any]) -> dict[str, Any]:
     metrics.quota_remaining_minute = _safe_optional_int(
         raw_metrics.get("quota_remaining_minute")
     )
+    raw_retention_funnel = raw_metrics.get("retention_funnel")
+    safe_retention_funnel = _safe_retention_funnel(raw_retention_funnel)
+    if (
+        safe_retention_funnel is None
+        or safe_retention_funnel["fixtures_received"]
+        != metrics.fixtures_received
+        or safe_retention_funnel["retained"]
+        != metrics.fixtures_retained
+        or safe_retention_funnel != step_retention_funnel
+    ):
+        raise DailyOperationsUnavailable(
+            "daily_operations_status_invalid"
+        )
+    metrics.retention_funnel = safe_retention_funnel
     raw_durations = raw_metrics.get("step_duration_ms")
     if isinstance(raw_durations, Mapping):
         metrics.step_duration_ms = {
@@ -768,10 +862,42 @@ def _safe_int(value: object) -> int:
     return value
 
 
+def _strict_nonnegative_int(value: object) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        return None
+    return value
+
+
 def _safe_optional_int(value: object) -> int | None:
     if value is None:
         return None
     return _safe_int(value)
+
+
+def _safe_retention_funnel(value: object) -> dict[str, int] | None:
+    if not isinstance(value, Mapping):
+        return None
+    if set(value) != set(RETENTION_FUNNEL_FIELDS):
+        return None
+    if any(
+        isinstance(value.get(field_name), bool)
+        or not isinstance(value.get(field_name), int)
+        or int(value.get(field_name, -1)) < 0
+        for field_name in RETENTION_FUNNEL_FIELDS
+    ):
+        return None
+    safe = {
+        field_name: int(value[field_name])
+        for field_name in RETENTION_FUNNEL_FIELDS
+    }
+    rejected = sum(
+        count
+        for field_name, count in safe.items()
+        if field_name.startswith("rejected_")
+    )
+    if safe["fixtures_received"] != safe["retained"] + rejected:
+        return None
+    return safe
 
 
 def _parse_date(value: str) -> date:

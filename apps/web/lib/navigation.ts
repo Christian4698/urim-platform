@@ -3,7 +3,7 @@ export type NavigationIcon = "home" | "dashboard" | "system" | "modules" | "sett
 export const navigationItems = [
   { href: "/", label: "Accueil", icon: "home" },
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
-  { href: "/suggestions", label: "Suggestions du jour", icon: "dashboard" },
+  { href: "/suggestions", label: "Suggestions Kairos", icon: "dashboard" },
   { href: "/opportunities", label: "Opportunity Center", icon: "dashboard" },
   { href: "/kairos/performance", label: "Performance Kairos", icon: "dashboard" },
   { href: "/donnees-sportives", label: "Données sportives", icon: "system" },
