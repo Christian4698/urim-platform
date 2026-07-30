@@ -68,6 +68,10 @@ class FailingClient(FakeClient):
         raise ApiFootballRequestError("PUBLIC_SAFE", retryable=True)
 
 
+class ZeroRequestClient(FakeClient):
+    request_count = 0
+
+
 class FakeRepository:
     def __init__(self) -> None:
         self.run_id = uuid4()
@@ -149,3 +153,31 @@ def test_statistics_style_run_stops_after_error_for_safe_resume() -> None:
     assert client.endpoints == ["fixtures/events"]
     assert repository.errors == ["provider_unavailable"]
     assert summary.status == "FAILED"
+
+
+def test_empty_statistics_run_is_successful_with_explicit_no_request_reason() -> None:
+    session = FakeSession()
+    service = SportsSyncService(
+        session,
+        client=ZeroRequestClient(),
+    )  # type: ignore[arg-type]
+    repository = FakeRepository()
+    service.repository = repository  # type: ignore[assignment]
+
+    summary = asyncio.run(
+        service._run(
+            "match_statistics",
+            {"match_count": 0},
+            [],
+            empty_reason="no_completed_matches_without_statistics",
+        )
+    )
+
+    assert summary.status == "SUCCEEDED"
+    assert summary.request_count == 0
+    assert summary.public_error_code is None
+    assert repository.errors == []
+    assert repository.finished is not None
+    assert repository.finished["checkpoint"] == {
+        "no_request_reason": "no_completed_matches_without_statistics"
+    }

@@ -19,6 +19,7 @@ client = TestClient(app)
 KAIROS_ANALYSIS_PATH = "/api/v1/kairos/matches/999/analysis"
 KAIROS_METHODOLOGY_PATH = "/api/v1/kairos/methodology"
 KAIROS_SUGGESTIONS_PATH = "/api/v1/kairos/suggestions/today"
+KAIROS_OPPORTUNITIES_PATH = "/api/v1/kairos/opportunities/today"
 SECRET_MARKER = "FORTRESS_PRIVATE_PASSWORD"  # pragma: allowlist secret
 
 
@@ -54,6 +55,11 @@ def allow_rate_limited_requests(
     monkeypatch.setattr(
         kairos_routes,
         "_SUGGESTIONS_RATE_LIMITER",
+        _AllowAllLimiter(),
+    )
+    monkeypatch.setattr(
+        kairos_routes,
+        "_OPPORTUNITIES_RATE_LIMITER",
         _AllowAllLimiter(),
     )
 
@@ -189,6 +195,7 @@ def test_unknown_or_duplicate_query_parameters_are_rejected_before_database(
     (
         KAIROS_METHODOLOGY_PATH,
         KAIROS_SUGGESTIONS_PATH,
+        KAIROS_OPPORTUNITIES_PATH,
         KAIROS_ANALYSIS_PATH,
     ),
 )

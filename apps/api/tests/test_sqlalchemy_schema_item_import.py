@@ -3,7 +3,10 @@ from pathlib import Path
 import subprocess
 import sys
 
+import sqlalchemy
+
 API_ROOT = Path(__file__).resolve().parents[1]
+SQLALCHEMY_SITE_ROOT = Path(sqlalchemy.__file__).resolve().parents[1]
 MIGRATION_FILE = (
     API_ROOT
     / "alembic"
@@ -18,6 +21,8 @@ from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 import sys
 from typing import get_args, get_origin, get_type_hints
+
+sys.path[:0] = [sys.argv[2], sys.argv[3]]
 
 from sqlalchemy.schema import SchemaItem
 from app.db import models
@@ -50,6 +55,8 @@ assert get_args(migration_return) == (SchemaItem,)
             "-c",
             script,
             str(MIGRATION_FILE),
+            str(API_ROOT),
+            str(SQLALCHEMY_SITE_ROOT),
         ],
         cwd=API_ROOT,
         env=environment,

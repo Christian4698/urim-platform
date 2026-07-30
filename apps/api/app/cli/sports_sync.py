@@ -8,12 +8,18 @@ import json
 import sys
 from typing import Sequence
 
+from app.core.config import settings
 from app.db.session import get_session_factory
 from app.modules.sports_data.provider import (
     ApiFootballDisabledError,
     ApiFootballRequestError,
 )
-from app.modules.sports_data.sync import SportsSyncService, SyncSummary
+from app.modules.sports_data.sync import (
+    DailyDiscoverySummary,
+    SportsSyncConfigurationError,
+    SportsSyncService,
+    SyncSummary,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -29,6 +35,12 @@ def build_parser() -> argparse.ArgumentParser:
     commands.add_parser("seasons")
     commands.add_parser("teams")
     commands.add_parser("standings")
+
+    daily_discovery = commands.add_parser("daily-discovery")
+    daily_discovery.add_argument("--date", required=True, type=_parse_date)
+
+    daily_refresh = commands.add_parser("daily-refresh")
+    daily_refresh.add_argument("--days", type=int, default=7)
 
     match_date = commands.add_parser("matches-date")
     match_date.add_argument("--date", required=True, type=_parse_date)
@@ -61,7 +73,13 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-async def run_command(args: argparse.Namespace) -> SyncSummary:
+async def run_command(
+    args: argparse.Namespace,
+) -> SyncSummary | DailyDiscoverySummary:
+    if not settings.database_url:
+        raise SportsSyncConfigurationError(
+            "sports_database_url_missing"
+        )
     session_factory = get_session_factory()
     with session_factory() as session:
         service = SportsSyncService(session)
@@ -73,6 +91,10 @@ async def run_command(args: argparse.Namespace) -> SyncSummary:
             return await service.sync_teams()
         if args.command == "standings":
             return await service.sync_standings()
+        if args.command == "daily-discovery":
+            return await service.daily_discovery(args.date)
+        if args.command == "daily-refresh":
+            return await service.daily_refresh(days=args.days)
         if args.command == "matches-date":
             return await service.sync_matches_for_date(args.date)
         if args.command == "upcoming":
@@ -101,8 +123,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     except ApiFootballRequestError as exc:
         _write_public_error(exc.public_code)
         return 3
+    except SportsSyncConfigurationError as exc:
+        _write_public_error(exc.public_code)
+        return 4
     except (RuntimeError, ValueError):
-        _write_public_error("synchronization_configuration_invalid")
+        _write_public_error("synchronization_input_invalid")
         return 4
     except Exception:
         _write_public_error("synchronization_internal_error")

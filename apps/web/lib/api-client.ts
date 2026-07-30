@@ -229,6 +229,100 @@ export type KairosDailySuggestions = {
   not_for_betting: true;
 };
 
+export type KairosHalfTimeMarket =
+  | "FIRST_HALF_MORE_GOALS"
+  | "SECOND_HALF_MORE_GOALS"
+  | "EQUAL_HALF_GOALS"
+  | "FIRST_HALF_OVER_0_5"
+  | "SECOND_HALF_OVER_0_5"
+  | "SECOND_HALF_OVER_1_5";
+
+export type KairosHalfTimeMarketAnalysis = {
+  model_version: "kairos_half_time_b2_4_v1";
+  market: KairosHalfTimeMarket;
+  estimated_probability: number | null;
+  data_quality_score: number;
+  technical_confidence_score: number;
+  sample_size: number;
+  h2h_sample_size: number;
+  risk: "high" | "elevated" | "guarded";
+  reasons: string[];
+  guardrails: string[];
+  eligible_for_opportunity: boolean;
+  insufficient_data: boolean;
+  analysis_hash: string;
+};
+
+export type KairosOpportunityCandidate = {
+  market:
+    | KairosHalfTimeMarket
+    | "HOME_OR_DRAW"
+    | "AWAY_OR_DRAW"
+    | "HOME_OR_AWAY";
+  estimated_probability: number;
+  data_quality_score: number;
+  technical_confidence_score: number;
+  sample_size: number;
+  risk: "high" | "elevated" | "guarded";
+  reasons: string[];
+  guardrails: string[];
+  eligible_for_opportunity: true;
+  analysis_hash: string;
+};
+
+export type KairosMatchOpportunity = {
+  provider_match_id: number;
+  kickoff_at: string;
+  home_team_name: string;
+  away_team_name: string;
+  section:
+    | "ABOVE_70"
+    | "HALF_TIME"
+    | "GOAL_MARKETS"
+    | "DOUBLE_CHANCE"
+    | "WATCH"
+    | "NO_BET";
+  safety_decision: "ANALYSIS_ALLOWED" | "NO_BET" | "INSUFFICIENT_DATA";
+  primary_analysis: KairosOpportunityCandidate | null;
+  alternative_analyses: KairosOpportunityCandidate[];
+  evaluated_markets: KairosHalfTimeMarketAnalysis[];
+  read_only: true;
+  persisted_by_request: false;
+  not_for_betting: true;
+};
+
+export type KairosDailyOpportunities = {
+  local_date: string;
+  timezone: "Africa/Kinshasa";
+  as_of: string;
+  opportunity_count: number;
+  evaluated_match_count: number;
+  opportunities: KairosMatchOpportunity[];
+  warnings: string[];
+  thresholds: {
+    estimated_probability: number;
+    data_quality_score: number;
+    technical_confidence_score: number;
+  };
+  calibration_status: "not_calibrated";
+  resolved_journal_sample_size: number;
+  observed_hit_rate: number | null;
+  resolved_metrics_by_market: Record<
+    string,
+    {
+      resolved_sample_size: number;
+      success_count: number;
+      observed_hit_rate: number;
+    }
+  >;
+  read_only: true;
+  db_writes: false;
+  provider_calls: false;
+  automatic_betting_enabled: false;
+  live_automatic_enabled: false;
+  not_for_betting: true;
+};
+
 export type KairosAnalysis = {
   provider_match_id: number;
   kickoff_at: string;
@@ -262,6 +356,7 @@ export type KairosAnalysis = {
   /** Alias de compatibilité de analytical_suggestion. */
   suggestion: KairosSuggestion;
   analysis_status: "ready" | "insufficient_data";
+  half_time_analysis?: KairosHalfTimeMarketAnalysis[];
   read_only: true;
   persisted: false;
   official_prediction_published: false;
@@ -276,6 +371,7 @@ export type UrimApiClient = {
   getSystemAvailability: () => Promise<SystemAvailability>;
   getSportsData: () => Promise<SportsDataSnapshot>;
   getDailySuggestions: () => Promise<KairosDailySuggestions>;
+  getDailyOpportunities: () => Promise<KairosDailyOpportunities>;
   getKairosAnalysis: (
     providerMatchId: number,
     asOf?: string
@@ -576,6 +672,218 @@ function isKairosDailySuggestions(
   );
 }
 
+const halfTimeMarkets = [
+  "FIRST_HALF_MORE_GOALS",
+  "SECOND_HALF_MORE_GOALS",
+  "EQUAL_HALF_GOALS",
+  "FIRST_HALF_OVER_0_5",
+  "SECOND_HALF_OVER_0_5",
+  "SECOND_HALF_OVER_1_5"
+] as const;
+
+const opportunityMarkets = [
+  ...halfTimeMarkets,
+  "HOME_OR_DRAW",
+  "AWAY_OR_DRAW",
+  "HOME_OR_AWAY"
+] as const;
+
+function opportunityMarketGroup(
+  market: KairosOpportunityCandidate["market"]
+): "half_time" | "double_chance" {
+  return halfTimeMarkets.includes(market as KairosHalfTimeMarket)
+    ? "half_time"
+    : "double_chance";
+}
+
+function isStringArray(value: unknown, maximum: number): value is string[] {
+  return (
+    Array.isArray(value) &&
+    value.length <= maximum &&
+    value.every((item) => typeof item === "string")
+  );
+}
+
+function isKairosHalfTimeMarketAnalysis(
+  value: unknown
+): value is KairosHalfTimeMarketAnalysis {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const probability =
+    value.estimated_probability === null ||
+    isFiniteScore(value.estimated_probability, 1);
+  const eligible =
+    value.eligible_for_opportunity === true &&
+    typeof value.estimated_probability === "number" &&
+    value.estimated_probability >= 0.7 &&
+    Number(value.data_quality_score) >= 65 &&
+    Number(value.technical_confidence_score) >= 50 &&
+    Array.isArray(value.guardrails) &&
+    value.guardrails.length === 0 &&
+    value.insufficient_data === false;
+  return (
+    value.model_version === "kairos_half_time_b2_4_v1" &&
+    halfTimeMarkets.includes(value.market as KairosHalfTimeMarket) &&
+    probability &&
+    isFiniteScore(value.data_quality_score, 85) &&
+    isFiniteScore(value.technical_confidence_score, 65) &&
+    Number.isSafeInteger(value.sample_size) &&
+    Number(value.sample_size) >= 0 &&
+    Number(value.sample_size) <= 10 &&
+    Number.isSafeInteger(value.h2h_sample_size) &&
+    Number(value.h2h_sample_size) >= 0 &&
+    Number(value.h2h_sample_size) <= 5 &&
+    ["high", "elevated", "guarded"].includes(String(value.risk)) &&
+    isStringArray(value.reasons, 6) &&
+    value.reasons.length > 0 &&
+    isStringArray(value.guardrails, 6) &&
+    typeof value.eligible_for_opportunity === "boolean" &&
+    typeof value.insufficient_data === "boolean" &&
+    (!value.insufficient_data || value.estimated_probability === null) &&
+    (!value.eligible_for_opportunity || eligible) &&
+    typeof value.analysis_hash === "string" &&
+    /^[0-9a-f]{64}$/i.test(value.analysis_hash)
+  );
+}
+
+function isKairosOpportunityCandidate(
+  value: unknown
+): value is KairosOpportunityCandidate {
+  return (
+    isRecord(value) &&
+    opportunityMarkets.includes(
+      value.market as KairosOpportunityCandidate["market"]
+    ) &&
+    isFiniteScore(value.estimated_probability, 1) &&
+    Number(value.estimated_probability) >= 0.7 &&
+    isFiniteScore(value.data_quality_score, 100) &&
+    Number(value.data_quality_score) >= 65 &&
+    isFiniteScore(value.technical_confidence_score, 65) &&
+    Number(value.technical_confidence_score) >= 50 &&
+    Number.isSafeInteger(value.sample_size) &&
+    Number(value.sample_size) >= 0 &&
+    Number(value.sample_size) <= 50 &&
+    ["high", "elevated", "guarded"].includes(String(value.risk)) &&
+    isStringArray(value.reasons, 6) &&
+    value.reasons.length > 0 &&
+    isStringArray(value.guardrails, 6) &&
+    value.guardrails.length === 0 &&
+    value.eligible_for_opportunity === true &&
+    typeof value.analysis_hash === "string" &&
+    /^[0-9a-f]{64}$/i.test(value.analysis_hash)
+  );
+}
+
+function isKairosMatchOpportunity(
+  value: unknown
+): value is KairosMatchOpportunity {
+  if (
+    !isRecord(value) ||
+    !Number.isSafeInteger(value.provider_match_id) ||
+    Number(value.provider_match_id) <= 0 ||
+    typeof value.kickoff_at !== "string" ||
+    typeof value.home_team_name !== "string" ||
+    typeof value.away_team_name !== "string" ||
+    ![
+      "ABOVE_70",
+      "HALF_TIME",
+      "GOAL_MARKETS",
+      "DOUBLE_CHANCE",
+      "WATCH",
+      "NO_BET"
+    ].includes(String(value.section)) ||
+    !["ANALYSIS_ALLOWED", "NO_BET", "INSUFFICIENT_DATA"].includes(
+      String(value.safety_decision)
+    ) ||
+    !Array.isArray(value.alternative_analyses) ||
+    value.alternative_analyses.length > 2 ||
+    !value.alternative_analyses.every(isKairosOpportunityCandidate) ||
+    !Array.isArray(value.evaluated_markets) ||
+    value.evaluated_markets.length > 6 ||
+    !value.evaluated_markets.every(isKairosHalfTimeMarketAnalysis)
+  ) {
+    return false;
+  }
+  const primary =
+    value.primary_analysis === null
+      ? null
+      : isKairosOpportunityCandidate(value.primary_analysis)
+        ? value.primary_analysis
+        : undefined;
+  const allowed = value.safety_decision === "ANALYSIS_ALLOWED";
+  const selections =
+    primary === null || primary === undefined
+      ? value.alternative_analyses
+      : [primary, ...value.alternative_analyses];
+  const selectionMarkets = selections.map((selection) => selection.market);
+  const selectionGroups = selectionMarkets.map(opportunityMarketGroup);
+  return (
+    primary !== undefined &&
+    allowed === (primary !== null) &&
+    (allowed || value.alternative_analyses.length === 0) &&
+    selectionMarkets.length === new Set(selectionMarkets).size &&
+    selectionGroups.length === new Set(selectionGroups).size &&
+    value.read_only === true &&
+    value.persisted_by_request === false &&
+    value.not_for_betting === true
+  );
+}
+
+function isKairosDailyOpportunities(
+  value: unknown
+): value is KairosDailyOpportunities {
+  if (
+    !isRecord(value) ||
+    typeof value.local_date !== "string" ||
+    value.timezone !== "Africa/Kinshasa" ||
+    typeof value.as_of !== "string" ||
+    !Array.isArray(value.opportunities) ||
+    value.opportunities.length > 12 ||
+    !value.opportunities.every(isKairosMatchOpportunity) ||
+    value.opportunity_count !== value.opportunities.length ||
+    !Number.isSafeInteger(value.evaluated_match_count) ||
+    Number(value.evaluated_match_count) < 0 ||
+    Number(value.evaluated_match_count) > 16 ||
+    !isStringArray(value.warnings, 6) ||
+    !isRecord(value.thresholds) ||
+    value.thresholds.estimated_probability !== 0.7 ||
+    value.thresholds.data_quality_score !== 65 ||
+    value.thresholds.technical_confidence_score !== 50 ||
+    value.calibration_status !== "not_calibrated" ||
+    !Number.isSafeInteger(value.resolved_journal_sample_size) ||
+    Number(value.resolved_journal_sample_size) < 0 ||
+    !isRecord(value.resolved_metrics_by_market)
+  ) {
+    return false;
+  }
+  const observedRate =
+    value.observed_hit_rate === null ||
+    isFiniteScore(value.observed_hit_rate, 1);
+  const metricsValid = Object.values(value.resolved_metrics_by_market).every(
+    (metric) =>
+      isRecord(metric) &&
+      Number.isSafeInteger(metric.resolved_sample_size) &&
+      Number(metric.resolved_sample_size) > 0 &&
+      Number.isSafeInteger(metric.success_count) &&
+      Number(metric.success_count) >= 0 &&
+      Number(metric.success_count) <= Number(metric.resolved_sample_size) &&
+      isFiniteScore(metric.observed_hit_rate, 1)
+  );
+  return (
+    observedRate &&
+    (Number(value.resolved_journal_sample_size) > 0) ===
+      (value.observed_hit_rate !== null) &&
+    metricsValid &&
+    value.read_only === true &&
+    value.db_writes === false &&
+    value.provider_calls === false &&
+    value.automatic_betting_enabled === false &&
+    value.live_automatic_enabled === false &&
+    value.not_for_betting === true
+  );
+}
+
 function isKairosAnalysis(value: unknown): value is KairosAnalysis {
   if (
     !isRecord(value) ||
@@ -622,9 +930,21 @@ function isKairosAnalysis(value: unknown): value is KairosAnalysis {
         Math.abs(marketProbabilities.draw - probabilities.draw) <= 0.000001 &&
         Math.abs(marketProbabilities.away_win - probabilities.away_win) <=
           0.000001;
+  const halfTimeAnalysis = value.half_time_analysis;
+  const validHalfTimeAnalysis =
+    halfTimeAnalysis === undefined ||
+    (Array.isArray(halfTimeAnalysis) &&
+      halfTimeAnalysis.length <= 6 &&
+      halfTimeAnalysis.every(isKairosHalfTimeMarketAnalysis) &&
+      new Set(
+        halfTimeAnalysis.map((market) =>
+          isRecord(market) ? market.market : null
+        )
+      ).size === halfTimeAnalysis.length);
   return (
     validProbabilities &&
     validMarketProbabilities &&
+    validHalfTimeAnalysis &&
     value.analytical_suggestion.decision_hash === value.suggestion.decision_hash &&
     value.analytical_suggestion.recommendation === value.suggestion.recommendation &&
     value.analytical_suggestion.no_bet === value.suggestion.no_bet &&
@@ -802,6 +1122,14 @@ export function createApiClient(options: ApiClientOptions = {}): UrimApiClient {
         baseUrl,
         "api/v1/kairos/suggestions/today",
         isKairosDailySuggestions,
+        fetchImpl,
+        timeoutMs
+      ),
+    getDailyOpportunities: () =>
+      requestJson(
+        baseUrl,
+        "api/v1/kairos/opportunities/today",
+        isKairosDailyOpportunities,
         fetchImpl,
         timeoutMs
       ),

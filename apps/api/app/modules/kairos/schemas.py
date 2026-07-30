@@ -7,6 +7,18 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.modules.kairos.opportunity_config import (
+    HALF_TIME_CONFIDENCE_CAP,
+    HALF_TIME_H2H_LIMIT,
+    HALF_TIME_QUALITY_CAP,
+    HALF_TIME_RECENT_WINDOW,
+    MAX_DAILY_OPPORTUNITIES,
+    OPPORTUNITY_DATA_QUALITY_THRESHOLD,
+    OPPORTUNITY_MARKET_GROUPS,
+    OPPORTUNITY_PROBABILITY_THRESHOLD,
+    OPPORTUNITY_TECHNICAL_CONFIDENCE_THRESHOLD,
+)
+
 
 Sha256Hex = Annotated[
     str,
@@ -253,6 +265,10 @@ class KairosAnalysisResponse(BaseModel):
     odds_snapshot_id: None = None
     immutable_hash: Sha256Hex
     analysis_status: Literal["ready", "insufficient_data"]
+    half_time_analysis: list[KairosHalfTimeMarketAnalysis] = Field(
+        default_factory=list,
+        max_length=6,
+    )
     read_only: Literal[True] = True
     persisted: Literal[False] = False
     official_prediction_published: Literal[False] = False
@@ -409,16 +425,216 @@ class KairosDailySuggestionsResponse(BaseModel):
         return self
 
 
+class KairosHalfTimeMarketAnalysis(BaseModel):
+    model_version: Literal["kairos_half_time_b2_4_v1"] = (
+        "kairos_half_time_b2_4_v1"
+    )
+    market: Literal[
+        "FIRST_HALF_MORE_GOALS",
+        "SECOND_HALF_MORE_GOALS",
+        "EQUAL_HALF_GOALS",
+        "FIRST_HALF_OVER_0_5",
+        "SECOND_HALF_OVER_0_5",
+        "SECOND_HALF_OVER_1_5",
+    ]
+    estimated_probability: float | None = Field(default=None, ge=0, le=1)
+    data_quality_score: float = Field(ge=0, le=HALF_TIME_QUALITY_CAP)
+    technical_confidence_score: float = Field(
+        ge=0,
+        le=HALF_TIME_CONFIDENCE_CAP,
+    )
+    sample_size: int = Field(ge=0, le=HALF_TIME_RECENT_WINDOW * 2)
+    h2h_sample_size: int = Field(ge=0, le=HALF_TIME_H2H_LIMIT)
+    risk: Literal["high", "elevated", "guarded"]
+    reasons: list[str] = Field(min_length=1, max_length=6)
+    guardrails: list[str] = Field(max_length=6)
+    eligible_for_opportunity: bool
+    insufficient_data: bool
+    analysis_hash: Sha256Hex
+
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def validate_half_time_gate(self) -> KairosHalfTimeMarketAnalysis:
+        if self.insufficient_data and self.estimated_probability is not None:
+            raise ValueError("Insufficient data cannot expose a probability.")
+        if self.eligible_for_opportunity and (
+            self.insufficient_data
+            or self.estimated_probability is None
+            or self.estimated_probability
+            < OPPORTUNITY_PROBABILITY_THRESHOLD
+            or self.data_quality_score
+            < OPPORTUNITY_DATA_QUALITY_THRESHOLD
+            or self.technical_confidence_score
+            < OPPORTUNITY_TECHNICAL_CONFIDENCE_THRESHOLD
+            or self.guardrails
+        ):
+            raise ValueError("Opportunity thresholds are not satisfied.")
+        return self
+
+
+class KairosOpportunityCandidate(BaseModel):
+    market: Literal[
+        "FIRST_HALF_MORE_GOALS",
+        "SECOND_HALF_MORE_GOALS",
+        "EQUAL_HALF_GOALS",
+        "FIRST_HALF_OVER_0_5",
+        "SECOND_HALF_OVER_0_5",
+        "SECOND_HALF_OVER_1_5",
+        "HOME_OR_DRAW",
+        "AWAY_OR_DRAW",
+        "HOME_OR_AWAY",
+    ]
+    estimated_probability: float = Field(ge=0, le=1)
+    data_quality_score: float = Field(ge=0, le=100)
+    technical_confidence_score: float = Field(
+        ge=0,
+        le=HALF_TIME_CONFIDENCE_CAP,
+    )
+    sample_size: int = Field(ge=0, le=50)
+    risk: Literal["high", "elevated", "guarded"]
+    reasons: list[str] = Field(min_length=1, max_length=6)
+    guardrails: list[str] = Field(max_length=6)
+    eligible_for_opportunity: Literal[True] = True
+    analysis_hash: Sha256Hex
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class KairosMatchOpportunity(BaseModel):
+    provider_match_id: int = Field(gt=0)
+    kickoff_at: datetime
+    home_team_name: str = Field(min_length=1, max_length=200)
+    away_team_name: str = Field(min_length=1, max_length=200)
+    section: Literal[
+        "ABOVE_70",
+        "HALF_TIME",
+        "GOAL_MARKETS",
+        "DOUBLE_CHANCE",
+        "WATCH",
+        "NO_BET",
+    ]
+    safety_decision: Literal[
+        "ANALYSIS_ALLOWED",
+        "NO_BET",
+        "INSUFFICIENT_DATA",
+    ]
+    primary_analysis: KairosOpportunityCandidate | None
+    alternative_analyses: list[KairosOpportunityCandidate] = Field(
+        max_length=2
+    )
+    evaluated_markets: list[KairosHalfTimeMarketAnalysis] = Field(
+        max_length=6
+    )
+    read_only: Literal[True] = True
+    persisted_by_request: Literal[False] = False
+    not_for_betting: Literal[True] = True
+
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def validate_primary_contract(self) -> KairosMatchOpportunity:
+        if self.safety_decision == "ANALYSIS_ALLOWED":
+            if self.primary_analysis is None:
+                raise ValueError("Allowed analysis requires one primary.")
+        elif self.primary_analysis is not None or self.alternative_analyses:
+            raise ValueError("Blocked analysis cannot expose selections.")
+        primary_market = (
+            self.primary_analysis.market if self.primary_analysis else None
+        )
+        alternative_markets = [
+            candidate.market for candidate in self.alternative_analyses
+        ]
+        if primary_market in alternative_markets:
+            raise ValueError("Primary cannot be duplicated as an alternative.")
+        if len(alternative_markets) != len(set(alternative_markets)):
+            raise ValueError("Alternatives must be distinct.")
+        selection_markets = (
+            [primary_market] if primary_market is not None else []
+        )
+        selection_markets.extend(alternative_markets)
+        selection_groups = [
+            OPPORTUNITY_MARKET_GROUPS[market]
+            for market in selection_markets
+        ]
+        if len(selection_groups) != len(set(selection_groups)):
+            raise ValueError(
+                "Correlated markets cannot be selected together."
+            )
+        return self
+
+
+class KairosResolvedJournalMetric(BaseModel):
+    resolved_sample_size: int = Field(ge=1)
+    success_count: int = Field(ge=0)
+    observed_hit_rate: float = Field(ge=0, le=1)
+
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def validate_resolved_metric(self) -> KairosResolvedJournalMetric:
+        if self.success_count > self.resolved_sample_size:
+            raise ValueError("Success count exceeds resolved sample.")
+        expected = self.success_count / self.resolved_sample_size
+        if abs(self.observed_hit_rate - expected) > 0.0001:
+            raise ValueError("Observed rate is inconsistent with counts.")
+        return self
+
+
+class KairosDailyOpportunitiesResponse(BaseModel):
+    local_date: date
+    timezone: Literal["Africa/Kinshasa"] = "Africa/Kinshasa"
+    as_of: datetime
+    opportunity_count: int = Field(
+        ge=0,
+        le=MAX_DAILY_OPPORTUNITIES,
+    )
+    evaluated_match_count: int = Field(ge=0, le=16)
+    opportunities: list[KairosMatchOpportunity] = Field(
+        max_length=MAX_DAILY_OPPORTUNITIES
+    )
+    warnings: list[str] = Field(max_length=6)
+    thresholds: dict[str, float]
+    calibration_status: Literal["not_calibrated"] = "not_calibrated"
+    resolved_journal_sample_size: int = Field(default=0, ge=0)
+    observed_hit_rate: float | None = Field(default=None, ge=0, le=1)
+    resolved_metrics_by_market: dict[
+        str,
+        KairosResolvedJournalMetric,
+    ] = Field(default_factory=dict)
+    read_only: Literal[True] = True
+    db_writes: Literal[False] = False
+    provider_calls: Literal[False] = False
+    automatic_betting_enabled: Literal[False] = False
+    live_automatic_enabled: Literal[False] = False
+    not_for_betting: Literal[True] = True
+
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def validate_opportunity_count(self) -> KairosDailyOpportunitiesResponse:
+        if self.opportunity_count != len(self.opportunities):
+            raise ValueError("opportunity_count must match opportunities.")
+        if self.observed_hit_rate is not None and self.resolved_journal_sample_size == 0:
+            raise ValueError("Observed rate requires resolved observations.")
+        return self
+
+
 __all__ = [
     "KairosAnalysisResponse",
+    "KairosDailyOpportunitiesResponse",
     "KairosDailySuggestionsResponse",
     "KairosDataFreshness",
     "KairosFeatureAvailability",
     "KairosFeatureDefinition",
     "KairosMethodologyResponse",
+    "KairosHalfTimeMarketAnalysis",
+    "KairosMatchOpportunity",
     "KairosMarketProbabilities",
     "KairosProbabilities",
     "KairosProvenance",
+    "KairosResolvedJournalMetric",
+    "KairosOpportunityCandidate",
     "KairosReason",
     "KairosTeamSummary",
     "KairosSuggestion",

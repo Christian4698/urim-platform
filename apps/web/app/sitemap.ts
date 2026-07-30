@@ -5,6 +5,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "",
     "/dashboard",
     "/suggestions",
+    "/opportunities",
     "/kairos-analysis",
     "/donnees-sportives",
     "/disponibilite",

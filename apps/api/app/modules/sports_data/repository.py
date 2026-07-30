@@ -261,13 +261,22 @@ class SportsRepository:
         row = self.session.execute(statement).mappings().first()
         return dict(row) if row else None
 
-    def recent_public_errors(self, *, limit: int = 5) -> list[str]:
-        statement = (
-            sa.select(models.sports_sync_errors.c.error_code)
-            .where(models.sports_sync_errors.c.provider == API_FOOTBALL_PROVIDER)
-            .order_by(models.sports_sync_errors.c.occurred_at.desc())
-            .limit(limit)
+    def recent_public_errors(
+        self,
+        *,
+        run_id: UUID | None = None,
+        limit: int = 5,
+    ) -> list[str]:
+        statement = sa.select(models.sports_sync_errors.c.error_code).where(
+            models.sports_sync_errors.c.provider == API_FOOTBALL_PROVIDER
         )
+        if run_id is not None:
+            statement = statement.where(
+                models.sports_sync_errors.c.sync_run_id == run_id
+            )
+        statement = statement.order_by(
+            models.sports_sync_errors.c.occurred_at.desc()
+        ).limit(limit)
         return [str(value) for value in self.session.execute(statement).scalars()]
 
     def last_successful_sync(self) -> dict[str, Any] | None:

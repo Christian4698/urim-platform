@@ -86,6 +86,14 @@ def _parse_postgresql_url(value: str) -> URL | None:
     return parsed
 
 
+def isolated_psycopg_url(value: str) -> URL:
+    """Return the validated PostgreSQL target with the installed driver."""
+    parsed = _parse_postgresql_url(value)
+    if parsed is None:
+        raise ValueError("Invalid PostgreSQL test database URL.")
+    return parsed.set(drivername="postgresql+psycopg")
+
+
 def _same_database_target(left: URL, right: URL) -> bool:
     return (
         (left.host or "").casefold(),
@@ -107,5 +115,6 @@ def _target_tokens(url: URL) -> frozenset[str]:
 
 __all__ = [
     "DatabaseIsolationResult",
+    "isolated_psycopg_url",
     "validate_isolated_test_database",
 ]

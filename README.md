@@ -14,6 +14,8 @@ explicable. Aucun résultat, score ou bénéfice n'est jamais garanti.
   read-only, explicable, non persistée et non calibrée depuis les données B1.
 - Programme B2.2 : suggestions quotidiennes explicables, read-only, en bêta
   analytique, avec séparation entre Garde-fou Kairos et Suggestion analytique.
+- Hotfix B2.3 : découverte quotidienne multi-compétitions et enrichissement
+  minimal des fixtures réelles nécessaires à Kairos.
 - Prédictions officielles publiées, bookmakers, live automatique,
   authentification et paris réels : désactivés.
 
@@ -41,6 +43,8 @@ commandes de synchronisation, les variables et le runbook Render. Voir
 contrats temporels, endpoints et limites de Kairos Core.
 Voir [Programme B2.2](docs/76_PROGRAM_B2_2_KAIROS_DAILY_SUGGESTIONS.md) pour le
 score conservateur, les suggestions du jour et leurs barrières NO_BET.
+Voir [Hotfix B2.3](docs/77_B2_3_DAILY_FIXTURE_DISCOVERY.md) pour la découverte
+globale, le filtrage qualité, les quotas et les commandes opérateur.
 
 ## Démarrage local
 

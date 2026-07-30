@@ -18,6 +18,7 @@ from app.modules.kairos.models import (
     KairosPreMatchWindowClosedError,
     KairosTemporalIntegrityError,
 )
+from app.modules.kairos.journal import KairosJournalRepository
 from app.modules.kairos.repository import KairosRepository
 from app.modules.kairos.rate_limit import (
     RedisRateLimitUnavailable,
@@ -25,8 +26,16 @@ from app.modules.kairos.rate_limit import (
 )
 from app.modules.kairos.schemas import (
     KairosAnalysisResponse,
+    KairosDailyOpportunitiesResponse,
     KairosDailySuggestionsResponse,
     KairosMethodologyResponse,
+)
+from app.modules.kairos.opportunities import KairosOpportunityService
+from app.modules.kairos.opportunity_config import (
+    MAX_DAILY_OPPORTUNITIES,
+    OPPORTUNITY_DATA_QUALITY_THRESHOLD,
+    OPPORTUNITY_PROBABILITY_THRESHOLD,
+    OPPORTUNITY_TECHNICAL_CONFIDENCE_THRESHOLD,
 )
 from app.modules.kairos.services import (
     RECENT_WINDOW_MATCHES,
@@ -48,6 +57,7 @@ _SUGGESTIONS_CAPACITY = BoundedSemaphore(MAX_CONCURRENT_DAILY_SUGGESTIONS)
 _METHODOLOGY_RATE_LIMIT = 120
 _ANALYSIS_RATE_LIMIT = 30
 _SUGGESTIONS_RATE_LIMIT = 10
+_OPPORTUNITIES_RATE_LIMIT = 10
 PUBLIC_DATABASE_ERROR = {
     "code": "kairos_data_unavailable",
     "message": "Les données nécessaires à l'analyse sont indisponibles.",
@@ -215,6 +225,121 @@ def daily_suggestions(
         skipped_unsafe_match_count=skipped_unsafe_match_count,
         suggestions=selected,
         warnings=warnings,
+    )
+
+
+@router.get(
+    "/opportunities/today",
+    response_model=KairosDailyOpportunitiesResponse,
+)
+def daily_opportunities(
+    request: Request,
+    _capacity: Annotated[None, Depends(_suggestions_capacity_dependency)],
+) -> KairosDailyOpportunitiesResponse:
+    _validate_query_parameters(request, allowed=frozenset())
+    _enforce_rate_limit(request, _OPPORTUNITIES_RATE_LIMITER)
+    as_of = datetime.now(UTC)
+    local_date = as_of.astimezone(KAIROS_LOCAL_TIMEZONE).date()
+    starts_at = datetime.combine(
+        local_date,
+        time.min,
+        tzinfo=KAIROS_LOCAL_TIMEZONE,
+    ).astimezone(UTC)
+    ends_at = starts_at + timedelta(days=1)
+    with _session() as session:
+        repository = KairosRepository(session)
+        targets = repository.list_target_matches_as_of(
+            starts_at=starts_at,
+            ends_at=ends_at,
+            as_of=as_of,
+            limit=MAX_DAILY_TARGET_MATCHES,
+        )
+        datasets = tuple(
+            repository.load_match_dataset_for_target(
+                target,
+                as_of=as_of,
+                recent_window=RECENT_WINDOW_MATCHES,
+            )
+            for target in targets
+        )
+        resolved_metrics = KairosJournalRepository(
+            session
+        ).resolved_metrics()
+
+    service = KairosOpportunityService(
+        freshness_threshold_minutes=settings.api_football_freshness_minutes
+    )
+    opportunities = []
+    for dataset in datasets:
+        try:
+            opportunities.append(service.analyze(dataset))
+        except (
+            KairosDataError,
+            KairosPreMatchWindowClosedError,
+            KairosTemporalIntegrityError,
+        ):
+            continue
+    opportunities.sort(
+        key=lambda item: (
+            item.safety_decision != "ANALYSIS_ALLOWED",
+            -(
+                item.primary_analysis.estimated_probability
+                if item.primary_analysis is not None
+                else 0
+            ),
+            item.kickoff_at,
+            item.provider_match_id,
+        )
+    )
+    selected = opportunities[:MAX_DAILY_OPPORTUNITIES]
+    resolved_sample_size = sum(
+        metric.resolved_sample_size for metric in resolved_metrics.values()
+    )
+    success_count = sum(
+        metric.success_count for metric in resolved_metrics.values()
+    )
+    observed_hit_rate = (
+        round(success_count / resolved_sample_size, 4)
+        if resolved_sample_size
+        else None
+    )
+    warnings = [
+        (
+            "Centre analytique non calibré: aucune cote, mise, "
+            "action bookmaker ni automatisation."
+        )
+    ]
+    if resolved_sample_size < 30:
+        warnings.append(
+            (
+                "Échantillon résolu insuffisant pour conclure sur la "
+                "performance ou la calibration."
+            )
+        )
+    return KairosDailyOpportunitiesResponse(
+        local_date=local_date,
+        as_of=as_of,
+        opportunity_count=len(selected),
+        evaluated_match_count=len(opportunities),
+        opportunities=selected,
+        warnings=warnings,
+        thresholds={
+            "estimated_probability": OPPORTUNITY_PROBABILITY_THRESHOLD,
+            "data_quality_score": OPPORTUNITY_DATA_QUALITY_THRESHOLD,
+            "technical_confidence_score": (
+                OPPORTUNITY_TECHNICAL_CONFIDENCE_THRESHOLD
+            ),
+        },
+        resolved_journal_sample_size=resolved_sample_size,
+        observed_hit_rate=observed_hit_rate,
+        resolved_metrics_by_market={
+            market: {
+                "resolved_sample_size": metric.resolved_sample_size,
+                "success_count": metric.success_count,
+                "observed_hit_rate": metric.observed_hit_rate,
+            }
+            for market, metric in resolved_metrics.items()
+        },
     )
 
 
@@ -398,6 +523,11 @@ _ANALYSIS_RATE_LIMITER = RedisSlidingWindowRateLimiter(
 _SUGGESTIONS_RATE_LIMITER = RedisSlidingWindowRateLimiter(
     scope="daily-suggestions",
     limit=_SUGGESTIONS_RATE_LIMIT,
+    redis_url=settings.redis_url,
+)
+_OPPORTUNITIES_RATE_LIMITER = RedisSlidingWindowRateLimiter(
+    scope="daily-opportunities",
+    limit=_OPPORTUNITIES_RATE_LIMIT,
     redis_url=settings.redis_url,
 )
 

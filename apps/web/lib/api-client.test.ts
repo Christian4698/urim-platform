@@ -428,6 +428,171 @@ test("fetches safe daily Kairos suggestions from the URIM API", async () => {
   assert.equal(result.suggestions[0]?.bookmaker_data_used, false);
 });
 
+test("fetches strictly gated Kairos opportunities", async () => {
+  const candidate = {
+    market: "SECOND_HALF_OVER_0_5",
+    estimated_probability: 0.8,
+    data_quality_score: 80,
+    technical_confidence_score: 60,
+    sample_size: 10,
+    risk: "guarded",
+    reasons: ["Historique HT/FT complet."],
+    guardrails: [],
+    eligible_for_opportunity: true,
+    analysis_hash: "c".repeat(64)
+  };
+  const halfTimeAnalysis = {
+    model_version: "kairos_half_time_b2_4_v1",
+    ...candidate,
+    h2h_sample_size: 3,
+    insufficient_data: false
+  };
+  const payload = {
+    local_date: "2026-07-28",
+    timezone: "Africa/Kinshasa",
+    as_of: "2026-07-28T12:00:00Z",
+    opportunity_count: 1,
+    evaluated_match_count: 1,
+    opportunities: [
+      {
+        provider_match_id: 999,
+        kickoff_at: "2026-07-28T18:00:00Z",
+        home_team_name: "Home Test",
+        away_team_name: "Away Test",
+        section: "GOAL_MARKETS",
+        safety_decision: "ANALYSIS_ALLOWED",
+        primary_analysis: candidate,
+        alternative_analyses: [],
+        evaluated_markets: [halfTimeAnalysis],
+        read_only: true,
+        persisted_by_request: false,
+        not_for_betting: true
+      }
+    ],
+    warnings: ["Analyse non calibrée."],
+    thresholds: {
+      estimated_probability: 0.7,
+      data_quality_score: 65,
+      technical_confidence_score: 50
+    },
+    calibration_status: "not_calibrated",
+    resolved_journal_sample_size: 0,
+    observed_hit_rate: null,
+    resolved_metrics_by_market: {},
+    read_only: true,
+    db_writes: false,
+    provider_calls: false,
+    automatic_betting_enabled: false,
+    live_automatic_enabled: false,
+    not_for_betting: true
+  };
+  const fetchImpl: FetchLike = async (input) => {
+    assert.equal(
+      new URL(input.toString()).pathname,
+      "/api/v1/kairos/opportunities/today"
+    );
+    return jsonResponse(payload);
+  };
+
+  const result = await createApiClient({
+    baseUrl: BASE_URL,
+    fetchImpl
+  }).getDailyOpportunities();
+
+  assert.equal(
+    result.opportunities[0]?.primary_analysis?.estimated_probability,
+    0.8
+  );
+  assert.equal(result.observed_hit_rate, null);
+
+  const correlatedPayload = {
+    ...payload,
+    opportunities: [
+      {
+        ...payload.opportunities[0],
+        alternative_analyses: [
+          {
+            ...candidate,
+            market: "SECOND_HALF_OVER_1_5"
+          }
+        ]
+      }
+    ]
+  };
+  const correlatedClient = createApiClient({
+    baseUrl: BASE_URL,
+    fetchImpl: async () => jsonResponse(correlatedPayload)
+  });
+  await assert.rejects(
+    correlatedClient.getDailyOpportunities(),
+    (error: unknown) =>
+      error instanceof ApiClientError && error.code === "invalid_response"
+  );
+});
+
+test("rejects an opportunity below a centralized threshold", async () => {
+  const client = createApiClient({
+    baseUrl: BASE_URL,
+    fetchImpl: async () =>
+      jsonResponse({
+        local_date: "2026-07-28",
+        timezone: "Africa/Kinshasa",
+        as_of: "2026-07-28T12:00:00Z",
+        opportunity_count: 1,
+        evaluated_match_count: 1,
+        opportunities: [
+          {
+            provider_match_id: 999,
+            kickoff_at: "2026-07-28T18:00:00Z",
+            home_team_name: "Home Test",
+            away_team_name: "Away Test",
+            section: "GOAL_MARKETS",
+            safety_decision: "ANALYSIS_ALLOWED",
+            primary_analysis: {
+              market: "SECOND_HALF_OVER_0_5",
+              estimated_probability: 0.69,
+              data_quality_score: 80,
+              technical_confidence_score: 60,
+              sample_size: 10,
+              risk: "guarded",
+              reasons: ["Test."],
+              guardrails: [],
+              eligible_for_opportunity: true,
+              analysis_hash: "c".repeat(64)
+            },
+            alternative_analyses: [],
+            evaluated_markets: [],
+            read_only: true,
+            persisted_by_request: false,
+            not_for_betting: true
+          }
+        ],
+        warnings: [],
+        thresholds: {
+          estimated_probability: 0.7,
+          data_quality_score: 65,
+          technical_confidence_score: 50
+        },
+        calibration_status: "not_calibrated",
+        resolved_journal_sample_size: 0,
+        observed_hit_rate: null,
+        resolved_metrics_by_market: {},
+        read_only: true,
+        db_writes: false,
+        provider_calls: false,
+        automatic_betting_enabled: false,
+        live_automatic_enabled: false,
+        not_for_betting: true
+      })
+  });
+
+  await assert.rejects(
+    client.getDailyOpportunities(),
+    (error: unknown) =>
+      error instanceof ApiClientError && error.code === "invalid_response"
+  );
+});
+
 test("rejects a Kairos payload that activates betting", async () => {
   const client = createApiClient({
     baseUrl: BASE_URL,
@@ -490,33 +655,34 @@ test("rejects inconsistent daily suggestion counters", async () => {
 
 test("fetches a complete Kairos analysis and validates its match id", async () => {
   const requestedAsOf = "2026-07-27T12:00:00Z";
+  const payload = {
+    provider_match_id: 999,
+    kickoff_at: "2026-07-27T18:00:00Z",
+    model_version: "kairos_core_b2_2_v1",
+    prediction_time: requestedAsOf,
+    probabilities: { home_win: 0.55, draw: 0.25, away_win: 0.2 },
+    market_probabilities: marketProbabilities,
+    confidence_score: 55,
+    data_quality_score: 80,
+    reasons: [],
+    warnings: [],
+    safety_decision: "NO_BET",
+    decision: "NO_BET",
+    analytical_suggestion: kairosSuggestionPayload,
+    suggestion: kairosSuggestionPayload,
+    analysis_status: "ready",
+    read_only: true,
+    persisted: false,
+    official_prediction_published: false,
+    automatic_betting_enabled: false,
+    live_automatic_enabled: false,
+    not_for_betting: true
+  };
   const fetchImpl: FetchLike = async (input) => {
     const url = new URL(input.toString());
     assert.equal(url.pathname, "/api/v1/kairos/matches/999/analysis");
     assert.equal(url.searchParams.get("as_of"), requestedAsOf);
-    return jsonResponse({
-      provider_match_id: 999,
-      kickoff_at: "2026-07-27T18:00:00Z",
-      model_version: "kairos_core_b2_2_v1",
-      prediction_time: requestedAsOf,
-      probabilities: { home_win: 0.55, draw: 0.25, away_win: 0.2 },
-      market_probabilities: marketProbabilities,
-      confidence_score: 55,
-      data_quality_score: 80,
-      reasons: [],
-      warnings: [],
-      safety_decision: "NO_BET",
-      decision: "NO_BET",
-      analytical_suggestion: kairosSuggestionPayload,
-      suggestion: kairosSuggestionPayload,
-      analysis_status: "ready",
-      read_only: true,
-      persisted: false,
-      official_prediction_published: false,
-      automatic_betting_enabled: false,
-      live_automatic_enabled: false,
-      not_for_betting: true
-    });
+    return jsonResponse(payload);
   };
   const client = createApiClient({ baseUrl: BASE_URL, fetchImpl });
 
@@ -528,6 +694,17 @@ test("fetches a complete Kairos analysis and validates its match id", async () =
     client.getKairosAnalysis(Number.MAX_SAFE_INTEGER + 1),
     (error: unknown) =>
       error instanceof ApiClientError && error.code === "configuration"
+  );
+
+  const invalidHalfTimeClient = createApiClient({
+    baseUrl: BASE_URL,
+    fetchImpl: async () =>
+      jsonResponse({ ...payload, half_time_analysis: "untrusted" })
+  });
+  await assert.rejects(
+    invalidHalfTimeClient.getKairosAnalysis(999),
+    (error: unknown) =>
+      error instanceof ApiClientError && error.code === "invalid_response"
   );
 });
 

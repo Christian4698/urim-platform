@@ -9,7 +9,10 @@ from alembic.config import Config
 from sqlalchemy import create_engine
 
 from app.db.models import metadata
-from app.db.isolation import validate_isolated_test_database
+from app.db.isolation import (
+    isolated_psycopg_url,
+    validate_isolated_test_database,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 ALEMBIC_INI = REPO_ROOT / "apps" / "api" / "alembic.ini"
@@ -185,11 +188,13 @@ def test_phase_two_disables_real_betting_by_schema_design() -> None:
     assert "is_real_bet" in metadata.tables["tickets"].c
 
 
-def database_url_or_skip() -> str:
+def database_url_or_skip() -> sa.URL:
     test_database_url = os.environ.get("B1_TEST_DATABASE_URL")
+    if "DATABASE_URL" in os.environ:
+        pytest.fail("DATABASE_URL must be absent for PostgreSQL tests.")
     result = validate_isolated_test_database(
         test_database_url,
-        database_url=os.environ.get("DATABASE_URL"),
+        database_url=None,
         app_env=os.environ.get("APP_ENV"),
     )
     if result.reason == "B1_TEST_DATABASE_URL_MISSING":
@@ -203,7 +208,7 @@ def database_url_or_skip() -> str:
             f"{result.reason}"
         )
     assert test_database_url is not None
-    return test_database_url
+    return isolated_psycopg_url(test_database_url)
 
 
 def test_postgresql_prediction_trigger_blocks_future_snapshot() -> None:

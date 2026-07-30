@@ -61,6 +61,8 @@ class MatchObservation:
     goals_away: int | None
     score_fulltime_home: int | None
     score_fulltime_away: int | None
+    score_halftime_home: int | None = None
+    score_halftime_away: int | None = None
 
     def fulltime_score(self) -> tuple[int, int] | None:
         candidates = (
@@ -87,6 +89,38 @@ class MatchObservation:
         if team_id == self.away_team_provider_id:
             return away_score, home_score
         return None
+
+    def halftime_score(self) -> tuple[int, int] | None:
+        if (
+            self.score_halftime_home is None
+            or self.score_halftime_away is None
+            or not 0 <= self.score_halftime_home <= MAX_REASONABLE_GOALS_PER_TEAM
+            or not 0 <= self.score_halftime_away <= MAX_REASONABLE_GOALS_PER_TEAM
+        ):
+            return None
+        return self.score_halftime_home, self.score_halftime_away
+
+    def halftime_score_for(self, team_id: int) -> tuple[int, int] | None:
+        score = self.halftime_score()
+        if score is None:
+            return None
+        home_score, away_score = score
+        if team_id == self.home_team_provider_id:
+            return home_score, away_score
+        if team_id == self.away_team_provider_id:
+            return away_score, home_score
+        return None
+
+    def half_goal_totals(self) -> tuple[int, int] | None:
+        halftime = self.halftime_score()
+        fulltime = self.fulltime_score()
+        if halftime is None or fulltime is None:
+            return None
+        first_half = sum(halftime)
+        full_match = sum(fulltime)
+        if first_half > full_match:
+            return None
+        return first_half, full_match - first_half
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,6 +149,8 @@ class EventObservation:
     provider_team_id: int | None
     event_type: str
     detail: str | None
+    elapsed: int | None = None
+    extra: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,6 +162,7 @@ class KairosMatchDataset:
     standings: tuple[StandingObservation, ...]
     statistics: tuple[StatisticObservation, ...]
     events: tuple[EventObservation, ...]
+    h2h_history: tuple[MatchObservation, ...] = ()
 
     def source_observations(self) -> tuple[SourceObservation, ...]:
         sources = [self.target.source]
@@ -134,6 +171,7 @@ class KairosMatchDataset:
         sources.extend(standing.source for standing in self.standings)
         sources.extend(statistic.source for statistic in self.statistics)
         sources.extend(event.source for event in self.events)
+        sources.extend(match.source for match in self.h2h_history)
         unique: dict[str, SourceObservation] = {}
         for source in sources:
             existing = unique.get(source.observation_id)
@@ -185,6 +223,22 @@ class KairosMatchDataset:
             for match in history
         ):
             raise KairosDataError("history_match_not_completed")
+        expected_h2h_team_ids = {
+            target.home_team_provider_id,
+            target.away_team_provider_id,
+        }
+        if any(
+            match.provider_competition_id
+            != target.provider_competition_id
+            or {
+                match.home_team_provider_id,
+                match.away_team_provider_id,
+            }
+            != expected_h2h_team_ids
+            or match.status_short not in COMPLETED_HISTORY_STATUSES
+            for match in self.h2h_history
+        ):
+            raise KairosDataError("h2h_history_scope_mismatch")
 
         expected_team_ids = {
             target.home_team_provider_id,
@@ -260,11 +314,19 @@ class KairosMatchDataset:
         target_id = self.target.provider_match_id
         if any(
             match.provider_match_id == target_id
-            for match in (*self.home_history, *self.away_history)
+            for match in (
+                *self.home_history,
+                *self.away_history,
+                *self.h2h_history,
+            )
         ):
             raise KairosTemporalIntegrityError("target_match_leaked_into_history")
 
-        for match in (*self.home_history, *self.away_history):
+        for match in (
+            *self.home_history,
+            *self.away_history,
+            *self.h2h_history,
+        ):
             if not _is_timezone_aware(match.kickoff_at):
                 raise KairosTemporalIntegrityError(
                     "history_kickoff_must_be_timezone_aware"

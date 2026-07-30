@@ -22,6 +22,7 @@ dependencies = [
 
 [project.scripts]
 urim-sports-sync = "app.cli.sports_sync:main"
+urim-kairos-journal = "app.cli.kairos_journal:main"
 
 [project.optional-dependencies]
 dev = [

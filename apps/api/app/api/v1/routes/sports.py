@@ -194,7 +194,11 @@ def sync_status() -> SyncStatusRead:
     with _session() as session:
         repository = SportsRepository(session)
         latest = repository.latest_sync_status()
-        errors = repository.recent_public_errors()
+        errors = (
+            repository.recent_public_errors(run_id=latest["id"])
+            if latest
+            else []
+        )
     latest_schema = (
         SyncRunRead(
             run_id=str(latest["id"]),

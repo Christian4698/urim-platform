@@ -16,6 +16,7 @@ test("ships every required Programme A route and runtime state", () => {
     "apps/web/app/dashboard/page.tsx",
     "apps/web/app/donnees-sportives/page.tsx",
     "apps/web/app/suggestions/page.tsx",
+    "apps/web/app/opportunities/page.tsx",
     "apps/web/app/kairos-analysis/[providerMatchId]/page.tsx",
     "apps/web/app/disponibilite/page.tsx",
     "apps/web/app/modules/page.tsx",
@@ -28,6 +29,23 @@ test("ships every required Programme A route and runtime state", () => {
   for (const relativePath of requiredFiles) {
     assert.doesNotThrow(() => read(relativePath), `${relativePath} must exist`);
   }
+});
+
+test("Kairos B2.4 Opportunity Center is read-only and exposes explicit gates", () => {
+  const source = [
+    read("apps/web/app/opportunities/page.tsx"),
+    read("apps/web/components/kairos-opportunities.tsx"),
+    read("apps/web/lib/api-client.ts")
+  ].join("\n");
+
+  assert.match(source, /≥ 70|estimated_probability/);
+  assert.match(source, /NO_BET/);
+  assert.match(source, /Lecture seule|read_only/);
+  assert.match(source, /Aucun pari|not_for_betting/);
+  assert.doesNotMatch(
+    source,
+    /API_FOOTBALL_KEY|x-apisports-key|DATABASE_URL|stake|bookmaker_id/
+  );
 });
 
 test("Kairos B2.2 UI remains read-only and contains no bookmaker or secret integration", () => {

@@ -211,8 +211,59 @@ def test_invalid_or_provider_error_responses_are_neutralized() -> None:
             with pytest.raises(ApiFootballRequestError) as caught:
                 await client.get("leagues", {"id": 39})
             assert "PRIVATE_VALUE" not in str(caught.value)
+            assert caught.value.reason_code == "provider_reported_error"
 
     run(scenario())
+
+
+def test_global_fixture_range_provider_error_has_precise_public_code() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json=provider_response(
+                errors={
+                    "league": "TEST_ONLY_PRIVATE_LEAGUE_DETAIL",
+                    "season": "TEST_ONLY_PRIVATE_SEASON_DETAIL",
+                }
+            ),
+        )
+
+    async def scenario() -> None:
+        client = ApiFootballClient(
+            api_key="TEST_ONLY_SECRET",
+            enabled=True,
+            transport=httpx.MockTransport(handler),
+        )
+        async with client:
+            with pytest.raises(ApiFootballRequestError) as caught:
+                await client.get(
+                    "fixtures",
+                    {
+                        "from": "2026-07-28",
+                        "to": "2026-08-03",
+                        "timezone": "UTC",
+                    },
+                )
+        assert (
+            caught.value.public_code
+            == "provider_fixture_range_requires_league_and_season"
+        )
+        assert (
+            caught.value.reason_code
+            == "provider_fixture_range_requires_league_and_season"
+        )
+        assert "TEST_ONLY_PRIVATE" not in str(caught.value)
+
+    run(scenario())
+
+
+def test_provider_reason_code_is_allowlisted() -> None:
+    error = ApiFootballRequestError(
+        "TEST_ONLY_PRIVATE_DETAIL",
+        reason_code="PRIVATE_UNTRUSTED_REASON",
+    )
+
+    assert error.reason_code == "provider_unavailable"
 
 
 @pytest.mark.parametrize(
@@ -230,6 +281,28 @@ def test_request_allowlist_blocks_forbidden_surfaces(
 ) -> None:
     with pytest.raises(ValueError):
         validate_provider_request(endpoint, params)
+
+
+def test_request_allowlist_accepts_bounded_head_to_head_enrichment() -> None:
+    endpoint, params = validate_provider_request(
+        "fixtures/headtohead",
+        {
+            "h2h": "1001-1002",
+            "league": 140,
+            "last": 5,
+            "status": "FT-AET-PEN",
+            "timezone": "UTC",
+        },
+    )
+
+    assert endpoint == "fixtures/headtohead"
+    assert params == {
+        "h2h": "1001-1002",
+        "league": 140,
+        "last": 5,
+        "status": "FT-AET-PEN",
+        "timezone": "UTC",
+    }
 
 
 def test_settings_keep_api_key_secret_and_require_explicit_enable() -> None:

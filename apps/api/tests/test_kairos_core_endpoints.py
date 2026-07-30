@@ -12,6 +12,7 @@ from app.modules.kairos.models import (
     KairosDataError,
     KairosTemporalIntegrityError,
 )
+from app.modules.kairos.journal import KairosJournalRepository
 from app.modules.kairos.rate_limit import RedisRateLimitUnavailable
 from app.modules.kairos.repository import KairosRepository
 from app.modules.kairos.schemas import (
@@ -22,7 +23,11 @@ from app.modules.kairos.schemas import (
     KairosProbabilities,
     KairosProvenance,
     KairosTeamSummary,
+    KairosHalfTimeMarketAnalysis,
+    KairosMatchOpportunity,
+    KairosOpportunityCandidate,
 )
+from app.modules.kairos.opportunities import KairosOpportunityService
 from app.modules.kairos.services import KairosAnalysisService
 from app.modules.kairos.suggestions import build_kairos_suggestion
 
@@ -51,6 +56,11 @@ def allow_rate_limited_requests(
     monkeypatch.setattr(
         kairos_routes,
         "_SUGGESTIONS_RATE_LIMITER",
+        _AllowAllLimiter(),
+    )
+    monkeypatch.setattr(
+        kairos_routes,
+        "_OPPORTUNITIES_RATE_LIMITER",
         _AllowAllLimiter(),
     )
 
@@ -275,6 +285,99 @@ def test_daily_suggestions_are_read_only_and_use_local_database_only(
     assert "api_football_key" not in serialized
 
 
+def test_daily_opportunities_are_read_only_and_strictly_gated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = SimpleNamespace(provider_match_id=999)
+    market = KairosHalfTimeMarketAnalysis(
+        market="SECOND_HALF_OVER_0_5",
+        estimated_probability=0.8,
+        data_quality_score=80,
+        technical_confidence_score=60,
+        sample_size=10,
+        h2h_sample_size=3,
+        risk="guarded",
+        reasons=["Signal historique complet HT/FT."],
+        guardrails=[],
+        eligible_for_opportunity=True,
+        insufficient_data=False,
+        analysis_hash="d" * 64,
+    )
+    candidate = KairosOpportunityCandidate(
+        market="SECOND_HALF_OVER_0_5",
+        estimated_probability=0.8,
+        data_quality_score=80,
+        technical_confidence_score=60,
+        sample_size=10,
+        risk="guarded",
+        reasons=["Signal historique complet HT/FT."],
+        guardrails=[],
+        analysis_hash="d" * 64,
+    )
+    opportunity = KairosMatchOpportunity(
+        provider_match_id=999,
+        kickoff_at=datetime.now(UTC) + timedelta(hours=2),
+        home_team_name="Home",
+        away_team_name="Away",
+        section="GOAL_MARKETS",
+        safety_decision="ANALYSIS_ALLOWED",
+        primary_analysis=candidate,
+        alternative_analyses=[],
+        evaluated_markets=[market],
+    )
+    monkeypatch.setattr(
+        kairos_routes,
+        "_session",
+        lambda: nullcontext(object()),
+    )
+    monkeypatch.setattr(
+        KairosRepository,
+        "list_target_matches_as_of",
+        lambda _self, starts_at, ends_at, as_of, limit: (target,),
+    )
+    monkeypatch.setattr(
+        KairosRepository,
+        "load_match_dataset_for_target",
+        lambda _self, target, as_of, recent_window: object(),
+    )
+    monkeypatch.setattr(
+        KairosOpportunityService,
+        "analyze",
+        lambda _self, _dataset: opportunity,
+    )
+    monkeypatch.setattr(
+        KairosJournalRepository,
+        "resolved_metrics",
+        lambda _self: {},
+    )
+
+    response = client.get("/api/v1/kairos/opportunities/today")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["opportunity_count"] == 1
+    assert payload["opportunities"][0]["primary_analysis"]["market"] == (
+        "SECOND_HALF_OVER_0_5"
+    )
+    assert payload["thresholds"] == {
+        "estimated_probability": 0.7,
+        "data_quality_score": 65.0,
+        "technical_confidence_score": 50.0,
+    }
+    assert payload["observed_hit_rate"] is None
+    assert payload["resolved_journal_sample_size"] == 0
+    assert any(
+        "insuffisant" in warning.lower()
+        for warning in payload["warnings"]
+    )
+    assert payload["read_only"] is True
+    assert payload["db_writes"] is False
+    assert payload["provider_calls"] is False
+    serialized = response.text.lower()
+    assert "database_url" not in serialized
+    assert "api_football_key" not in serialized
+
+
 def test_daily_suggestions_reject_query_amplification(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -340,6 +443,7 @@ def test_daily_suggestions_sort_actionable_signal_before_no_bet(
     [
         "/api/v1/kairos/methodology",
         "/api/v1/kairos/suggestions/today",
+        "/api/v1/kairos/opportunities/today",
         "/api/v1/kairos/matches/999/analysis",
     ],
 )

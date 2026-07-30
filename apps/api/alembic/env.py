@@ -2,8 +2,8 @@ from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
+from sqlalchemy.engine import URL
 
-from app.core.config import settings
 from app.db.models import metadata
 
 config = context.config
@@ -14,7 +14,13 @@ if config.config_file_name is not None:
 target_metadata = metadata
 
 
-def get_database_url() -> str:
+def get_database_url() -> str | URL:
+    explicit_database_url = config.attributes.get("database_url")
+    if isinstance(explicit_database_url, (str, URL)):
+        return explicit_database_url
+
+    from app.core.config import settings
+
     if not settings.database_url:
         raise RuntimeError("DATABASE_URL is required to run Alembic migrations.")
     return settings.database_url

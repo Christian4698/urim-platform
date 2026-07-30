@@ -659,6 +659,111 @@ predictions = sa.Table(
     sa.UniqueConstraint("immutable_hash", name="uq_predictions_immutable_hash"),
 )
 
+kairos_analysis_journal = sa.Table(
+    "kairos_analysis_journal",
+    metadata,
+    uuid_pk(),
+    sa.Column(
+        "analysis_id",
+        postgresql.UUID(as_uuid=True),
+        nullable=False,
+        unique=True,
+    ),
+    sa.Column("provider_match_id", sa.BigInteger(), nullable=False),
+    sa.Column("kickoff_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("analysis_time", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("model_version", sa.String(length=120), nullable=False),
+    sa.Column("market", sa.String(length=80), nullable=False),
+    sa.Column("estimated_probability", sa.Numeric(8, 7), nullable=False),
+    sa.Column("data_quality_score", sa.Numeric(5, 2), nullable=False),
+    sa.Column(
+        "technical_confidence_score",
+        sa.Numeric(5, 2),
+        nullable=False,
+    ),
+    sa.Column("sample_size", sa.Integer(), nullable=False),
+    sa.Column("safety_decision", sa.String(length=40), nullable=False),
+    sa.Column("analysis_hash", sa.String(length=64), nullable=False),
+    jsonb_col("analysis_payload"),
+    sa.Column("immutable_hash", sa.String(length=64), nullable=False, unique=True),
+    created_at(),
+    sa.CheckConstraint(
+        "analysis_time <= created_at AND created_at < kickoff_at",
+        name=conv("ck_kairos_analysis_journal_pre_match"),
+    ),
+    sa.CheckConstraint(
+        "estimated_probability >= 0 AND estimated_probability <= 1",
+        name=conv("ck_kairos_analysis_journal_probability"),
+    ),
+    sa.CheckConstraint(
+        "data_quality_score >= 0 AND data_quality_score <= 100 "
+        "AND technical_confidence_score >= 0 "
+        "AND technical_confidence_score <= 65",
+        name=conv("ck_kairos_analysis_journal_score_ranges"),
+    ),
+    sa.CheckConstraint(
+        "sample_size >= 0",
+        name=conv("ck_kairos_analysis_journal_sample_size"),
+    ),
+    sa.CheckConstraint(
+        "market IN ("
+        "'FIRST_HALF_MORE_GOALS', 'SECOND_HALF_MORE_GOALS', "
+        "'EQUAL_HALF_GOALS', 'FIRST_HALF_OVER_0_5', "
+        "'SECOND_HALF_OVER_0_5', 'SECOND_HALF_OVER_1_5', "
+        "'HOME_OR_DRAW', 'AWAY_OR_DRAW', 'HOME_OR_AWAY'"
+        ")",
+        name=conv("ck_kairos_analysis_journal_market"),
+    ),
+    sa.CheckConstraint(
+        "analysis_hash ~ '^[0-9a-f]{64}$' "
+        "AND immutable_hash ~ '^[0-9a-f]{64}$'",
+        name=conv("ck_kairos_analysis_journal_hashes"),
+    ),
+    sa.CheckConstraint(
+        "safety_decision = 'ANALYSIS_ALLOWED'",
+        name=conv("ck_kairos_analysis_journal_allowed_only"),
+    ),
+)
+
+kairos_analysis_resolutions = sa.Table(
+    "kairos_analysis_resolutions",
+    metadata,
+    uuid_pk(),
+    sa.Column(
+        "analysis_id",
+        postgresql.UUID(as_uuid=True),
+        sa.ForeignKey("kairos_analysis_journal.analysis_id"),
+        nullable=False,
+        unique=True,
+    ),
+    sa.Column("provider_match_id", sa.BigInteger(), nullable=False),
+    sa.Column("market", sa.String(length=80), nullable=False),
+    sa.Column("outcome", sa.String(length=16), nullable=False),
+    sa.Column("outcome_available_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("resolved_at", sa.DateTime(timezone=True), nullable=False),
+    sa.Column("provider", sa.String(length=80), nullable=False),
+    sa.Column("provider_event_id", sa.String(length=240), nullable=False),
+    sa.Column("source_version", sa.String(length=80), nullable=False),
+    sa.Column("raw_hash", sa.String(length=64), nullable=False),
+    jsonb_col("outcome_payload"),
+    sa.Column("immutable_hash", sa.String(length=64), nullable=False, unique=True),
+    created_at(),
+    sa.CheckConstraint(
+        "outcome IN ('SUCCESS', 'FAILURE', 'VOID')",
+        name=conv("ck_kairos_analysis_resolutions_outcome"),
+    ),
+    sa.CheckConstraint(
+        "outcome_available_at <= resolved_at "
+        "AND resolved_at <= created_at",
+        name=conv("ck_kairos_analysis_resolutions_temporal_order"),
+    ),
+    sa.CheckConstraint(
+        "raw_hash ~ '^[0-9a-f]{64}$' "
+        "AND immutable_hash ~ '^[0-9a-f]{64}$'",
+        name=conv("ck_kairos_analysis_resolutions_hashes"),
+    ),
+)
+
 prediction_versions = sa.Table(
     "prediction_versions",
     metadata,
@@ -853,6 +958,19 @@ sa.Index(
     predictions.c.prediction_time,
 )
 sa.Index("ix_predictions_prediction_time", predictions.c.prediction_time)
+sa.Index(
+    "ix_kairos_analysis_journal_match_time",
+    kairos_analysis_journal.c.provider_match_id,
+    kairos_analysis_journal.c.analysis_time,
+)
+sa.Index(
+    "ix_kairos_analysis_journal_market",
+    kairos_analysis_journal.c.market,
+)
+sa.Index(
+    "ix_kairos_analysis_resolutions_outcome",
+    kairos_analysis_resolutions.c.outcome,
+)
 sa.Index("ix_prediction_versions_prediction_id", prediction_versions.c.prediction_id)
 sa.Index("ix_post_match_outcomes_fixture_id", post_match_outcomes.c.fixture_id)
 sa.Index("ix_post_match_outcomes_available_at", post_match_outcomes.c.available_at)

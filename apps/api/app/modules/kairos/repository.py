@@ -26,7 +26,11 @@ COMPLETED_MATCH_STATUSES: Final = tuple(
 HISTORY_QUERY_MULTIPLIER: Final = 4
 MAX_RECENT_WINDOW: Final = 25
 MAX_DAILY_TARGET_MATCHES: Final = 16
-MAX_CARD_EVENTS_PER_MATCH: Final = 64
+MAX_KAIROS_EVENTS_PER_MATCH: Final = 96
+# Compatibility name retained for existing B2.2 contract tests. The query now
+# includes bounded goal events in addition to cards.
+MAX_CARD_EVENTS_PER_MATCH: Final = MAX_KAIROS_EVENTS_PER_MATCH
+MAX_H2H_MATCHES: Final = 10
 KAIROS_STATISTIC_TYPES: Final = (
     "ball possession",
     "corner kicks",
@@ -123,6 +127,11 @@ class KairosRepository:
                 match_ids=feature_match_ids,
                 team_ids=team_ids,
                 as_of=as_of,
+            ),
+            h2h_history=self._h2h_history(
+                target=target,
+                as_of=as_of,
+                limit=MAX_H2H_MATCHES,
             ),
         )
 
@@ -292,6 +301,63 @@ class KairosRepository:
             for row in self.session.execute(statement).mappings()
         )
 
+    def _h2h_history(
+        self,
+        *,
+        target: MatchObservation,
+        as_of: datetime,
+        limit: int,
+    ) -> tuple[MatchObservation, ...]:
+        if not isinstance(target, MatchObservation):
+            return ()
+        table = models.api_football_matches
+        team_ids = (
+            target.home_team_provider_id,
+            target.away_team_provider_id,
+        )
+        candidate_match_ids = sa.select(table.c.provider_match_id).where(
+            table.c.provider == API_FOOTBALL_PROVIDER,
+            table.c.available_at <= as_of,
+            table.c.fetched_at <= as_of,
+            table.c.created_at <= as_of,
+            table.c.provider_competition_id
+            == target.provider_competition_id,
+            table.c.kickoff_at < as_of,
+            table.c.kickoff_at < target.kickoff_at,
+            table.c.status_short.in_(COMPLETED_MATCH_STATUSES),
+            table.c.home_team_provider_id.in_(team_ids),
+            table.c.away_team_provider_id.in_(team_ids),
+        )
+        latest = build_latest_as_of_subquery(
+            table,
+            (table.c.provider_match_id,),
+            as_of=as_of,
+            scope_filters=(table.c.provider_match_id.in_(candidate_match_ids),),
+        )
+        statement = (
+            sa.select(latest)
+            .where(
+                latest.c.observation_rank == 1,
+                latest.c.provider_match_id != target.provider_match_id,
+                latest.c.provider_competition_id
+                == target.provider_competition_id,
+                latest.c.kickoff_at < as_of,
+                latest.c.kickoff_at < target.kickoff_at,
+                latest.c.status_short.in_(COMPLETED_MATCH_STATUSES),
+                latest.c.home_team_provider_id.in_(team_ids),
+                latest.c.away_team_provider_id.in_(team_ids),
+            )
+            .order_by(
+                latest.c.kickoff_at.desc(),
+                latest.c.provider_match_id.desc(),
+            )
+            .limit(limit)
+        )
+        return tuple(
+            _match_from_row(row)
+            for row in self.session.execute(statement).mappings()
+        )
+
     def _statistics_as_of(
         self,
         *,
@@ -362,7 +428,7 @@ class KairosRepository:
             scope_filters=(
                 table.c.provider_match_id.in_(match_ids),
                 table.c.provider_team_id.in_(team_ids),
-                sa.func.lower(table.c.event_type) == "card",
+                sa.func.lower(table.c.event_type).in_(("card", "goal")),
             ),
         )
         statement = (
@@ -371,10 +437,10 @@ class KairosRepository:
                 latest.c.observation_rank == 1,
                 latest.c.provider_match_id.in_(match_ids),
                 latest.c.provider_team_id.in_(team_ids),
-                sa.func.lower(latest.c.event_type) == "card",
+                sa.func.lower(latest.c.event_type).in_(("card", "goal")),
             )
             .order_by(latest.c.provider_match_id, latest.c.provider_event_id)
-            .limit(len(match_ids) * MAX_CARD_EVENTS_PER_MATCH)
+            .limit(len(match_ids) * MAX_KAIROS_EVENTS_PER_MATCH)
         )
         return tuple(
             _event_from_row(row)
@@ -459,6 +525,8 @@ def _match_from_row(row: Mapping[str, Any]) -> MatchObservation:
         goals_away=_optional_int(row.get("goals_away")),
         score_fulltime_home=_optional_int(row.get("score_fulltime_home")),
         score_fulltime_away=_optional_int(row.get("score_fulltime_away")),
+        score_halftime_home=_optional_int(row.get("score_halftime_home")),
+        score_halftime_away=_optional_int(row.get("score_halftime_away")),
     )
 
 
@@ -490,6 +558,8 @@ def _event_from_row(row: Mapping[str, Any]) -> EventObservation:
         provider_team_id=_optional_int(row.get("provider_team_id")),
         event_type=str(row["event_type"]),
         detail=str(row["detail"]) if row.get("detail") is not None else None,
+        elapsed=_optional_int(row.get("elapsed")),
+        extra=_optional_int(row.get("extra")),
     )
 
 

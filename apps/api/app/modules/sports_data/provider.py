@@ -22,6 +22,36 @@ API_FOOTBALL_BASE_URL: Final = "https://v3.football.api-sports.io"
 API_FOOTBALL_SOURCE_VERSION: Final = "football-v3"
 API_FOOTBALL_AUTH_HEADER: Final = "x-apisports-key"
 RETRYABLE_STATUS_CODES: Final = frozenset({429, 500, 502, 503, 504})
+PUBLIC_PROVIDER_REASON_CODES: Final = frozenset(
+    {
+        "daily_quota_exhausted",
+        "provider_fixture_range_requires_league_and_season",
+        "provider_http_rejected",
+        "provider_http_unavailable",
+        "provider_invalid_parameters",
+        "provider_network_unavailable",
+        "provider_plan_restricted",
+        "provider_rate_limited",
+        "provider_reported_error",
+        "provider_response_invalid",
+        "provider_retry_exhausted",
+        "provider_unavailable",
+        "sync_request_budget_exhausted",
+    }
+)
+PUBLIC_PROVIDER_ERROR_CODES: Final = frozenset(
+    {
+        "provider_fixture_range_requires_league_and_season",
+        "provider_invalid_parameters",
+        "provider_plan_restricted",
+        "provider_quota_exhausted",
+        "provider_rate_limited",
+        "provider_reported_error",
+        "provider_request_budget_exhausted",
+        "provider_response_invalid",
+        "provider_unavailable",
+    }
+)
 FORBIDDEN_ENDPOINT_PARTS: Final = frozenset(
     {"odds", "prediction", "predictions", "bookmaker", "betting", "live"}
 )
@@ -53,6 +83,18 @@ ALLOWED_ENDPOINT_PARAMETERS: Final[dict[str, frozenset[str]]] = {
     "standings": frozenset({"league", "season", "team"}),
     "fixtures/statistics": frozenset({"fixture", "team", "type", "half"}),
     "fixtures/events": frozenset({"fixture", "team", "player", "type"}),
+    "fixtures/headtohead": frozenset(
+        {
+            "h2h",
+            "league",
+            "season",
+            "last",
+            "from",
+            "to",
+            "status",
+            "timezone",
+        }
+    ),
     "fixtures/lineups": frozenset({"fixture", "team", "player", "type"}),
     "injuries": frozenset(
         {"league", "season", "fixture", "team", "player", "date", "ids", "timezone"}
@@ -69,25 +111,70 @@ class ApiFootballDisabledError(RuntimeError):
 class ApiFootballRequestError(RuntimeError):
     public_code = "provider_unavailable"
 
-    def __init__(self, message: str, *, retryable: bool = False) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        retryable: bool = False,
+        public_code: str | None = None,
+        reason_code: str | None = None,
+    ) -> None:
         super().__init__(message)
         self.retryable = retryable
+        self.public_code = (
+            public_code
+            if public_code in PUBLIC_PROVIDER_ERROR_CODES
+            else type(self).public_code
+        )
+        self.reason_code = (
+            reason_code
+            if reason_code in PUBLIC_PROVIDER_REASON_CODES
+            else self.public_code
+        )
 
 
 class ApiFootballQuotaError(ApiFootballRequestError):
     public_code = "provider_quota_exhausted"
 
+    def __init__(self, message: str, *, retryable: bool = False) -> None:
+        super().__init__(
+            message,
+            retryable=retryable,
+            reason_code="daily_quota_exhausted",
+        )
+
 
 class ApiFootballRateLimitError(ApiFootballRequestError):
     public_code = "provider_rate_limited"
+
+    def __init__(self, message: str, *, retryable: bool = False) -> None:
+        super().__init__(
+            message,
+            retryable=retryable,
+            reason_code="provider_rate_limited",
+        )
 
 
 class ApiFootballRequestBudgetError(ApiFootballRequestError):
     public_code = "provider_request_budget_exhausted"
 
+    def __init__(self, message: str, *, retryable: bool = False) -> None:
+        super().__init__(
+            message,
+            retryable=retryable,
+            reason_code="sync_request_budget_exhausted",
+        )
+
 
 class ApiFootballValidationError(ApiFootballRequestError):
     public_code = "provider_response_invalid"
+
+    def __init__(self, message: str, *, retryable: bool = False) -> None:
+        super().__init__(
+            message,
+            retryable=retryable,
+            reason_code="provider_response_invalid",
+        )
 
 
 class ApiFootballPaging(BaseModel):
@@ -287,6 +374,7 @@ class ApiFootballClient:
                 raise ApiFootballRequestError(
                     "Le fournisseur sportif est temporairement indisponible.",
                     retryable=True,
+                    reason_code="provider_network_unavailable",
                 ) from exc
 
             self._update_quota(response.headers)
@@ -302,15 +390,18 @@ class ApiFootballClient:
                 raise ApiFootballRequestError(
                     "Le fournisseur sportif est temporairement indisponible.",
                     retryable=True,
+                    reason_code="provider_http_unavailable",
                 )
             if response.status_code < 200 or response.status_code >= 300:
                 raise ApiFootballRequestError(
                     "Le fournisseur sportif a refusé la requête.",
                     retryable=False,
+                    reason_code="provider_http_rejected",
                 )
 
             envelope = self._validate_response(
                 normalized_endpoint,
+                normalized_params,
                 response,
             )
             logger.info(
@@ -324,6 +415,7 @@ class ApiFootballClient:
         raise ApiFootballRequestError(
             "Le fournisseur sportif est temporairement indisponible.",
             retryable=True,
+            reason_code="provider_retry_exhausted",
         )
 
     def _ensure_enabled(self) -> None:
@@ -356,6 +448,7 @@ class ApiFootballClient:
     def _validate_response(
         self,
         endpoint: str,
+        params: Mapping[str, str | int | bool],
         response: httpx.Response,
     ) -> ApiFootballEnvelope:
         try:
@@ -367,9 +460,16 @@ class ApiFootballClient:
             ) from exc
 
         if _has_provider_errors(model.errors):
+            public_code, reason_code = _classify_provider_errors(
+                endpoint,
+                params,
+                model.errors,
+            )
             raise ApiFootballRequestError(
                 "Le fournisseur sportif a refusé la requête.",
                 retryable=False,
+                public_code=public_code,
+                reason_code=reason_code,
             )
         if model.results != len(model.response):
             raise ApiFootballValidationError(
@@ -435,6 +535,54 @@ def validate_provider_request(
 
 def _has_provider_errors(errors: dict[str, Any] | list[Any]) -> bool:
     return bool(errors)
+
+
+def _classify_provider_errors(
+    endpoint: str,
+    params: Mapping[str, str | int | bool],
+    errors: dict[str, Any] | list[Any],
+) -> tuple[str, str]:
+    error_keys = _provider_error_keys(errors)
+    if error_keys & {"requests", "request", "quota"}:
+        return "provider_quota_exhausted", "daily_quota_exhausted"
+    if error_keys & {"plan", "subscription", "account"}:
+        code = "provider_plan_restricted"
+        return code, code
+    if (
+        endpoint == "fixtures"
+        and {"from", "to"}.issubset(params)
+        and not {"league", "season"}.issubset(params)
+        and (
+            not error_keys
+            or bool(error_keys & {"from", "to", "league", "season"})
+        )
+    ):
+        code = "provider_fixture_range_requires_league_and_season"
+        return code, code
+    allowed_parameters = ALLOWED_ENDPOINT_PARAMETERS.get(endpoint, frozenset())
+    if error_keys & allowed_parameters:
+        code = "provider_invalid_parameters"
+        return code, code
+    return "provider_reported_error", "provider_reported_error"
+
+
+def _provider_error_keys(
+    errors: dict[str, Any] | list[Any],
+) -> frozenset[str]:
+    keys: set[str] = set()
+    pending: list[Any] = [errors]
+    while pending:
+        item = pending.pop()
+        if isinstance(item, dict):
+            keys.update(
+                str(key).strip().lower()
+                for key in item
+                if str(key).strip()
+            )
+            pending.extend(item.values())
+        elif isinstance(item, list):
+            pending.extend(item)
+    return frozenset(keys)
 
 
 def _safe_int(value: str | None) -> int | None:

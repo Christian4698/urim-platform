@@ -193,7 +193,11 @@ def test_sync_status_and_freshness_are_public_safe(
     monkeypatch.setattr(
         SportsRepository,
         "recent_public_errors",
-        lambda _self: ["invalid_matches_row"],
+        lambda _self, *, run_id: (
+            ["invalid_matches_row"]
+            if str(run_id) == "00000000-0000-0000-0000-000000000001"
+            else []
+        ),
     )
     monkeypatch.setattr(
         SportsRepository,

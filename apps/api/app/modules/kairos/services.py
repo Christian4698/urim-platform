@@ -19,6 +19,7 @@ from app.modules.kairos.models import (
     StatisticObservation,
     TeamFeatureProfile,
 )
+from app.modules.kairos.half_time import analyze_half_time_markets
 from app.modules.kairos.schemas import (
     KairosAnalysisResponse,
     KairosDataFreshness,
@@ -296,6 +297,14 @@ class KairosAnalysisService:
             suggestion=suggestion,
             immutable_hash=immutable_hash,
             analysis_status=analysis_status,
+            half_time_analysis=list(
+                analyze_half_time_markets(
+                    dataset,
+                    freshness_threshold_minutes=(
+                        self.freshness_threshold_minutes
+                    ),
+                )
+            ),
         )
 
 

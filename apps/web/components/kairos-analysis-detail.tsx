@@ -131,6 +131,36 @@ export function KairosAnalysisDetail({
         )}
       </DataPanel>
 
+      <DataPanel
+        description="Estimations dédiées aux deux périodes. Les scores HT manquants restent absents et bloquent le calcul."
+        title="Analyse mi-temps B2.4"
+      >
+        {data.half_time_analysis?.length ? (
+          <div className="kairos-probability-grid">
+            {data.half_time_analysis.map((market) => (
+              <div key={market.market}>
+                <span>{halfTimeMarketLabel(market.market)}</span>
+                <strong>
+                  {market.estimated_probability === null
+                    ? "Insuffisant"
+                    : `${(market.estimated_probability * 100).toFixed(1)}%`}
+                </strong>
+                <small>
+                  n={market.sample_size} · qualité{" "}
+                  {market.data_quality_score.toFixed(0)} · technique{" "}
+                  {market.technical_confidence_score.toFixed(0)}
+                </small>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="sports-panel-empty">
+            Aucune observation HT/FT exploitable n’est disponible pour cette
+            analyse.
+          </p>
+        )}
+      </DataPanel>
+
       <section className="kairos-factor-grid">
         <FactorPanel factors={positive} positive title="Facteurs positifs" />
         <FactorPanel factors={negative} title="Facteurs négatifs" />
@@ -240,4 +270,16 @@ function formatDateTime(value: string): string {
     timeStyle: "short",
     timeZone: "Africa/Kinshasa"
   }).format(parsed);
+}
+
+function halfTimeMarketLabel(market: string): string {
+  const labels: Record<string, string> = {
+    FIRST_HALF_MORE_GOALS: "Plus de buts en 1re période",
+    SECOND_HALF_MORE_GOALS: "Plus de buts en 2de période",
+    EQUAL_HALF_GOALS: "Buts égaux par période",
+    FIRST_HALF_OVER_0_5: "1re période · au moins un but",
+    SECOND_HALF_OVER_0_5: "2de période · au moins un but",
+    SECOND_HALF_OVER_1_5: "2de période · au moins deux buts"
+  };
+  return labels[market] ?? market;
 }

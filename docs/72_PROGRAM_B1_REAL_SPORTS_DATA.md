@@ -115,12 +115,21 @@ urim-sports-sync matches-date --date 2026-07-23
 urim-sports-sync upcoming --days 7
 urim-sports-sync results --from 2026-07-01 --to 2026-07-23
 urim-sports-sync statistics --from 2026-07-16 --to 2026-07-23
+urim-sports-sync daily-discovery --date 2026-07-23
+urim-sports-sync daily-refresh --days 7
 ```
 
 `statistics --statistics-only` exclut événements, compositions et blessures.
 Les fenêtres sont bornées à 31 jours, le nombre de compétitions à 10 et le
 budget par synchronisation à 100 requêtes au maximum. Aucun cron live n'est
 créé par B1.
+
+Le hotfix B2.3 ajoute les deux commandes `daily-*`. Chaque date est demandée
+séparément sans filtre de compétition; les compétitions prioritaires ordonnent
+seulement les candidats. `upcoming` conserve sa plage bornée par compétition et
+retourne un code public distinct si la saison ou les priorités manquent. Le
+détail du filtrage et du rapport se trouve dans
+`77_B2_3_DAILY_FIXTURE_DISCOVERY.md`.
 
 ## API publique en lecture seule
 
