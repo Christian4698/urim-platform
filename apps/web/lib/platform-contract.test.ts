@@ -17,6 +17,7 @@ test("ships every required Programme A route and runtime state", () => {
     "apps/web/app/donnees-sportives/page.tsx",
     "apps/web/app/suggestions/page.tsx",
     "apps/web/app/opportunities/page.tsx",
+    "apps/web/app/kairos/performance/page.tsx",
     "apps/web/app/kairos-analysis/[providerMatchId]/page.tsx",
     "apps/web/app/disponibilite/page.tsx",
     "apps/web/app/modules/page.tsx",
@@ -45,6 +46,28 @@ test("Kairos B2.4 Opportunity Center is read-only and exposes explicit gates", (
   assert.doesNotMatch(
     source,
     /API_FOOTBALL_KEY|x-apisports-key|DATABASE_URL|stake|bookmaker_id/
+  );
+});
+
+test("Kairos B2.4.1 explains empty states and separates estimated from observed performance", () => {
+  const source = [
+    read("apps/web/components/kairos-opportunities.tsx"),
+    read("apps/web/components/kairos-performance.tsx"),
+    read("apps/web/components/kairos-analysis-detail.tsx"),
+    read("apps/web/app/kairos/performance/page.tsx"),
+    read("apps/web/lib/api-client.ts")
+  ].join("\n");
+
+  assert.match(source, /Zéro\s+opportunité n’est pas une panne/);
+  assert.match(source, /Principales catégories de rejet/);
+  assert.match(source, /Échantillon insuffisant/);
+  assert.match(source, /probabilité estimée|probabilités estimées/i);
+  assert.match(source, /taux observé/i);
+  assert.match(source, /VOID/);
+  assert.match(source, /Sans échantillon/);
+  assert.doesNotMatch(
+    source,
+    /API_FOOTBALL_KEY|x-apisports-key|DATABASE_URL|bookmaker_id|stake_suggestion/
   );
 });
 

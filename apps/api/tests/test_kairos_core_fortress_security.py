@@ -20,6 +20,7 @@ KAIROS_ANALYSIS_PATH = "/api/v1/kairos/matches/999/analysis"
 KAIROS_METHODOLOGY_PATH = "/api/v1/kairos/methodology"
 KAIROS_SUGGESTIONS_PATH = "/api/v1/kairos/suggestions/today"
 KAIROS_OPPORTUNITIES_PATH = "/api/v1/kairos/opportunities/today"
+KAIROS_PERFORMANCE_PATH = "/api/v1/kairos/performance"
 SECRET_MARKER = "FORTRESS_PRIVATE_PASSWORD"  # pragma: allowlist secret
 
 
@@ -60,6 +61,11 @@ def allow_rate_limited_requests(
     monkeypatch.setattr(
         kairos_routes,
         "_OPPORTUNITIES_RATE_LIMITER",
+        _AllowAllLimiter(),
+    )
+    monkeypatch.setattr(
+        kairos_routes,
+        "_PERFORMANCE_RATE_LIMITER",
         _AllowAllLimiter(),
     )
 
@@ -196,6 +202,7 @@ def test_unknown_or_duplicate_query_parameters_are_rejected_before_database(
         KAIROS_METHODOLOGY_PATH,
         KAIROS_SUGGESTIONS_PATH,
         KAIROS_OPPORTUNITIES_PATH,
+        KAIROS_PERFORMANCE_PATH,
         KAIROS_ANALYSIS_PATH,
     ),
 )
@@ -217,6 +224,7 @@ def test_only_get_is_exposed_for_kairos_routes(
     (
         KAIROS_METHODOLOGY_PATH,
         f"{KAIROS_SUGGESTIONS_PATH}?debug=true",
+        f"{KAIROS_PERFORMANCE_PATH}?debug=true",
         "/api/v1/kairos/matches/not-an-integer/analysis",
     ),
 )
@@ -279,6 +287,8 @@ def test_openapi_exposes_only_get_for_kairos_and_no_sensitive_configuration() ->
     for path in (
         KAIROS_METHODOLOGY_PATH,
         KAIROS_SUGGESTIONS_PATH,
+        KAIROS_OPPORTUNITIES_PATH,
+        KAIROS_PERFORMANCE_PATH,
         "/api/v1/kairos/matches/{provider_match_id}/analysis",
     ):
         assert set(document["paths"][path]) == {"get"}

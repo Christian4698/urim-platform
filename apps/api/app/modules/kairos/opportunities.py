@@ -12,9 +12,12 @@ from app.modules.kairos.opportunity_config import (
     OPPORTUNITY_TECHNICAL_CONFIDENCE_THRESHOLD,
 )
 from app.modules.kairos.schemas import (
+    KairosAnalysisResponse,
     KairosHalfTimeMarketAnalysis,
     KairosMatchOpportunity,
+    KairosMissingData,
     KairosOpportunityCandidate,
+    KairosRejectionReason,
 )
 from app.modules.kairos.services import KairosAnalysisService
 
@@ -63,10 +66,20 @@ class KairosOpportunityService:
             safety_decision = (
                 "INSUFFICIENT_DATA" if all_insufficient else "NO_BET"
             )
-            section = "NO_BET" if all_insufficient else "WATCH"
+            rejection_reasons = _rejection_reasons(analysis)
+            if all_insufficient:
+                section = "INSUFFICIENT_DATA"
+            elif {
+                "stale_data",
+                "critical_guardrail",
+            }.intersection(rejection_reasons):
+                section = "NO_BET"
+            else:
+                section = "WATCH"
         else:
             safety_decision = "ANALYSIS_ALLOWED"
             section = _section(primary.market)
+            rejection_reasons = []
 
         return KairosMatchOpportunity(
             provider_match_id=dataset.target.provider_match_id,
@@ -78,6 +91,9 @@ class KairosOpportunityService:
             primary_analysis=primary,
             alternative_analyses=alternatives,
             evaluated_markets=analysis.half_time_analysis,
+            rejection_reasons=rejection_reasons,
+            missing_data=_missing_data(dataset, analysis),
+            data_freshness=analysis.data_freshness.status,
         )
 
 
@@ -167,6 +183,73 @@ def _section(market: str) -> str:
     }:
         return "GOAL_MARKETS"
     return "DOUBLE_CHANCE"
+
+
+def _rejection_reasons(
+    analysis: KairosAnalysisResponse,
+) -> list[KairosRejectionReason]:
+    markets = analysis.half_time_analysis
+    reasons: list[KairosRejectionReason] = []
+    if markets and all(market.insufficient_data for market in markets):
+        reasons.append("insufficient_half_time_data")
+    if analysis.data_freshness.status == "stale" or any(
+        "STALE_SOURCE_DATA" in market.guardrails for market in markets
+    ):
+        reasons.append("stale_data")
+    if markets and max(
+        market.data_quality_score for market in markets
+    ) < OPPORTUNITY_DATA_QUALITY_THRESHOLD:
+        reasons.append("low_data_quality")
+    if markets and max(
+        market.technical_confidence_score for market in markets
+    ) < OPPORTUNITY_TECHNICAL_CONFIDENCE_THRESHOLD:
+        reasons.append("low_technical_confidence")
+    probabilities = [
+        market.estimated_probability
+        for market in markets
+        if market.estimated_probability is not None
+    ]
+    if probabilities and max(probabilities) < OPPORTUNITY_PROBABILITY_THRESHOLD:
+        reasons.append("estimated_probability_below_threshold")
+    if any(
+        warning.severity == "blocking" for warning in analysis.warnings
+    ) or any(
+        guardrail != "STALE_SOURCE_DATA"
+        for market in markets
+        for guardrail in market.guardrails
+    ):
+        reasons.append("critical_guardrail")
+    if any(
+        not availability.available_for_both_teams
+        for availability in analysis.data_availability.values()
+    ):
+        reasons.append("provider_data_partial")
+    if not reasons:
+        reasons.append("critical_guardrail")
+    return list(dict.fromkeys(reasons))
+
+
+def _missing_data(
+    dataset: KairosMatchDataset,
+    analysis: KairosAnalysisResponse,
+) -> list[KairosMissingData]:
+    missing: list[KairosMissingData] = []
+    if analysis.half_time_analysis and all(
+        market.insufficient_data for market in analysis.half_time_analysis
+    ):
+        missing.append("half_time_scores")
+    if not any(
+        event.event_type.strip().lower() == "goal"
+        for event in dataset.events
+    ):
+        missing.append("goal_events")
+    if len(dataset.h2h_history) < 3:
+        missing.append("h2h")
+    if len(dataset.standings) < 2:
+        missing.append("standings")
+    if not dataset.statistics:
+        missing.append("match_statistics")
+    return missing
 
 
 __all__ = ["KairosOpportunityService"]

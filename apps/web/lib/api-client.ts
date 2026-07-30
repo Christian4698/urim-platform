@@ -270,6 +270,23 @@ export type KairosOpportunityCandidate = {
   analysis_hash: string;
 };
 
+export type KairosRejectionReason =
+  | "insufficient_half_time_data"
+  | "low_data_quality"
+  | "low_technical_confidence"
+  | "estimated_probability_below_threshold"
+  | "stale_data"
+  | "critical_guardrail"
+  | "correlated_market_excluded"
+  | "provider_data_partial";
+
+export type KairosMissingData =
+  | "half_time_scores"
+  | "goal_events"
+  | "h2h"
+  | "standings"
+  | "match_statistics";
+
 export type KairosMatchOpportunity = {
   provider_match_id: number;
   kickoff_at: string;
@@ -281,11 +298,15 @@ export type KairosMatchOpportunity = {
     | "GOAL_MARKETS"
     | "DOUBLE_CHANCE"
     | "WATCH"
-    | "NO_BET";
+    | "NO_BET"
+    | "INSUFFICIENT_DATA";
   safety_decision: "ANALYSIS_ALLOWED" | "NO_BET" | "INSUFFICIENT_DATA";
   primary_analysis: KairosOpportunityCandidate | null;
   alternative_analyses: KairosOpportunityCandidate[];
   evaluated_markets: KairosHalfTimeMarketAnalysis[];
+  rejection_reasons: KairosRejectionReason[];
+  missing_data: KairosMissingData[];
+  data_freshness: "fresh" | "stale";
   read_only: true;
   persisted_by_request: false;
   not_for_betting: true;
@@ -295,9 +316,29 @@ export type KairosDailyOpportunities = {
   local_date: string;
   timezone: "Africa/Kinshasa";
   as_of: string;
+  generated_at: string;
   opportunity_count: number;
   evaluated_match_count: number;
+  skipped_unsafe_match_count: number;
+  watchlist_count: number;
+  no_bet_count: number;
+  insufficient_data_count: number;
+  stale_data_count: number;
+  rejection_reason_counts: Partial<Record<KairosRejectionReason, number>>;
+  message_code:
+    | "opportunities_available"
+    | "no_solid_opportunity"
+    | "insufficient_data"
+    | "partial_sync";
+  message: string;
+  data_freshness: {
+    status: "fresh" | "stale" | "partial" | "missing";
+    fresh_match_count: number;
+    stale_match_count: number;
+    partial_match_count: number;
+  };
   opportunities: KairosMatchOpportunity[];
+  evaluated_matches: KairosMatchOpportunity[];
   warnings: string[];
   thresholds: {
     estimated_probability: number;
@@ -320,6 +361,51 @@ export type KairosDailyOpportunities = {
   provider_calls: false;
   automatic_betting_enabled: false;
   live_automatic_enabled: false;
+  not_for_betting: true;
+};
+
+export type KairosPerformanceSegment = {
+  key: string;
+  label: string;
+  total_snapshots: number;
+  resolved_sample_size: number;
+  success_count: number;
+  void_count: number;
+  unresolved_count: number;
+  observed_hit_rate: number | null;
+  estimated_probability_mean: number | null;
+  sample_status:
+    | "no_sample"
+    | "insufficient_sample"
+    | "descriptive_sample_available";
+};
+
+export type KairosPerformance = {
+  generated_at: string;
+  total_snapshots: number;
+  resolved: number;
+  unresolved: number;
+  void: number;
+  resolved_sample_size: number;
+  success_count: number;
+  observed_hit_rate: number | null;
+  sample_status:
+    | "no_sample"
+    | "insufficient_sample"
+    | "descriptive_sample_available";
+  performance_by_market: KairosPerformanceSegment[];
+  performance_by_competition: KairosPerformanceSegment[];
+  performance_by_probability_band: KairosPerformanceSegment[];
+  performance_by_quality_level: KairosPerformanceSegment[];
+  calibration_buckets: KairosPerformanceSegment[];
+  last_resolution_at: string | null;
+  last_report_generated_at: string;
+  warnings: string[];
+  calibration_status: "not_calibrated";
+  read_only: true;
+  db_writes: false;
+  provider_calls: false;
+  automatic_betting_enabled: false;
   not_for_betting: true;
 };
 
@@ -346,6 +432,24 @@ export type KairosAnalysis = {
     message: string;
     severity: "info" | "warning" | "blocking";
   }>;
+  data_freshness: {
+    as_of: string;
+    max_available_at: string;
+    target_fetched_at: string;
+    target_age_minutes: number;
+    status: "fresh" | "stale";
+    threshold_minutes: number;
+  };
+  data_availability: Record<
+    string,
+    {
+      home_samples: number;
+      away_samples: number;
+      required_samples_per_team: number;
+      coverage_score: number;
+      available_for_both_teams: boolean;
+    }
+  >;
   safety_decision: "NO_BET" | "INSUFFICIENT_DATA";
   /**
    * Alias de compatibilité de safety_decision.
@@ -372,6 +476,7 @@ export type UrimApiClient = {
   getSportsData: () => Promise<SportsDataSnapshot>;
   getDailySuggestions: () => Promise<KairosDailySuggestions>;
   getDailyOpportunities: () => Promise<KairosDailyOpportunities>;
+  getKairosPerformance: () => Promise<KairosPerformance>;
   getKairosAnalysis: (
     providerMatchId: number,
     asOf?: string
@@ -688,6 +793,25 @@ const opportunityMarkets = [
   "HOME_OR_AWAY"
 ] as const;
 
+const rejectionReasons = [
+  "insufficient_half_time_data",
+  "low_data_quality",
+  "low_technical_confidence",
+  "estimated_probability_below_threshold",
+  "stale_data",
+  "critical_guardrail",
+  "correlated_market_excluded",
+  "provider_data_partial"
+] as const;
+
+const missingDataFields = [
+  "half_time_scores",
+  "goal_events",
+  "h2h",
+  "standings",
+  "match_statistics"
+] as const;
+
 function opportunityMarketGroup(
   market: KairosOpportunityCandidate["market"]
 ): "half_time" | "double_chance" {
@@ -791,7 +915,8 @@ function isKairosMatchOpportunity(
       "GOAL_MARKETS",
       "DOUBLE_CHANCE",
       "WATCH",
-      "NO_BET"
+      "NO_BET",
+      "INSUFFICIENT_DATA"
     ].includes(String(value.section)) ||
     !["ANALYSIS_ALLOWED", "NO_BET", "INSUFFICIENT_DATA"].includes(
       String(value.safety_decision)
@@ -801,7 +926,18 @@ function isKairosMatchOpportunity(
     !value.alternative_analyses.every(isKairosOpportunityCandidate) ||
     !Array.isArray(value.evaluated_markets) ||
     value.evaluated_markets.length > 6 ||
-    !value.evaluated_markets.every(isKairosHalfTimeMarketAnalysis)
+    !value.evaluated_markets.every(isKairosHalfTimeMarketAnalysis) ||
+    !Array.isArray(value.rejection_reasons) ||
+    value.rejection_reasons.length > rejectionReasons.length ||
+    !value.rejection_reasons.every((reason) =>
+      rejectionReasons.includes(reason as KairosRejectionReason)
+    ) ||
+    !Array.isArray(value.missing_data) ||
+    value.missing_data.length > missingDataFields.length ||
+    !value.missing_data.every((field) =>
+      missingDataFields.includes(field as KairosMissingData)
+    ) ||
+    !["fresh", "stale"].includes(String(value.data_freshness))
   ) {
     return false;
   }
@@ -822,6 +958,9 @@ function isKairosMatchOpportunity(
     primary !== undefined &&
     allowed === (primary !== null) &&
     (allowed || value.alternative_analyses.length === 0) &&
+    allowed === (value.rejection_reasons.length === 0) &&
+    (value.safety_decision !== "INSUFFICIENT_DATA" ||
+      value.section === "INSUFFICIENT_DATA") &&
     selectionMarkets.length === new Set(selectionMarkets).size &&
     selectionGroups.length === new Set(selectionGroups).size &&
     value.read_only === true &&
@@ -838,13 +977,61 @@ function isKairosDailyOpportunities(
     typeof value.local_date !== "string" ||
     value.timezone !== "Africa/Kinshasa" ||
     typeof value.as_of !== "string" ||
+    typeof value.generated_at !== "string" ||
     !Array.isArray(value.opportunities) ||
     value.opportunities.length > 12 ||
     !value.opportunities.every(isKairosMatchOpportunity) ||
+    !value.opportunities.every(
+      (item) => item.safety_decision === "ANALYSIS_ALLOWED"
+    ) ||
     value.opportunity_count !== value.opportunities.length ||
+    !Array.isArray(value.evaluated_matches) ||
+    value.evaluated_matches.length > 16 ||
+    !value.evaluated_matches.every(isKairosMatchOpportunity) ||
     !Number.isSafeInteger(value.evaluated_match_count) ||
     Number(value.evaluated_match_count) < 0 ||
     Number(value.evaluated_match_count) > 16 ||
+    value.evaluated_match_count !== value.evaluated_matches.length ||
+    !Number.isSafeInteger(value.skipped_unsafe_match_count) ||
+    Number(value.skipped_unsafe_match_count) < 0 ||
+    Number(value.skipped_unsafe_match_count) > 16 ||
+    Number(value.evaluated_match_count) +
+      Number(value.skipped_unsafe_match_count) >
+      16 ||
+    !Number.isSafeInteger(value.watchlist_count) ||
+    !Number.isSafeInteger(value.no_bet_count) ||
+    !Number.isSafeInteger(value.insufficient_data_count) ||
+    !Number.isSafeInteger(value.stale_data_count) ||
+    [
+      value.watchlist_count,
+      value.no_bet_count,
+      value.insufficient_data_count,
+      value.stale_data_count
+    ].some((count) => Number(count) < 0 || Number(count) > 16) ||
+    !isRecord(value.rejection_reason_counts) ||
+    !Object.entries(value.rejection_reason_counts).every(
+      ([reason, count]) =>
+        rejectionReasons.includes(reason as KairosRejectionReason) &&
+        Number.isSafeInteger(count) &&
+        Number(count) >= 0 &&
+        Number(count) <= 16
+    ) ||
+    ![
+      "opportunities_available",
+      "no_solid_opportunity",
+      "insufficient_data",
+      "partial_sync"
+    ].includes(String(value.message_code)) ||
+    typeof value.message !== "string" ||
+    value.message.length === 0 ||
+    value.message.length > 280 ||
+    !isRecord(value.data_freshness) ||
+    !["fresh", "stale", "partial", "missing"].includes(
+      String(value.data_freshness.status)
+    ) ||
+    !Number.isSafeInteger(value.data_freshness.fresh_match_count) ||
+    !Number.isSafeInteger(value.data_freshness.stale_match_count) ||
+    !Number.isSafeInteger(value.data_freshness.partial_match_count) ||
     !isStringArray(value.warnings, 6) ||
     !isRecord(value.thresholds) ||
     value.thresholds.estimated_probability !== 0.7 ||
@@ -870,8 +1057,14 @@ function isKairosDailyOpportunities(
       Number(metric.success_count) <= Number(metric.resolved_sample_size) &&
       isFiniteScore(metric.observed_hit_rate, 1)
   );
+  const categoryCount =
+    Number(value.opportunity_count) +
+    Number(value.watchlist_count) +
+    Number(value.no_bet_count) +
+    Number(value.insufficient_data_count);
   return (
     observedRate &&
+    categoryCount === Number(value.evaluated_match_count) &&
     (Number(value.resolved_journal_sample_size) > 0) ===
       (value.observed_hit_rate !== null) &&
     metricsValid &&
@@ -880,6 +1073,130 @@ function isKairosDailyOpportunities(
     value.provider_calls === false &&
     value.automatic_betting_enabled === false &&
     value.live_automatic_enabled === false &&
+    value.not_for_betting === true
+  );
+}
+
+function isKairosPerformanceSegment(
+  value: unknown
+): value is KairosPerformanceSegment {
+  if (
+    !isRecord(value) ||
+    typeof value.key !== "string" ||
+    value.key.length === 0 ||
+    typeof value.label !== "string" ||
+    value.label.length === 0 ||
+    !Number.isSafeInteger(value.total_snapshots) ||
+    !Number.isSafeInteger(value.resolved_sample_size) ||
+    !Number.isSafeInteger(value.success_count) ||
+    !Number.isSafeInteger(value.void_count) ||
+    !Number.isSafeInteger(value.unresolved_count)
+  ) {
+    return false;
+  }
+  const total = Number(value.total_snapshots);
+  const resolved = Number(value.resolved_sample_size);
+  const success = Number(value.success_count);
+  const voidCount = Number(value.void_count);
+  const unresolved = Number(value.unresolved_count);
+  const rate =
+    value.observed_hit_rate === null ||
+    isFiniteScore(value.observed_hit_rate, 1);
+  const estimated =
+    value.estimated_probability_mean === null ||
+    isFiniteScore(value.estimated_probability_mean, 1);
+  const expectedStatus =
+    resolved === 0
+      ? "no_sample"
+      : resolved < 30
+        ? "insufficient_sample"
+        : "descriptive_sample_available";
+  return (
+    total >= 0 &&
+    resolved >= 0 &&
+    success >= 0 &&
+    success <= resolved &&
+    voidCount >= 0 &&
+    unresolved >= 0 &&
+    resolved + voidCount + unresolved === total &&
+    rate &&
+    estimated &&
+    (resolved === 0) === (value.observed_hit_rate === null) &&
+    (resolved === 0 ||
+      Math.abs(Number(value.observed_hit_rate) - success / resolved) <=
+        0.0001) &&
+    value.sample_status === expectedStatus
+  );
+}
+
+function isKairosPerformance(value: unknown): value is KairosPerformance {
+  if (
+    !isRecord(value) ||
+    typeof value.generated_at !== "string" ||
+    !Number.isSafeInteger(value.total_snapshots) ||
+    !Number.isSafeInteger(value.resolved) ||
+    !Number.isSafeInteger(value.unresolved) ||
+    !Number.isSafeInteger(value.void) ||
+    !Number.isSafeInteger(value.resolved_sample_size) ||
+    !Number.isSafeInteger(value.success_count) ||
+    !Array.isArray(value.performance_by_market) ||
+    value.performance_by_market.length !== opportunityMarkets.length ||
+    !Array.isArray(value.performance_by_competition) ||
+    value.performance_by_competition.length > 100 ||
+    !Array.isArray(value.performance_by_probability_band) ||
+    value.performance_by_probability_band.length > 4 ||
+    !Array.isArray(value.performance_by_quality_level) ||
+    value.performance_by_quality_level.length > 3 ||
+    !Array.isArray(value.calibration_buckets) ||
+    value.calibration_buckets.length > 4 ||
+    ![
+      ...value.performance_by_market,
+      ...value.performance_by_competition,
+      ...value.performance_by_probability_band,
+      ...value.performance_by_quality_level,
+      ...value.calibration_buckets
+    ].every(isKairosPerformanceSegment) ||
+    !isStringArray(value.warnings, 6) ||
+    value.calibration_status !== "not_calibrated" ||
+    typeof value.last_report_generated_at !== "string" ||
+    (value.last_resolution_at !== null &&
+      typeof value.last_resolution_at !== "string")
+  ) {
+    return false;
+  }
+  const total = Number(value.total_snapshots);
+  const resolved = Number(value.resolved);
+  const unresolved = Number(value.unresolved);
+  const voidCount = Number(value.void);
+  const success = Number(value.success_count);
+  const rate =
+    value.observed_hit_rate === null ||
+    isFiniteScore(value.observed_hit_rate, 1);
+  const expectedStatus =
+    resolved === 0
+      ? "no_sample"
+      : resolved < 30
+        ? "insufficient_sample"
+        : "descriptive_sample_available";
+  return (
+    total >= 0 &&
+    resolved >= 0 &&
+    unresolved >= 0 &&
+    voidCount >= 0 &&
+    resolved === Number(value.resolved_sample_size) &&
+    resolved + unresolved + voidCount === total &&
+    success >= 0 &&
+    success <= resolved &&
+    rate &&
+    (resolved === 0) === (value.observed_hit_rate === null) &&
+    (resolved === 0 ||
+      Math.abs(Number(value.observed_hit_rate) - success / resolved) <=
+        0.0001) &&
+    value.sample_status === expectedStatus &&
+    value.read_only === true &&
+    value.db_writes === false &&
+    value.provider_calls === false &&
+    value.automatic_betting_enabled === false &&
     value.not_for_betting === true
   );
 }
@@ -897,6 +1214,28 @@ function isKairosAnalysis(value: unknown): value is KairosAnalysis {
     !isFiniteScore(value.data_quality_score, 100) ||
     !Array.isArray(value.reasons) ||
     !Array.isArray(value.warnings) ||
+    !isRecord(value.data_freshness) ||
+    typeof value.data_freshness.as_of !== "string" ||
+    typeof value.data_freshness.max_available_at !== "string" ||
+    typeof value.data_freshness.target_fetched_at !== "string" ||
+    !Number.isSafeInteger(value.data_freshness.target_age_minutes) ||
+    Number(value.data_freshness.target_age_minutes) < 0 ||
+    !["fresh", "stale"].includes(String(value.data_freshness.status)) ||
+    !Number.isSafeInteger(value.data_freshness.threshold_minutes) ||
+    Number(value.data_freshness.threshold_minutes) < 1 ||
+    !isRecord(value.data_availability) ||
+    !Object.values(value.data_availability).every(
+      (availability) =>
+        isRecord(availability) &&
+        Number.isSafeInteger(availability.home_samples) &&
+        Number(availability.home_samples) >= 0 &&
+        Number.isSafeInteger(availability.away_samples) &&
+        Number(availability.away_samples) >= 0 &&
+        Number.isSafeInteger(availability.required_samples_per_team) &&
+        Number(availability.required_samples_per_team) >= 1 &&
+        isFiniteScore(availability.coverage_score, 100) &&
+        typeof availability.available_for_both_teams === "boolean"
+    ) ||
     !["NO_BET", "INSUFFICIENT_DATA"].includes(String(value.safety_decision)) ||
     value.decision !== value.safety_decision ||
     !isKairosSuggestion(value.analytical_suggestion) ||
@@ -1130,6 +1469,14 @@ export function createApiClient(options: ApiClientOptions = {}): UrimApiClient {
         baseUrl,
         "api/v1/kairos/opportunities/today",
         isKairosDailyOpportunities,
+        fetchImpl,
+        timeoutMs
+      ),
+    getKairosPerformance: () =>
+      requestJson(
+        baseUrl,
+        "api/v1/kairos/performance",
+        isKairosPerformance,
         fetchImpl,
         timeoutMs
       ),

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Iterator
 from datetime import UTC, datetime, time, timedelta
 from threading import BoundedSemaphore
@@ -29,6 +30,7 @@ from app.modules.kairos.schemas import (
     KairosDailyOpportunitiesResponse,
     KairosDailySuggestionsResponse,
     KairosMethodologyResponse,
+    KairosPerformanceResponse,
 )
 from app.modules.kairos.opportunities import KairosOpportunityService
 from app.modules.kairos.opportunity_config import (
@@ -37,6 +39,7 @@ from app.modules.kairos.opportunity_config import (
     OPPORTUNITY_PROBABILITY_THRESHOLD,
     OPPORTUNITY_TECHNICAL_CONFIDENCE_THRESHOLD,
 )
+from app.modules.kairos.performance import KairosPerformanceRepository
 from app.modules.kairos.services import (
     RECENT_WINDOW_MATCHES,
     KairosAnalysisService,
@@ -58,6 +61,7 @@ _METHODOLOGY_RATE_LIMIT = 120
 _ANALYSIS_RATE_LIMIT = 30
 _SUGGESTIONS_RATE_LIMIT = 10
 _OPPORTUNITIES_RATE_LIMIT = 10
+_PERFORMANCE_RATE_LIMIT = 10
 PUBLIC_DATABASE_ERROR = {
     "code": "kairos_data_unavailable",
     "message": "Les données nécessaires à l'analyse sont indisponibles.",
@@ -269,17 +273,18 @@ def daily_opportunities(
     service = KairosOpportunityService(
         freshness_threshold_minutes=settings.api_football_freshness_minutes
     )
-    opportunities = []
+    evaluated_matches = []
+    skipped_unsafe_match_count = 0
     for dataset in datasets:
         try:
-            opportunities.append(service.analyze(dataset))
+            evaluated_matches.append(service.analyze(dataset))
         except (
             KairosDataError,
             KairosPreMatchWindowClosedError,
             KairosTemporalIntegrityError,
         ):
-            continue
-    opportunities.sort(
+            skipped_unsafe_match_count += 1
+    evaluated_matches.sort(
         key=lambda item: (
             item.safety_decision != "ANALYSIS_ALLOWED",
             -(
@@ -291,7 +296,55 @@ def daily_opportunities(
             item.provider_match_id,
         )
     )
-    selected = opportunities[:MAX_DAILY_OPPORTUNITIES]
+    selected = evaluated_matches[:MAX_DAILY_TARGET_MATCHES]
+    opportunities = [
+        item
+        for item in selected
+        if item.safety_decision == "ANALYSIS_ALLOWED"
+    ][:MAX_DAILY_OPPORTUNITIES]
+    watchlist_count = sum(item.section == "WATCH" for item in selected)
+    no_bet_count = sum(item.section == "NO_BET" for item in selected)
+    insufficient_data_count = sum(
+        item.safety_decision == "INSUFFICIENT_DATA" for item in selected
+    )
+    stale_data_count = sum(
+        "stale_data" in item.rejection_reasons for item in selected
+    )
+    rejection_reason_counts = Counter(
+        reason
+        for item in selected
+        for reason in item.rejection_reasons
+    )
+    if skipped_unsafe_match_count:
+        rejection_reason_counts["provider_data_partial"] += (
+            skipped_unsafe_match_count
+        )
+    partial_match_count = (
+        sum(bool(item.missing_data) for item in selected)
+        + skipped_unsafe_match_count
+    )
+    fresh_match_count = sum(
+        item.data_freshness == "fresh" and not item.missing_data
+        for item in selected
+    )
+    stale_match_count = sum(
+        item.data_freshness == "stale" for item in selected
+    )
+    if partial_match_count:
+        freshness_status = "partial"
+    elif stale_match_count:
+        freshness_status = "stale"
+    elif selected:
+        freshness_status = "fresh"
+    else:
+        freshness_status = "missing"
+    message_code, message = _opportunity_message(
+        opportunity_count=len(opportunities),
+        evaluated_match_count=len(selected),
+        insufficient_data_count=insufficient_data_count,
+        stale_data_count=stale_data_count,
+        skipped_unsafe_match_count=skipped_unsafe_match_count,
+    )
     resolved_sample_size = sum(
         metric.resolved_sample_size for metric in resolved_metrics.values()
     )
@@ -319,9 +372,27 @@ def daily_opportunities(
     return KairosDailyOpportunitiesResponse(
         local_date=local_date,
         as_of=as_of,
-        opportunity_count=len(selected),
-        evaluated_match_count=len(opportunities),
-        opportunities=selected,
+        generated_at=as_of,
+        opportunity_count=len(opportunities),
+        evaluated_match_count=len(selected),
+        skipped_unsafe_match_count=skipped_unsafe_match_count,
+        watchlist_count=watchlist_count,
+        no_bet_count=no_bet_count,
+        insufficient_data_count=insufficient_data_count,
+        stale_data_count=stale_data_count,
+        rejection_reason_counts=dict(
+            sorted(rejection_reason_counts.items())
+        ),
+        message_code=message_code,
+        message=message,
+        data_freshness={
+            "status": freshness_status,
+            "fresh_match_count": fresh_match_count,
+            "stale_match_count": stale_match_count,
+            "partial_match_count": partial_match_count,
+        },
+        opportunities=opportunities,
+        evaluated_matches=selected,
         warnings=warnings,
         thresholds={
             "estimated_probability": OPPORTUNITY_PROBABILITY_THRESHOLD,
@@ -341,6 +412,68 @@ def daily_opportunities(
             for market, metric in resolved_metrics.items()
         },
     )
+
+
+def _opportunity_message(
+    *,
+    opportunity_count: int,
+    evaluated_match_count: int,
+    insufficient_data_count: int,
+    stale_data_count: int,
+    skipped_unsafe_match_count: int,
+) -> tuple[str, str]:
+    if opportunity_count:
+        return (
+            "opportunities_available",
+            (
+                f"{opportunity_count} opportunité"
+                f"{'s' if opportunity_count > 1 else ''} analytique"
+                f"{'s' if opportunity_count > 1 else ''} disponible"
+                f"{'s' if opportunity_count > 1 else ''}, sous garde-fous."
+            ),
+        )
+    if not evaluated_match_count or (
+        insufficient_data_count == evaluated_match_count
+    ):
+        return (
+            "insufficient_data",
+            (
+                "Données insuffisantes pour identifier une opportunité "
+                "analytique solide à cet instant."
+            ),
+        )
+    if stale_data_count or skipped_unsafe_match_count:
+        return (
+            "partial_sync",
+            (
+                "Synchronisation partielle ou données périmées : aucune "
+                "opportunité solide n'est publiée."
+            ),
+        )
+    return (
+        "no_solid_opportunity",
+        (
+            "Aucune opportunité solide aujourd'hui : le service fonctionne "
+            "et les garde-fous ont refusé les signaux trop faibles."
+        ),
+    )
+
+
+@router.get(
+    "/performance",
+    response_model=KairosPerformanceResponse,
+)
+def performance(
+    request: Request,
+    _capacity: Annotated[None, Depends(_suggestions_capacity_dependency)],
+) -> KairosPerformanceResponse:
+    _validate_query_parameters(request, allowed=frozenset())
+    _enforce_rate_limit(request, _PERFORMANCE_RATE_LIMITER)
+    generated_at = datetime.now(UTC)
+    with _session() as session:
+        return KairosPerformanceRepository(session).report(
+            generated_at=generated_at
+        )
 
 
 @router.get(
@@ -528,6 +661,11 @@ _SUGGESTIONS_RATE_LIMITER = RedisSlidingWindowRateLimiter(
 _OPPORTUNITIES_RATE_LIMITER = RedisSlidingWindowRateLimiter(
     scope="daily-opportunities",
     limit=_OPPORTUNITIES_RATE_LIMIT,
+    redis_url=settings.redis_url,
+)
+_PERFORMANCE_RATE_LIMITER = RedisSlidingWindowRateLimiter(
+    scope="performance",
+    limit=_PERFORMANCE_RATE_LIMIT,
     redis_url=settings.redis_url,
 )
 

@@ -13,8 +13,8 @@ export default function OpportunitiesPage() {
   return (
     <>
       <PageHeader
-        description="Une analyse primaire au maximum par match, jusqu’à deux alternatives non corrélées, et NO_BET dès qu’un garde-fou échoue."
-        eyebrow="Kairos · B2.4"
+        description="Chaque match analysé expose une catégorie claire et uniquement des raisons de rejet sûres. Zéro opportunité est un résultat normal du gate, jamais une panne implicite."
+        eyebrow="Kairos · B2.4.1"
         title="Half-Time & Opportunity Center"
       >
         <StatusBadge tone="cyan">Probabilité ≥ 70 %</StatusBadge>

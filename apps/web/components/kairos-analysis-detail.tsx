@@ -12,7 +12,12 @@ import {
   KAIROS_GUARDRAIL_LABEL,
   presentKairosSuggestion
 } from "../lib/kairos-presentation";
-import { DataPanel, EmptyState, StatusBadge } from "./dashboard-ui";
+import {
+  ActionLink,
+  DataPanel,
+  EmptyState,
+  StatusBadge
+} from "./dashboard-ui";
 import { Icon } from "./icon";
 
 type ViewState =
@@ -86,6 +91,10 @@ export function KairosAnalysisDetail({
   ];
   const positive = analyticalReasons.filter((reason) => reason.impact === "positive");
   const negative = analyticalReasons.filter((reason) => reason.impact === "negative");
+  const rejectionReasons = detailRejectionReasons(data);
+  const missingData = Object.entries(data.data_availability)
+    .filter(([, availability]) => !availability.available_for_both_teams)
+    .map(([feature]) => missingFeatureLabel(feature));
   return (
     <div className="kairos-detail-content">
       <section className="kairos-detail-hero">
@@ -114,6 +123,31 @@ export function KairosAnalysisDetail({
       </section>
 
       <DataPanel
+        description="Raisons analytiques sûres ayant conduit au refus ou à la prudence."
+        title="Pourquoi cette décision ?"
+      >
+        {rejectionReasons.length ? (
+          <ul className="kairos-decision-reasons">
+            {rejectionReasons.map((reason) => (
+              <li key={reason.code}>
+                <StatusBadge tone="warning">{reason.code}</StatusBadge>
+                <span>{reason.message}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="sports-panel-empty">
+            Aucun motif de rejet supplémentaire n’est associé à cette analyse.
+          </p>
+        )}
+        {missingData.length > 0 && (
+          <p className="kairos-missing-data">
+            Données manquantes ou insuffisantes : {missingData.join(", ")}.
+          </p>
+        )}
+      </DataPanel>
+
+      <DataPanel
         description="Probabilités non calibrées issues d’une même distribution déterministe."
         title="Probabilités"
       >
@@ -129,6 +163,27 @@ export function KairosAnalysisDetail({
             valeur de remplacement.
           </p>
         )}
+      </DataPanel>
+
+      <DataPanel
+        description="Deux notions volontairement séparées."
+        title="Estimation et performance historique"
+      >
+        <div className="kairos-estimation-history">
+          <p>
+            Les pourcentages affichés sur ce match sont des estimations
+            pré-match non calibrées. Ils ne constituent pas un taux de réussite
+            observé.
+          </p>
+          <p>
+            La performance historique utilise uniquement les résolutions
+            SUCCESS et FAILURE du journal immuable ; VOID et non-résolus sont
+            exclus.
+          </p>
+          <ActionLink href="/kairos/performance" variant="secondary">
+            Consulter le rapport de performance
+          </ActionLink>
+        </div>
       </DataPanel>
 
       <DataPanel
@@ -222,6 +277,71 @@ export function KairosAnalysisDetail({
       </div>
     </div>
   );
+}
+
+function detailRejectionReasons(data: KairosAnalysis) {
+  const reasons: Array<{ code: string; message: string }> = [];
+  if (data.safety_decision === "INSUFFICIENT_DATA") {
+    const halfTimeDataIsInsufficient =
+      data.half_time_analysis?.some((market) => market.insufficient_data) ?? false;
+    reasons.push(
+      halfTimeDataIsInsufficient
+        ? {
+            code: "insufficient_half_time_data",
+            message:
+              "L’historique mi-temps exploitable est insuffisant ; aucune valeur n’est imputée."
+          }
+        : {
+            code: "provider_data_partial",
+            message:
+              "Les données analytiques disponibles sont partielles ; aucune valeur n’est imputée."
+          }
+    );
+  }
+  if (data.data_freshness.status === "stale") {
+    reasons.push({
+      code: "stale_data",
+      message: "Les données disponibles dépassent le seuil de fraîcheur."
+    });
+  }
+  if (data.data_quality_score < 65) {
+    reasons.push({
+      code: "low_data_quality",
+      message: "La qualité des données reste sous le gate B2.4."
+    });
+  }
+  if (data.confidence_score < 50) {
+    reasons.push({
+      code: "low_technical_confidence",
+      message: "La confiance technique reste sous le gate B2.4."
+    });
+  }
+  if (data.warnings.some((warning) => warning.severity === "blocking")) {
+    reasons.push({
+      code: "critical_guardrail",
+      message: "Un garde-fou critique impose le refus de publication."
+    });
+  }
+  if (data.suggestion.no_bet && reasons.length === 0) {
+    reasons.push({
+      code: "estimated_probability_below_threshold",
+      message: "Aucun signal ne franchit simultanément tous les seuils requis."
+    });
+  }
+  return reasons;
+}
+
+function missingFeatureLabel(feature: string): string {
+  const labels: Record<string, string> = {
+    recent_results: "résultats récents",
+    venue_results: "résultats domicile/extérieur",
+    standings: "classement",
+    shots: "tirs",
+    possession: "possession",
+    corners: "corners",
+    cards: "cartons"
+  };
+  return labels[feature] ?? "donnée analytique requise";
 }
 
 function Probability({ label, value }: { label: string; value: number }) {

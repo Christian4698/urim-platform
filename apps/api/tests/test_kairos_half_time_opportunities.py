@@ -300,8 +300,63 @@ def test_opportunity_service_returns_insufficient_data_without_selection() -> No
     ).analyze(_dataset(missing_halftime=True))
 
     assert opportunity.safety_decision == "INSUFFICIENT_DATA"
+    assert opportunity.section == "INSUFFICIENT_DATA"
     assert opportunity.primary_analysis is None
     assert opportunity.alternative_analyses == []
+    assert "insufficient_half_time_data" in opportunity.rejection_reasons
+    assert "half_time_scores" in opportunity.missing_data
+
+
+def test_rejected_match_exposes_only_safe_aggregated_reasons() -> None:
+    dataset = _dataset()
+    partial = replace(
+        dataset,
+        home_history=dataset.home_history[:3],
+        away_history=dataset.away_history[:3],
+        h2h_history=(),
+        standings=(),
+        statistics=(),
+        events=(),
+    )
+
+    opportunity = KairosOpportunityService(
+        freshness_threshold_minutes=180
+    ).analyze(partial)
+
+    assert opportunity.safety_decision == "NO_BET"
+    assert opportunity.section == "WATCH"
+    assert opportunity.primary_analysis is None
+    assert {
+        "low_data_quality",
+        "provider_data_partial",
+    } <= set(opportunity.rejection_reasons)
+    assert set(opportunity.rejection_reasons) <= {
+        "insufficient_half_time_data",
+        "low_data_quality",
+        "low_technical_confidence",
+        "estimated_probability_below_threshold",
+        "stale_data",
+        "critical_guardrail",
+        "correlated_market_excluded",
+        "provider_data_partial",
+    }
+    assert set(opportunity.missing_data) == {
+        "goal_events",
+        "h2h",
+        "standings",
+        "match_statistics",
+    }
+
+
+def test_stale_rejection_is_no_bet_not_a_service_failure() -> None:
+    opportunity = KairosOpportunityService(
+        freshness_threshold_minutes=180
+    ).analyze(_dataset(stale_target=True))
+
+    assert opportunity.safety_decision == "NO_BET"
+    assert opportunity.section == "NO_BET"
+    assert opportunity.data_freshness == "stale"
+    assert "stale_data" in opportunity.rejection_reasons
 
 
 def test_h2h_below_three_has_no_influence() -> None:

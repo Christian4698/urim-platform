@@ -1,12 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   ApiClientError,
   createApiClient,
   type KairosDailyOpportunities,
   type KairosMatchOpportunity,
-  type KairosOpportunityCandidate
+  type KairosOpportunityCandidate,
+  type KairosRejectionReason
 } from "../lib/api-client";
 import { EmptyState, StatusBadge } from "./dashboard-ui";
 import { Icon } from "./icon";
@@ -27,6 +29,25 @@ const marketLabels: Record<KairosOpportunityCandidate["market"], string> = {
   HOME_OR_DRAW: "Double chance · domicile ou nul",
   AWAY_OR_DRAW: "Double chance · extérieur ou nul",
   HOME_OR_AWAY: "Double chance · sans nul"
+};
+
+const rejectionLabels: Record<KairosRejectionReason, string> = {
+  insufficient_half_time_data: "Historique mi-temps insuffisant",
+  low_data_quality: "Qualité des données sous le seuil",
+  low_technical_confidence: "Confiance technique sous le seuil",
+  estimated_probability_below_threshold: "Estimation sous le seuil",
+  stale_data: "Données périmées",
+  critical_guardrail: "Garde-fou critique",
+  correlated_market_excluded: "Marché corrélé exclu",
+  provider_data_partial: "Données fournisseur partielles"
+};
+
+const missingDataLabels: Record<string, string> = {
+  half_time_scores: "scores mi-temps",
+  goal_events: "minutes des buts",
+  h2h: "confrontations directes",
+  standings: "classement",
+  match_statistics: "statistiques de match"
 };
 
 export function KairosOpportunities() {
@@ -109,49 +130,68 @@ export function KairosOpportunities() {
   const data = state.data;
   const sections = [
     {
-      title: "≥ 70 %",
-      description: "Analyses qui franchissent tous les seuils centralisés.",
-      items: data.opportunities.filter(
-        (item) => item.safety_decision === "ANALYSIS_ALLOWED"
-      )
-    },
-    {
-      title: "Mi-temps",
-      description: "Comparaison du volume de buts entre les deux périodes.",
-      items: data.opportunities.filter((item) => item.section === "HALF_TIME")
-    },
-    {
-      title: "Marchés de buts",
-      description: "Signaux de buts par période, sans cote ni bookmaker.",
-      items: data.opportunities.filter((item) => item.section === "GOAL_MARKETS")
-    },
-    {
-      title: "Double chance",
-      description: "Signal analytique B2.2 soumis au même gate B2.4.",
-      items: data.opportunities.filter((item) => item.section === "DOUBLE_CHANCE")
+      title: "Opportunités",
+      description: "Tous les seuils analytiques et garde-fous sont franchis.",
+      items: data.opportunities
     },
     {
       title: "À surveiller",
-      description: "Le signal existe mais ne franchit pas toutes les barrières.",
-      items: data.opportunities.filter((item) => item.section === "WATCH")
+      description: "Le signal reste trop faible pour être publié comme opportunité.",
+      items: data.evaluated_matches.filter((item) => item.section === "WATCH")
     },
     {
       title: "NO_BET",
-      description: "Données insuffisantes ou garde-fou bloquant.",
-      items: data.opportunities.filter((item) => item.section === "NO_BET")
+      description: "Un garde-fou critique ou temporel bloque l’analyse.",
+      items: data.evaluated_matches.filter((item) => item.section === "NO_BET")
+    },
+    {
+      title: "Données insuffisantes",
+      description: "Les valeurs absentes restent manquantes et ne sont jamais imputées.",
+      items: data.evaluated_matches.filter(
+        (item) => item.safety_decision === "INSUFFICIENT_DATA"
+      )
     }
   ];
 
   return (
     <div className="opportunity-center">
+      <section
+        className={`opportunity-message is-${data.message_code}`}
+        aria-live="polite"
+      >
+        <div>
+          <span>Kairos aujourd’hui</span>
+          <strong>{data.message}</strong>
+        </div>
+        <Link className="action-link" href="/kairos/performance">
+          Voir la performance historique
+        </Link>
+      </section>
+
       <section className="opportunity-summary" aria-label="Résumé des gates">
         <div>
           <span>Matchs évalués</span>
           <strong>{data.evaluated_match_count}</strong>
         </div>
         <div>
-          <span>Seuil probabilité</span>
-          <strong>{formatProbability(data.thresholds.estimated_probability)}</strong>
+          <span>Opportunités</span>
+          <strong>{data.opportunity_count}</strong>
+        </div>
+        <div>
+          <span>À surveiller</span>
+          <strong>{data.watchlist_count}</strong>
+        </div>
+        <div>
+          <span>NO_BET</span>
+          <strong>{data.no_bet_count}</strong>
+        </div>
+        <div>
+          <span>Données insuffisantes</span>
+          <strong>{data.insufficient_data_count}</strong>
+        </div>
+        <div>
+          <span>Données périmées</span>
+          <strong>{data.stale_data_count}</strong>
         </div>
         <div>
           <span>Échantillon résolu</span>
@@ -165,6 +205,41 @@ export function KairosOpportunities() {
               : formatProbability(data.observed_hit_rate)}
           </strong>
         </div>
+        <div>
+          <span>Fraîcheur</span>
+          <strong>{freshnessLabel(data.data_freshness.status)}</strong>
+        </div>
+      </section>
+
+      <section className="opportunity-rejections">
+        <div className="opportunity-section-heading">
+          <div>
+            <span>Explicabilité</span>
+            <h2>Principales catégories de rejet</h2>
+          </div>
+          <p>
+            Un même match peut cumuler plusieurs raisons sûres. Zéro
+            opportunité n’est pas une panne.
+          </p>
+        </div>
+        {Object.entries(data.rejection_reason_counts).length ? (
+          <div className="opportunity-rejection-grid">
+            {Object.entries(data.rejection_reason_counts)
+              .sort((left, right) => right[1] - left[1])
+              .map(([reason, count]) => (
+                <div key={reason}>
+                  <span>
+                    {rejectionLabels[reason as KairosRejectionReason]}
+                  </span>
+                  <strong>{count}</strong>
+                </div>
+              ))}
+          </div>
+        ) : (
+          <p className="opportunity-empty">
+            Aucun rejet analytique n’est enregistré à cet instant.
+          </p>
+        )}
       </section>
 
       {sections.map((section) => (
@@ -256,13 +331,41 @@ function OpportunityCard({ item }: { item: KairosMatchOpportunity }) {
           )}
         </>
       ) : (
-        <p className="opportunity-no-bet">
-          Aucune analyse ne franchit simultanément les seuils de probabilité,
-          qualité, confiance technique et fraîcheur.
-        </p>
+        <>
+          <p className="opportunity-no-bet">
+            Aucune analyse ne franchit simultanément les seuils de probabilité,
+            qualité, confiance technique et fraîcheur.
+          </p>
+          <ul className="kairos-reason-list">
+            {item.rejection_reasons.map((reason) => (
+              <li key={reason}>{rejectionLabels[reason]}</li>
+            ))}
+          </ul>
+          {item.missing_data.length > 0 && (
+            <p className="opportunity-missing">
+              Données manquantes :{" "}
+              {item.missing_data
+                .map((field) => missingDataLabels[field])
+                .join(", ")}
+              .
+            </p>
+          )}
+        </>
       )}
     </article>
   );
+}
+
+function freshnessLabel(
+  status: KairosDailyOpportunities["data_freshness"]["status"]
+): string {
+  const labels = {
+    fresh: "Fraîches",
+    stale: "Périmées",
+    partial: "Partielles",
+    missing: "Absentes"
+  };
+  return labels[status];
 }
 
 function formatProbability(value: number): string {

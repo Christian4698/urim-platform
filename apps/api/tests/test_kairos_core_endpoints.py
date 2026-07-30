@@ -356,6 +356,14 @@ def test_daily_opportunities_are_read_only_and_strictly_gated(
     assert response.status_code == 200
     payload = response.json()
     assert payload["opportunity_count"] == 1
+    assert payload["evaluated_match_count"] == 1
+    assert payload["watchlist_count"] == 0
+    assert payload["no_bet_count"] == 0
+    assert payload["insufficient_data_count"] == 0
+    assert payload["stale_data_count"] == 0
+    assert payload["message_code"] == "opportunities_available"
+    assert payload["data_freshness"]["status"] == "fresh"
+    assert len(payload["evaluated_matches"]) == 1
     assert payload["opportunities"][0]["primary_analysis"]["market"] == (
         "SECOND_HALF_OVER_0_5"
     )
@@ -376,6 +384,72 @@ def test_daily_opportunities_are_read_only_and_strictly_gated(
     serialized = response.text.lower()
     assert "database_url" not in serialized
     assert "api_football_key" not in serialized
+
+
+def test_zero_opportunity_is_explained_without_becoming_an_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = SimpleNamespace(provider_match_id=999)
+    rejected = KairosMatchOpportunity(
+        provider_match_id=999,
+        kickoff_at=datetime.now(UTC) + timedelta(hours=2),
+        home_team_name="Home",
+        away_team_name="Away",
+        section="INSUFFICIENT_DATA",
+        safety_decision="INSUFFICIENT_DATA",
+        primary_analysis=None,
+        alternative_analyses=[],
+        evaluated_markets=[],
+        rejection_reasons=[
+            "insufficient_half_time_data",
+            "provider_data_partial",
+        ],
+        missing_data=["half_time_scores", "match_statistics"],
+        data_freshness="fresh",
+    )
+    monkeypatch.setattr(
+        kairos_routes,
+        "_session",
+        lambda: nullcontext(object()),
+    )
+    monkeypatch.setattr(
+        KairosRepository,
+        "list_target_matches_as_of",
+        lambda _self, starts_at, ends_at, as_of, limit: (target,),
+    )
+    monkeypatch.setattr(
+        KairosRepository,
+        "load_match_dataset_for_target",
+        lambda _self, target, as_of, recent_window: object(),
+    )
+    monkeypatch.setattr(
+        KairosOpportunityService,
+        "analyze",
+        lambda _self, _dataset: rejected,
+    )
+    monkeypatch.setattr(
+        KairosJournalRepository,
+        "resolved_metrics",
+        lambda _self: {},
+    )
+
+    response = client.get("/api/v1/kairos/opportunities/today")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["opportunity_count"] == 0
+    assert payload["insufficient_data_count"] == 1
+    assert payload["message_code"] == "insufficient_data"
+    assert "Données insuffisantes" in payload["message"]
+    assert payload["rejection_reason_counts"] == {
+        "insufficient_half_time_data": 1,
+        "provider_data_partial": 1,
+    }
+    assert payload["opportunities"] == []
+    assert payload["evaluated_matches"][0]["rejection_reasons"] == [
+        "insufficient_half_time_data",
+        "provider_data_partial",
+    ]
 
 
 def test_daily_suggestions_reject_query_amplification(

@@ -20,6 +20,7 @@ from app.modules.kairos.models import (
     KairosTemporalIntegrityError,
 )
 from app.modules.kairos.opportunities import KairosOpportunityService
+from app.modules.kairos.performance import KairosPerformanceRepository
 from app.modules.kairos.repository import (
     MAX_DAILY_TARGET_MATCHES,
     KairosRepository,
@@ -70,6 +71,10 @@ def run_command(args: argparse.Namespace) -> dict[str, object]:
             )
             total = JournalWriteSummary(0, 0, 0)
             blocked = 0
+            opportunity_count = 0
+            no_bet_count = 0
+            insufficient_data_count = 0
+            stale_data_count = 0
             for target in targets:
                 try:
                     dataset = repository.load_match_dataset_for_target(
@@ -78,6 +83,14 @@ def run_command(args: argparse.Namespace) -> dict[str, object]:
                         recent_window=RECENT_WINDOW_MATCHES,
                     )
                     opportunity = service.analyze(dataset)
+                    if opportunity.safety_decision == "ANALYSIS_ALLOWED":
+                        opportunity_count += 1
+                    elif opportunity.safety_decision == "INSUFFICIENT_DATA":
+                        insufficient_data_count += 1
+                    else:
+                        no_bet_count += 1
+                    if "stale_data" in opportunity.rejection_reasons:
+                        stale_data_count += 1
                     summary = journal.append_opportunity(
                         opportunity,
                         analysis_time=now,
@@ -95,6 +108,11 @@ def run_command(args: argparse.Namespace) -> dict[str, object]:
                 "local_date": args.date.isoformat(),
                 "matches_evaluated": len(targets),
                 "matches_blocked": blocked,
+                "opportunities_generated": opportunity_count,
+                "no_bet_count": no_bet_count,
+                "insufficient_data_count": insufficient_data_count,
+                "stale_data_count": stale_data_count,
+                "snapshots_created": total.inserted,
                 **asdict(total),
                 "provider_calls": False,
                 "betting_actions": False,
@@ -116,12 +134,16 @@ def run_command(args: argparse.Namespace) -> dict[str, object]:
             }
         if args.command == "report":
             metrics = journal.resolved_metrics()
+            performance = KairosPerformanceRepository(session).report(
+                generated_at=now
+            )
             return {
                 "command": "report",
                 "segments": {
                     market: asdict(metric)
                     for market, metric in metrics.items()
                 },
+                "performance": performance.model_dump(mode="json"),
                 "resolved_only": True,
                 "provider_calls": False,
                 "betting_actions": False,

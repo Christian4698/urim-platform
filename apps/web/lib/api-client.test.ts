@@ -447,28 +447,46 @@ test("fetches strictly gated Kairos opportunities", async () => {
     h2h_sample_size: 3,
     insufficient_data: false
   };
+  const evaluatedMatch = {
+    provider_match_id: 999,
+    kickoff_at: "2026-07-28T18:00:00Z",
+    home_team_name: "Home Test",
+    away_team_name: "Away Test",
+    section: "GOAL_MARKETS",
+    safety_decision: "ANALYSIS_ALLOWED",
+    primary_analysis: candidate,
+    alternative_analyses: [],
+    evaluated_markets: [halfTimeAnalysis],
+    rejection_reasons: [],
+    missing_data: [],
+    data_freshness: "fresh",
+    read_only: true,
+    persisted_by_request: false,
+    not_for_betting: true
+  };
   const payload = {
     local_date: "2026-07-28",
     timezone: "Africa/Kinshasa",
     as_of: "2026-07-28T12:00:00Z",
+    generated_at: "2026-07-28T12:00:00Z",
     opportunity_count: 1,
     evaluated_match_count: 1,
-    opportunities: [
-      {
-        provider_match_id: 999,
-        kickoff_at: "2026-07-28T18:00:00Z",
-        home_team_name: "Home Test",
-        away_team_name: "Away Test",
-        section: "GOAL_MARKETS",
-        safety_decision: "ANALYSIS_ALLOWED",
-        primary_analysis: candidate,
-        alternative_analyses: [],
-        evaluated_markets: [halfTimeAnalysis],
-        read_only: true,
-        persisted_by_request: false,
-        not_for_betting: true
-      }
-    ],
+    skipped_unsafe_match_count: 0,
+    watchlist_count: 0,
+    no_bet_count: 0,
+    insufficient_data_count: 0,
+    stale_data_count: 0,
+    rejection_reason_counts: {},
+    message_code: "opportunities_available",
+    message: "Une opportunité analytique disponible, sous garde-fous.",
+    data_freshness: {
+      status: "fresh",
+      fresh_match_count: 1,
+      stale_match_count: 0,
+      partial_match_count: 0
+    },
+    opportunities: [evaluatedMatch],
+    evaluated_matches: [evaluatedMatch],
     warnings: ["Analyse non calibrée."],
     thresholds: {
       estimated_probability: 0.7,
@@ -593,6 +611,109 @@ test("rejects an opportunity below a centralized threshold", async () => {
   );
 });
 
+test("validates an empty then populated Kairos performance report", async () => {
+  const marketKeys = [
+    "FIRST_HALF_MORE_GOALS",
+    "SECOND_HALF_MORE_GOALS",
+    "EQUAL_HALF_GOALS",
+    "FIRST_HALF_OVER_0_5",
+    "SECOND_HALF_OVER_0_5",
+    "SECOND_HALF_OVER_1_5",
+    "HOME_OR_DRAW",
+    "AWAY_OR_DRAW",
+    "HOME_OR_AWAY"
+  ];
+  const emptySegment = (key: string) => ({
+    key,
+    label: key,
+    total_snapshots: 0,
+    resolved_sample_size: 0,
+    success_count: 0,
+    void_count: 0,
+    unresolved_count: 0,
+    observed_hit_rate: null,
+    estimated_probability_mean: null,
+    sample_status: "no_sample"
+  });
+  const emptyReport = {
+    generated_at: "2026-07-30T12:00:00Z",
+    total_snapshots: 0,
+    resolved: 0,
+    unresolved: 0,
+    void: 0,
+    resolved_sample_size: 0,
+    success_count: 0,
+    observed_hit_rate: null,
+    sample_status: "no_sample",
+    performance_by_market: marketKeys.map(emptySegment),
+    performance_by_competition: [],
+    performance_by_probability_band: [],
+    performance_by_quality_level: [],
+    calibration_buckets: [],
+    last_resolution_at: null,
+    last_report_generated_at: "2026-07-30T12:00:00Z",
+    warnings: ["Échantillon insuffisant."],
+    calibration_status: "not_calibrated",
+    read_only: true,
+    db_writes: false,
+    provider_calls: false,
+    automatic_betting_enabled: false,
+    not_for_betting: true
+  };
+  const emptyClient = createApiClient({
+    baseUrl: BASE_URL,
+    fetchImpl: async (input) => {
+      assert.equal(
+        new URL(input.toString()).pathname,
+        "/api/v1/kairos/performance"
+      );
+      return jsonResponse(emptyReport);
+    }
+  });
+  assert.equal((await emptyClient.getKairosPerformance()).sample_status, "no_sample");
+
+  const populatedSegment = {
+    key: "SECOND_HALF_OVER_0_5",
+    label: "Seconde période · au moins un but",
+    total_snapshots: 32,
+    resolved_sample_size: 30,
+    success_count: 21,
+    void_count: 1,
+    unresolved_count: 1,
+    observed_hit_rate: 0.7,
+    estimated_probability_mean: 0.76,
+    sample_status: "descriptive_sample_available"
+  };
+  const populatedReport = {
+    ...emptyReport,
+    total_snapshots: 32,
+    resolved: 30,
+    unresolved: 1,
+    void: 1,
+    resolved_sample_size: 30,
+    success_count: 21,
+    observed_hit_rate: 0.7,
+    sample_status: "descriptive_sample_available",
+    performance_by_market: marketKeys.map((key) =>
+      key === populatedSegment.key ? populatedSegment : emptySegment(key)
+    ),
+    performance_by_competition: [populatedSegment],
+    performance_by_probability_band: [populatedSegment],
+    performance_by_quality_level: [populatedSegment],
+    calibration_buckets: [populatedSegment],
+    last_resolution_at: "2026-07-30T11:00:00Z"
+  };
+  const populatedClient = createApiClient({
+    baseUrl: BASE_URL,
+    fetchImpl: async () => jsonResponse(populatedReport)
+  });
+  const performance = await populatedClient.getKairosPerformance();
+  assert.equal(performance.resolved_sample_size, 30);
+  assert.equal(performance.observed_hit_rate, 0.7);
+  assert.equal(performance.void, 1);
+  assert.equal(performance.unresolved, 1);
+});
+
 test("rejects a Kairos payload that activates betting", async () => {
   const client = createApiClient({
     baseUrl: BASE_URL,
@@ -666,6 +787,15 @@ test("fetches a complete Kairos analysis and validates its match id", async () =
     data_quality_score: 80,
     reasons: [],
     warnings: [],
+    data_freshness: {
+      as_of: requestedAsOf,
+      max_available_at: "2026-07-27T11:55:00Z",
+      target_fetched_at: "2026-07-27T11:56:00Z",
+      target_age_minutes: 4,
+      status: "fresh",
+      threshold_minutes: 180
+    },
+    data_availability: {},
     safety_decision: "NO_BET",
     decision: "NO_BET",
     analytical_suggestion: kairosSuggestionPayload,

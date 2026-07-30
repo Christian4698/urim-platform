@@ -25,6 +25,24 @@ Sha256Hex = Annotated[
     Field(pattern=r"^[0-9a-fA-F]{64}$"),
 ]
 
+KairosRejectionReason = Literal[
+    "insufficient_half_time_data",
+    "low_data_quality",
+    "low_technical_confidence",
+    "estimated_probability_below_threshold",
+    "stale_data",
+    "critical_guardrail",
+    "correlated_market_excluded",
+    "provider_data_partial",
+]
+KairosMissingData = Literal[
+    "half_time_scores",
+    "goal_events",
+    "h2h",
+    "standings",
+    "match_statistics",
+]
+
 
 class KairosProbabilities(BaseModel):
     home_win: float = Field(ge=0, le=1)
@@ -513,6 +531,7 @@ class KairosMatchOpportunity(BaseModel):
         "DOUBLE_CHANCE",
         "WATCH",
         "NO_BET",
+        "INSUFFICIENT_DATA",
     ]
     safety_decision: Literal[
         "ANALYSIS_ALLOWED",
@@ -526,6 +545,15 @@ class KairosMatchOpportunity(BaseModel):
     evaluated_markets: list[KairosHalfTimeMarketAnalysis] = Field(
         max_length=6
     )
+    rejection_reasons: list[KairosRejectionReason] = Field(
+        default_factory=list,
+        max_length=8,
+    )
+    missing_data: list[KairosMissingData] = Field(
+        default_factory=list,
+        max_length=5,
+    )
+    data_freshness: Literal["fresh", "stale"] = "fresh"
     read_only: Literal[True] = True
     persisted_by_request: Literal[False] = False
     not_for_betting: Literal[True] = True
@@ -539,6 +567,18 @@ class KairosMatchOpportunity(BaseModel):
                 raise ValueError("Allowed analysis requires one primary.")
         elif self.primary_analysis is not None or self.alternative_analyses:
             raise ValueError("Blocked analysis cannot expose selections.")
+        if self.safety_decision == "ANALYSIS_ALLOWED":
+            if self.rejection_reasons:
+                raise ValueError("Allowed analysis cannot expose rejections.")
+        elif not self.rejection_reasons:
+            raise ValueError("Blocked analysis requires a safe rejection reason.")
+        if (
+            self.safety_decision == "INSUFFICIENT_DATA"
+            and self.section != "INSUFFICIENT_DATA"
+        ):
+            raise ValueError(
+                "Insufficient data must use its dedicated section."
+            )
         primary_market = (
             self.primary_analysis.market if self.primary_analysis else None
         )
@@ -564,6 +604,15 @@ class KairosMatchOpportunity(BaseModel):
         return self
 
 
+class KairosOpportunityDataFreshness(BaseModel):
+    status: Literal["fresh", "stale", "partial", "missing"]
+    fresh_match_count: int = Field(ge=0, le=16)
+    stale_match_count: int = Field(ge=0, le=16)
+    partial_match_count: int = Field(ge=0, le=16)
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class KairosResolvedJournalMetric(BaseModel):
     resolved_sample_size: int = Field(ge=1)
     success_count: int = Field(ge=0)
@@ -585,14 +634,30 @@ class KairosDailyOpportunitiesResponse(BaseModel):
     local_date: date
     timezone: Literal["Africa/Kinshasa"] = "Africa/Kinshasa"
     as_of: datetime
+    generated_at: datetime
     opportunity_count: int = Field(
         ge=0,
         le=MAX_DAILY_OPPORTUNITIES,
     )
     evaluated_match_count: int = Field(ge=0, le=16)
+    skipped_unsafe_match_count: int = Field(ge=0, le=16)
+    watchlist_count: int = Field(ge=0, le=16)
+    no_bet_count: int = Field(ge=0, le=16)
+    insufficient_data_count: int = Field(ge=0, le=16)
+    stale_data_count: int = Field(ge=0, le=16)
+    rejection_reason_counts: dict[KairosRejectionReason, int]
+    message_code: Literal[
+        "opportunities_available",
+        "no_solid_opportunity",
+        "insufficient_data",
+        "partial_sync",
+    ]
+    message: str = Field(min_length=1, max_length=280)
+    data_freshness: KairosOpportunityDataFreshness
     opportunities: list[KairosMatchOpportunity] = Field(
         max_length=MAX_DAILY_OPPORTUNITIES
     )
+    evaluated_matches: list[KairosMatchOpportunity] = Field(max_length=16)
     warnings: list[str] = Field(max_length=6)
     thresholds: dict[str, float]
     calibration_status: Literal["not_calibrated"] = "not_calibrated"
@@ -615,8 +680,132 @@ class KairosDailyOpportunitiesResponse(BaseModel):
     def validate_opportunity_count(self) -> KairosDailyOpportunitiesResponse:
         if self.opportunity_count != len(self.opportunities):
             raise ValueError("opportunity_count must match opportunities.")
+        if self.evaluated_match_count != len(self.evaluated_matches):
+            raise ValueError(
+                "evaluated_match_count must match evaluated_matches."
+            )
+        if any(
+            item.safety_decision != "ANALYSIS_ALLOWED"
+            for item in self.opportunities
+        ):
+            raise ValueError("Opportunities must contain allowed analyses only.")
+        if (
+            self.opportunity_count
+            + self.watchlist_count
+            + self.no_bet_count
+            + self.insufficient_data_count
+            != self.evaluated_match_count
+        ):
+            raise ValueError("Daily opportunity categories are inconsistent.")
+        if (
+            self.evaluated_match_count + self.skipped_unsafe_match_count
+            > 16
+        ):
+            raise ValueError("Daily opportunity evaluation bound exceeded.")
         if self.observed_hit_rate is not None and self.resolved_journal_sample_size == 0:
             raise ValueError("Observed rate requires resolved observations.")
+        return self
+
+
+class KairosPerformanceSegment(BaseModel):
+    key: str = Field(min_length=1, max_length=120)
+    label: str = Field(min_length=1, max_length=160)
+    total_snapshots: int = Field(ge=0)
+    resolved_sample_size: int = Field(ge=0)
+    success_count: int = Field(ge=0)
+    void_count: int = Field(ge=0)
+    unresolved_count: int = Field(ge=0)
+    observed_hit_rate: float | None = Field(default=None, ge=0, le=1)
+    estimated_probability_mean: float | None = Field(
+        default=None,
+        ge=0,
+        le=1,
+    )
+    sample_status: Literal[
+        "no_sample",
+        "insufficient_sample",
+        "descriptive_sample_available",
+    ]
+
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def validate_performance_segment(self) -> KairosPerformanceSegment:
+        if self.success_count > self.resolved_sample_size:
+            raise ValueError("Success count exceeds resolved sample.")
+        if (
+            self.resolved_sample_size
+            + self.void_count
+            + self.unresolved_count
+            != self.total_snapshots
+        ):
+            raise ValueError("Performance segment counts are inconsistent.")
+        if self.resolved_sample_size == 0:
+            if self.observed_hit_rate is not None:
+                raise ValueError("An empty segment cannot expose a hit rate.")
+            if self.sample_status != "no_sample":
+                raise ValueError("An empty segment must report no_sample.")
+        else:
+            expected = self.success_count / self.resolved_sample_size
+            if (
+                self.observed_hit_rate is None
+                or abs(self.observed_hit_rate - expected) > 0.0001
+            ):
+                raise ValueError("Observed rate is inconsistent with counts.")
+        return self
+
+
+class KairosPerformanceResponse(BaseModel):
+    generated_at: datetime
+    total_snapshots: int = Field(ge=0)
+    resolved: int = Field(ge=0)
+    unresolved: int = Field(ge=0)
+    void: int = Field(ge=0)
+    resolved_sample_size: int = Field(ge=0)
+    success_count: int = Field(ge=0)
+    observed_hit_rate: float | None = Field(default=None, ge=0, le=1)
+    sample_status: Literal[
+        "no_sample",
+        "insufficient_sample",
+        "descriptive_sample_available",
+    ]
+    performance_by_market: list[KairosPerformanceSegment]
+    performance_by_competition: list[KairosPerformanceSegment]
+    performance_by_probability_band: list[KairosPerformanceSegment]
+    performance_by_quality_level: list[KairosPerformanceSegment]
+    calibration_buckets: list[KairosPerformanceSegment]
+    last_resolution_at: datetime | None
+    last_report_generated_at: datetime
+    warnings: list[str] = Field(max_length=6)
+    calibration_status: Literal["not_calibrated"] = "not_calibrated"
+    read_only: Literal[True] = True
+    db_writes: Literal[False] = False
+    provider_calls: Literal[False] = False
+    automatic_betting_enabled: Literal[False] = False
+    not_for_betting: Literal[True] = True
+
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def validate_performance_counts(self) -> KairosPerformanceResponse:
+        if self.resolved != self.resolved_sample_size:
+            raise ValueError("Resolved count and sample size must match.")
+        if self.resolved + self.unresolved + self.void != self.total_snapshots:
+            raise ValueError("Performance totals are inconsistent.")
+        if self.success_count > self.resolved_sample_size:
+            raise ValueError("Success count exceeds resolved sample.")
+        if self.resolved_sample_size == 0:
+            if self.observed_hit_rate is not None:
+                raise ValueError("An empty report cannot expose a hit rate.")
+            if self.sample_status != "no_sample":
+                raise ValueError("An empty report must report no_sample.")
+        else:
+            expected = self.success_count / self.resolved_sample_size
+            if (
+                self.observed_hit_rate is None
+                or abs(self.observed_hit_rate - expected) > 0.0001
+            ):
+                raise ValueError("Observed rate is inconsistent with counts.")
         return self
 
 
@@ -630,9 +819,14 @@ __all__ = [
     "KairosMethodologyResponse",
     "KairosHalfTimeMarketAnalysis",
     "KairosMatchOpportunity",
+    "KairosMissingData",
     "KairosMarketProbabilities",
+    "KairosOpportunityDataFreshness",
+    "KairosPerformanceResponse",
+    "KairosPerformanceSegment",
     "KairosProbabilities",
     "KairosProvenance",
+    "KairosRejectionReason",
     "KairosResolvedJournalMetric",
     "KairosOpportunityCandidate",
     "KairosReason",

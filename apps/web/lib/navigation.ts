@@ -5,6 +5,7 @@ export const navigationItems = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
   { href: "/suggestions", label: "Suggestions du jour", icon: "dashboard" },
   { href: "/opportunities", label: "Opportunity Center", icon: "dashboard" },
+  { href: "/kairos/performance", label: "Performance Kairos", icon: "dashboard" },
   { href: "/donnees-sportives", label: "Données sportives", icon: "system" },
   { href: "/disponibilite", label: "Disponibilité", icon: "system" },
   { href: "/modules", label: "Modules", icon: "modules" },
